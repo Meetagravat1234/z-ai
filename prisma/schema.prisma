@@ -1,0 +1,119 @@
+// Prisma schema for CareerNest — a HireSetu-inspired career intelligence platform
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  role      String   @default("candidate") // candidate | employer | admin
+  avatar    String?
+  headline  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  savedJobs     SavedJob[]
+  applications  Application[]
+}
+
+model Company {
+  id            String   @id @default(cuid())
+  name          String
+  slug          String   @unique
+  logo          String?
+  website       String?
+  industry      String?
+  size          String?  // "1-10", "11-50", "51-200", "201-1000", "1000+"
+  hq            String?
+  description   String?
+  culture       String?
+  benefits      String?  // comma-separated
+  verified      Boolean  @default(true)
+  hiringActivity String? // "Low" | "Medium" | "High"
+  sevenDayTrend Int      @default(0)  // percent change, can be negative
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  jobs Job[]
+}
+
+model Job {
+  id            String   @id @default(cuid())
+  title         String
+  companyId     String
+  company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  category      String   // "fresher" | "internship" | "walk-in" | "hidden" | "experienced" | "remote"
+  employmentType String  @default("Full-time") // Full-time, Part-time, Contract, Internship
+  workMode      String   @default("Onsite") // Onsite, Remote, Hybrid
+  experience    String   // "0 Years", "0-2 Years", "1 Year", "3-5 Years" etc
+  salaryMin     Int?     // in LPA * 10 (so 8.5 LPA = 85)
+  salaryMax     Int?
+  salaryCurrency String  @default("INR")
+  location      String   // comma-separated for multiple
+  skills        String   // comma-separated
+  description   String
+  applyUrl      String?
+  postedAt      DateTime @default(now())
+  verified      Boolean  @default(true)
+  isFeatured    Boolean  @default(false)
+  viewsCount    Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  savedJobs    SavedJob[]
+  applications Application[]
+}
+
+model SavedJob {
+  id        String   @id @default(cuid())
+  userId    String
+  jobId     String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, jobId])
+}
+
+// Application tracker — Kanban board
+model Application {
+  id           String   @id @default(cuid())
+  userId       String
+  jobId        String?
+  company      String
+  role         String
+  location     String?
+  salary       String?
+  status       String   @default("wishlist") // wishlist | applied | screening | interview | offer | rejected
+  appliedAt    DateTime @default(now())
+  notes        String?
+  url          String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  job  Job? @relation(fields: [jobId], references: [id], onDelete: SetNull)
+}
+
+model Article {
+  id          String   @id @default(cuid())
+  title       String
+  slug        String   @unique
+  excerpt     String
+  content     String
+  category    String   // "fresher" | "interview" | "resume" | "career" | "industry"
+  tags        String   // comma-separated
+  author      String   @default("CareerNest Editorial")
+  readMinutes Int      @default(5)
+  coverEmoji   String   @default("📄")
+  published   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
