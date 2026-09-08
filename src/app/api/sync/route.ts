@@ -8,6 +8,10 @@ import {
   fetchGreenhouse,
   fetchLever,
   fetchAshby,
+  fetchTheMuse,
+  fetchRemoteOK,
+  fetchWeWorkRemotely,
+  fetchIndeedRSS,
 } from '@/lib/job-sources/sources'
 
 // GET /api/sync — runs one sync cycle (one source, ~5-8 jobs max)
@@ -35,6 +39,31 @@ export async function GET(req: NextRequest) {
       case 'arbeitnow':
         result = await fetchArbeitnow()
         break
+      case 'themuse':
+        result = await fetchTheMuse()
+        break
+      case 'remoteok':
+        result = await fetchRemoteOK()
+        break
+      case 'weworkremotely':
+        result = await fetchWeWorkRemotely()
+        break
+      case 'indeed-rss':
+        result = await fetchIndeedRSS()
+        break
+      case 'web-search': {
+        const { fetchWebSearch } = await import('@/lib/job-sources/web-search-adapter')
+        result = await fetchWebSearch(forcedParam || 'software engineer jobs India')
+        break
+      }
+      case 'career-page': {
+        const { fetchCareerPage, CAREER_PAGES_LIST } = await import('@/lib/job-sources/web-search-adapter')
+        const entry = forcedParam
+          ? CAREER_PAGES_LIST.find((c) => c.company.toLowerCase() === forcedParam.toLowerCase()) || CAREER_PAGES_LIST[0]
+          : CAREER_PAGES_LIST[Math.floor(Math.random() * CAREER_PAGES_LIST.length)]
+        result = await fetchCareerPage(entry)
+        break
+      }
       default:
         return NextResponse.json({ error: `Unknown source: ${forcedSource}` }, { status: 400 })
     }
@@ -44,7 +73,6 @@ export async function GET(req: NextRequest) {
       where: { status: 'success' },
       orderBy: { startedAt: 'desc' },
     })
-    // We can't easily store the index, so we just count successful syncs today
     const today = new Date()
     today.setHours(0, 0, 0, 0)
     const todayCount = await db.jobSync.count({

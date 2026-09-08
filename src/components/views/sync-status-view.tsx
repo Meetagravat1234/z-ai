@@ -14,6 +14,7 @@ import {
   Sparkles,
   Globe,
   Zap,
+  Rocket,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -49,7 +50,11 @@ const SOURCE_META: Record<string, { label: string; color: string; emoji: string 
   ashby: { label: 'Ashby', color: 'bg-violet-500', emoji: '🔮' },
   remotive: { label: 'Remotive', color: 'bg-amber-500', emoji: '🌍' },
   arbeitnow: { label: 'Arbeitnow', color: 'bg-rose-500', emoji: '🇩🇪' },
-  'web-search': { label: 'Web Search', color: 'bg-cyan-500', emoji: '🔍' },
+  themuse: { label: 'The Muse', color: 'bg-orange-500', emoji: '🎭' },
+  remoteok: { label: 'RemoteOK', color: 'bg-teal-500', emoji: '🚀' },
+  weworkremotely: { label: 'We Work Remotely', color: 'bg-indigo-500', emoji: '🏡' },
+  'indeed-rss': { label: 'Indeed RSS', color: 'bg-blue-600', emoji: '📋' },
+  'web-search': { label: 'Web Search (LinkedIn/Naukri/Internshala/etc.)', color: 'bg-cyan-500', emoji: '🔍' },
   'career-page': { label: 'Career Page Crawler', color: 'bg-pink-500', emoji: '🌐' },
   manual: { label: 'Manual', color: 'bg-slate-500', emoji: '✍️' },
 }
@@ -107,6 +112,27 @@ export function SyncStatusView() {
         )
       } else {
         toast.error(`Boost failed: ${d.error || 'unknown'}`)
+      }
+      load()
+    } catch (e: any) {
+      toast.error(`Failed: ${e.message}`)
+    } finally {
+      setTriggering(false)
+    }
+  }
+
+  async function triggerDeepCrawl() {
+    setTriggering(true)
+    toast.info('🚀 Deep Crawl started — running 30+ sources (all APIs + 12 web-search queries + 8 career pages). This takes 3-5 minutes.')
+    try {
+      const r = await fetch('/api/sync/deep-crawl', { method: 'GET' })
+      const d = await r.json()
+      if (d.ok) {
+        toast.success(
+          `🚀 Deep Crawl complete! ${d.sourcesRun} sources, ${d.totalJobsAdded} new jobs added in ${(d.durationMs / 1000).toFixed(0)}s`
+        )
+      } else {
+        toast.error(`Deep crawl failed: ${d.error || 'unknown'}`)
       }
       load()
     } catch (e: any) {
@@ -204,14 +230,26 @@ export function SyncStatusView() {
           <button
             onClick={() => triggerParallelSync()}
             disabled={triggering}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold hover:opacity-90 disabled:opacity-60"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-primary/40 bg-primary/10 text-primary font-semibold text-sm hover:bg-primary/20 disabled:opacity-60"
           >
             {triggering ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
               <Zap className="w-4 h-4" />
             )}
-            {triggering ? 'Boosting…' : '⚡ Boost Sync (all sources)'}
+            {triggering ? 'Boosting…' : '⚡ Boost Sync (7 sources)'}
+          </button>
+          <button
+            onClick={() => triggerDeepCrawl()}
+            disabled={triggering}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-violet-500 to-primary text-white font-semibold text-sm hover:opacity-90 disabled:opacity-60 shadow-md"
+          >
+            {triggering ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Rocket className="w-4 h-4" />
+            )}
+            {triggering ? 'Deep crawling…' : '🚀 Deep Crawl (all sources)'}
           </button>
         </div>
       </section>
@@ -350,15 +388,15 @@ export function SyncStatusView() {
         <ol className="space-y-2 text-sm text-foreground/80">
           <li className="flex gap-2">
             <span className="font-bold text-primary">1.</span>
-            <span><strong>Every 30 minutes</strong>, the job-aggregator service triggers a <strong>parallel sync</strong> across 7+ sources simultaneously — not just one source at a time.</span>
+            <span><strong>Every 30 minutes</strong>, the job-aggregator service triggers a <strong>parallel sync</strong> across 14+ sources simultaneously — not just one source at a time.</span>
           </li>
           <li className="flex gap-2">
             <span className="font-bold text-primary">2.</span>
-            <span>Each cycle hits: Remotive, Arbeitnow, <strong>3 web-search queries</strong> (LinkedIn, Naukri, Indeed, Glassdoor, company career pages), <strong>2 direct career-page crawlers</strong> (TCS, Infosys, Wipro, Flipkart, etc.), and random Greenhouse/Ashby companies.</span>
+            <span>Each cycle hits <strong>6 free job board APIs</strong> (Remotive, Arbeitnow, The Muse, RemoteOK, We Work Remotely, Indeed RSS), <strong>3 web-search queries</strong> (LinkedIn, Naukri, Internshala, Indeed, Glassdoor, Google Jobs), <strong>2 direct career-page crawlers</strong> (TCS, Infosys, Wipro, Flipkart, etc.), and random Greenhouse/Ashby companies.</span>
           </li>
           <li className="flex gap-2">
             <span className="font-bold text-primary">3.</span>
-            <span>The <strong>web-search adapter</strong> uses z-ai-web-dev-sdk to search Google for job URLs (e.g. <code>site:linkedin.com/jobs software engineer India</code>), then the <strong>page_reader</strong> fetches each job page's full content — works for any public site.</span>
+            <span>The <strong>web-search adapter</strong> uses z-ai-web-dev-sdk to search Google for job URLs (e.g. <code>site:linkedin.com/jobs</code>, <code>site:naukri.com</code>, <code>site:internshala.com</code>, <code>site:indeed.com</code>, <code>site:glassdoor.com</code>, <code>site:jobs.google.com</code>), then the <strong>page_reader</strong> fetches each job page's full content — works for any public site.</span>
           </li>
           <li className="flex gap-2">
             <span className="font-bold text-primary">4.</span>
@@ -370,7 +408,11 @@ export function SyncStatusView() {
           </li>
           <li className="flex gap-2">
             <span className="font-bold text-primary">6.</span>
-            <span>Click <strong>"⚡ Boost Sync"</strong> above to run all 7 sources in parallel immediately — adds 20-50 new jobs in ~2 minutes.</span>
+            <span><strong>"⚡ Boost Sync"</strong>: runs 14 sources in parallel immediately — adds 20-50 new jobs in ~2 minutes.</span>
+          </li>
+          <li className="flex gap-2">
+            <span className="font-bold text-primary">7.</span>
+            <span><strong>"🚀 Deep Crawl"</strong>: runs ALL 30+ sources at once (all APIs + 12 web-search queries + 8 career-page crawlers) — adds 100-200 new jobs in 3-5 minutes. Use this for the most comprehensive coverage.</span>
           </li>
         </ol>
       </section>

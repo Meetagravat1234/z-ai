@@ -78,6 +78,7 @@ export function JobCard({ job, compact = false }: { job: Job; compact?: boolean 
   const sourceEmoji: Record<string, string> = {
     greenhouse: '🌱', lever: '⚡', ashby: '🔮', remotive: '🌍', arbeitnow: '🇩🇪',
     'web-search': '🔍', 'career-page': '🌐',
+    themuse: '🎭', remoteok: '🚀', weworkremotely: '🏡', 'indeed-rss': '📋',
   }
   const sourceIcon = job.source && sourceEmoji[job.source]
 

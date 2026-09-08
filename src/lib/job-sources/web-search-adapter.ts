@@ -36,22 +36,96 @@ export interface FetchResult {
 }
 
 // Search queries that target different job sources — varied so we get diverse results
+// Now covers: LinkedIn, Naukri, Indeed, Glassdoor, Internshala, Google Jobs,
+// plus role-specific + location-specific queries for India
 const SEARCH_QUERIES = [
+  // === SITE-SPECIFIC QUERIES (per platform) ===
+  // LinkedIn
   'site:linkedin.com/jobs software engineer India 2026',
+  'site:linkedin.com/jobs data scientist India',
+  'site:linkedin.com/jobs product manager Bengaluru',
+  'site:linkedin.com/jobs full stack developer India remote',
+  'site:linkedin.com/jobs devops engineer India',
+  // Naukri
   'site:naukri.com software developer fresher India',
+  'site:naukri.com data analyst jobs India',
+  'site:naukri.com python developer jobs Bengaluru',
+  'site:naukri.com java developer jobs India',
+  'site:naukri.com frontend developer jobs India',
+  // Internshala (user specifically requested)
+  'site:internshala.com internship software engineer',
+  'site:internshala.com internship data science',
+  'site:internshala.com internship web development',
+  'site:internshala.com internship marketing India',
+  'site:internshala.com internship python',
+  // Indeed
+  'site:indeed.com software engineer India',
+  'site:indeed.com data scientist India Bengaluru',
+  'site:in.indeed.com React developer jobs',
+  'site:indeed.com devops engineer jobs India',
+  // Glassdoor
+  'site:glassdoor.com software engineer India',
+  'site:glassdoor.com job-listing Bengaluru developer',
+  // Google Jobs
+  'site:jobs.google.com software engineer India',
+  'site:careers.google.com software engineer India',
+  'site:careers.google.com product manager India',
+  // ATS systems (Greenhouse, Lever, Ashby)
+  'site:boards.greenhouse.io software engineer India',
   'site:jobs.ashbyhq.com software engineer remote',
-  'site:lever.co software engineer India',
-  'site:greenhouse.io software engineer India',
+  'site:jobs.lever.co software engineer India',
+  // === ROLE-SPECIFIC QUERIES (any source) ===
   'software engineer jobs India freshers 2026',
   'frontend developer jobs India remote 2026',
   'backend engineer jobs Bengaluru Hyderabad',
   'data scientist jobs India fresher',
+  'data analyst jobs India entry level',
   'devops engineer jobs India remote',
   'full stack developer jobs India 2026',
-  'site:indeed.com software engineer India',
-  'site:glassdoor.com software engineer India',
+  'machine learning engineer jobs India',
+  'AI engineer jobs India Bengaluru',
   'product manager jobs India Bengaluru',
   'UI UX designer jobs India remote',
+  'graphic designer jobs India remote',
+  'mobile developer Android iOS jobs India',
+  'React Native developer jobs India',
+  'iOS developer jobs India Bengaluru',
+  'Android developer jobs India Hyderabad',
+  'Python developer jobs India remote',
+  'Java developer jobs India Bengaluru',
+  'Node.js developer jobs India',
+  'Go developer jobs India remote',
+  'Rust developer jobs India',
+  'Cloud engineer AWS Azure jobs India',
+  'Site Reliability Engineer jobs India',
+  'Security engineer jobs India',
+  'QA engineer automation jobs India',
+  'Test engineer jobs India',
+  'Technical writer jobs India remote',
+  'Customer success engineer jobs India',
+  'Sales engineer technical jobs India',
+  'Solutions architect jobs India',
+  // === INTERNSHIP-SPECIFIC ===
+  'software engineering internship India 2026',
+  'data science internship India',
+  'product management internship India',
+  'MBA internship India',
+  'marketing internship India remote',
+  // === LOCATION-SPECIFIC ===
+  'software engineer jobs Bengaluru freshers',
+  'software engineer jobs Hyderabad 2026',
+  'software engineer jobs Chennai',
+  'software engineer jobs Pune',
+  'software engineer jobs Mumbai',
+  'software engineer jobs Delhi NCR',
+  'software engineer jobs remote India',
+  // === EXPERIENCE-LEVEL QUERIES ===
+  'fresher software engineer jobs India 2026',
+  'entry level developer jobs India no experience',
+  'junior software engineer jobs India remote',
+  'senior software engineer jobs India Bengaluru',
+  'staff engineer jobs India',
+  'walk in interview software jobs India',
 ]
 
 let zaiInstance: any = null
@@ -81,13 +155,18 @@ export async function fetchWebSearch(query: string): Promise<FetchResult> {
     const jobUrlPatterns = [
       /linkedin\.com\/jobs\//i,
       /naukri\.com\/job/i,
-      /indeed\.com\/viewjob/i,
-      /glassdoor\.com\/job-listing/i,
+      /internshala\.com\/(job|internship)\//i,
+      /indeed\.com\/(viewjob|rc\/clk)/i,
+      /glassdoor\.com\/(job-listing|partner\/job)/i,
+      /jobs\.google\.com\//i,
+      /careers\.google\.com\/jobs\//i,
       /jobs\.lever\.co\//i,
       /boards\.greenhouse\.io\//i,
       /jobs\.ashbyhq\.com\//i,
       /careers\./i,
       /\/jobs?\//i,
+      /\/internships?\//i,
+      /\/careers?\//i,
     ]
     const filtered = searchResults.filter((r: any) => {
       const url = r.url || r.host_name || ''
@@ -288,6 +367,31 @@ export async function fetchRandomWebSearch(): Promise<FetchResult> {
 export async function fetchRandomCareerPage(): Promise<FetchResult> {
   const entry = CAREER_PAGES[Math.floor(Math.random() * CAREER_PAGES.length)]
   return fetchCareerPage(entry)
+}
+
+// DEEP CRAWL — runs MANY search queries in parallel batches for massive ingestion
+// Returns aggregated results as if from one "deep-crawl" source
+export async function fetchDeepCrawl(): Promise<Array<FetchResult>> {
+  // Pick 12 random queries (out of 60+) — staggered to avoid rate limits
+  const shuffled = [...SEARCH_QUERIES].sort(() => Math.random() - 0.5)
+  const queries = shuffled.slice(0, 12)
+
+  // Run in batches of 4 (3 batches total) with 2s delay between batches
+  const results: Array<FetchResult> = []
+  const batchSize = 4
+  for (let i = 0; i < queries.length; i += batchSize) {
+    const batch = queries.slice(i, i + batchSize)
+    const batchPromises = batch.map((q) => fetchWebSearch(q))
+    const batchResults = await Promise.allSettled(batchPromises)
+    for (const r of batchResults) {
+      if (r.status === 'fulfilled') results.push(r.value)
+    }
+    // Small delay between batches to avoid 429 rate limits
+    if (i + batchSize < queries.length) {
+      await new Promise((r) => setTimeout(r, 2000))
+    }
+  }
+  return results
 }
 
 export const WEB_SEARCH_QUERIES = SEARCH_QUERIES
