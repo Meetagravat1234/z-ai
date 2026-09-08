@@ -17,6 +17,10 @@ import {
   GraduationCap,
   EyeOff,
   UserCheck,
+  Target,
+  BarChart3,
+  BookOpen,
+  GitCompare,
 } from 'lucide-react'
 import { useNav } from '@/lib/nav-store'
 import { JobCard, type Job } from '@/components/jobs/job-card'
@@ -177,11 +181,11 @@ export function HomeView() {
           <div>
             <h2 className="text-2xl font-bold tracking-tight">AI-Powered Career Tools</h2>
             <p className="text-sm text-muted-foreground mt-1">
-              Four intelligent assistants to accelerate your job search.
+              Six intelligent assistants to accelerate your job search.
             </p>
           </div>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {[
             {
               id: 'ai-resume',
@@ -190,6 +194,14 @@ export function HomeView() {
               icon: FileText,
               accent: 'from-violet-500/20 to-primary/20',
               border: 'border-violet-500/30',
+            },
+            {
+              id: 'ats-score',
+              title: 'ATS Score Checker',
+              desc: 'Get an ATS compatibility score (0-100) and specific fix recommendations.',
+              icon: FileText,
+              accent: 'from-emerald-500/20 to-cyan-500/20',
+              border: 'border-emerald-500/30',
             },
             {
               id: 'ai-cover-letter',
@@ -206,6 +218,14 @@ export function HomeView() {
               icon: Mic,
               accent: 'from-emerald-500/20 to-cyan-500/20',
               border: 'border-emerald-500/30',
+            },
+            {
+              id: 'skill-gap',
+              title: 'Skill Gap Analyzer',
+              desc: 'Find skills missing for your target role + get a personalized learning path.',
+              icon: Target,
+              accent: 'from-violet-500/20 to-rose-500/20',
+              border: 'border-violet-500/30',
             },
             {
               id: 'ai-salary',
@@ -244,6 +264,55 @@ export function HomeView() {
                     Open tool <ArrowRight className="w-3 h-3" />
                   </div>
                 </div>
+              </button>
+            )
+          })}
+        </div>
+      </section>
+
+      {/* INSIGHTS & TOOLS */}
+      <section>
+        <div className="flex items-end justify-between mb-5">
+          <div>
+            <h2 className="text-2xl font-bold tracking-tight">Insights & Decision Tools</h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              Data-driven tools to help you research, compare, and prepare.
+            </p>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {[
+            {
+              id: 'salary-dashboard',
+              title: 'Salary Dashboard',
+              desc: 'Interactive charts showing salary trends by role, company, city, and experience level.',
+              icon: BarChart3,
+            },
+            {
+              id: 'question-bank',
+              title: 'Interview Question Bank',
+              desc: 'Searchable database of real interview questions with AI-generated model answers.',
+              icon: BookOpen,
+            },
+            {
+              id: 'compare-jobs',
+              title: 'Compare Jobs',
+              desc: 'Compare 2-3 jobs side by side to help decide which one to apply for.',
+              icon: GitCompare,
+            },
+          ].map((tool) => {
+            const Icon = tool.icon
+            return (
+              <button
+                key={tool.id}
+                onClick={() => go(tool.id as any)}
+                className="text-left rounded-2xl border border-border bg-card p-5 card-lift"
+              >
+                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mb-3">
+                  <Icon className="w-5 h-5 text-primary" />
+                </div>
+                <h3 className="font-bold">{tool.title}</h3>
+                <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">{tool.desc}</p>
               </button>
             )
           })}

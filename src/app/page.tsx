@@ -17,6 +17,11 @@ import { PricingView } from '@/components/views/pricing-view'
 import { SavedJobsView } from '@/components/views/saved-jobs-view'
 import { TrackerView } from '@/components/views/tracker-view'
 import { SyncStatusView } from '@/components/views/sync-status-view'
+import { SalaryDashboardView } from '@/components/views/salary-dashboard-view'
+import { QuestionBankView } from '@/components/views/question-bank-view'
+import { SkillGapView } from '@/components/views/skill-gap-view'
+import { CompareJobsView } from '@/components/views/compare-jobs-view'
+import { ATSScoreView } from '@/components/views/ats-score-view'
 import { AIResumeOptimizer } from '@/components/views/ai-resume-view'
 import { AICoverLetter } from '@/components/views/ai-cover-letter-view'
 import { AIMockInterview } from '@/components/views/ai-mock-interview-view'
@@ -90,6 +95,16 @@ function ViewRouter({ view }: { view: string }) {
       return <PricingView />
     case 'sync-status':
       return <SyncStatusView />
+    case 'salary-dashboard':
+      return <SalaryDashboardView />
+    case 'question-bank':
+      return <QuestionBankView />
+    case 'skill-gap':
+      return <SkillGapView />
+    case 'compare-jobs':
+      return <CompareJobsView />
+    case 'ats-score':
+      return <ATSScoreView />
     default:
       return <HomeView />
   }

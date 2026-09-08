@@ -20,6 +20,9 @@ import {
   Wallet,
   KanbanSquare,
   Home as HomeIcon,
+  Target,
+  BarChart3,
+  GitCompare,
 } from 'lucide-react'
 import { useNav, type ViewId } from '@/lib/nav-store'
 import { cn } from '@/lib/utils'
@@ -42,9 +45,14 @@ const COMMANDS: Array<{
   { id: 'walk-in', label: 'Walk-in Jobs', hint: 'Direct interview drives', icon: Users, group: 'Categories' },
   { id: 'hidden', label: 'Hidden Jobs', hint: 'Referral-only opportunities', icon: EyeOff, group: 'Categories' },
   { id: 'ai-resume', label: 'AI Resume Optimizer', hint: 'Tailor your resume to any JD', icon: FileText, group: 'AI Tools' },
+  { id: 'ats-score', label: 'ATS Score Checker', hint: 'Check if your resume passes ATS', icon: FileText, group: 'AI Tools' },
   { id: 'ai-cover-letter', label: 'AI Cover Letter', hint: 'Generate a personalized cover letter', icon: Sparkles, group: 'AI Tools' },
   { id: 'ai-mock-interview', label: 'AI Mock Interview', hint: 'Practice with an AI interviewer', icon: Mic, group: 'AI Tools' },
+  { id: 'skill-gap', label: 'Skill Gap Analyzer', hint: 'Find skills missing for your target role', icon: Target, group: 'AI Tools' },
   { id: 'ai-salary', label: 'Salary Predictor', hint: 'Predict realistic salary ranges', icon: Wallet, group: 'AI Tools' },
+  { id: 'salary-dashboard', label: 'Salary Dashboard', hint: 'Charts: salary by role, company, city, experience', icon: BarChart3, group: 'Insights & Tools' },
+  { id: 'question-bank', label: 'Interview Question Bank', hint: 'Searchable questions with AI model answers', icon: BookOpen, group: 'Insights & Tools' },
+  { id: 'compare-jobs', label: 'Compare Jobs', hint: 'Compare 2-3 jobs side by side', icon: GitCompare, group: 'Insights & Tools' },
   { id: 'saved', label: 'Saved Jobs', hint: 'Your bookmarked jobs', icon: Bookmark, group: 'My Career' },
   { id: 'tracker', label: 'Application Tracker', hint: 'Kanban board for applications', icon: KanbanSquare, group: 'My Career' },
 ]

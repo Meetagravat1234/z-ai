@@ -14,6 +14,7 @@ import {
   EyeOff,
   Bookmark,
   FileText,
+  FileCheck,
   Sparkles,
   Mic,
   Wallet,
@@ -24,6 +25,9 @@ import {
   Home as HomeIcon,
   Search,
   Activity,
+  Target,
+  BarChart3,
+  GitCompare,
 } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { useNav, type ViewId } from '@/lib/nav-store'
@@ -64,9 +68,19 @@ const navGroups: Array<{
     label: 'AI Tools',
     items: [
       { id: 'ai-resume', label: 'AI Resume Optimizer', icon: FileText, accent: 'ai', badge: 'NEW' },
+      { id: 'ats-score', label: 'ATS Score Checker', icon: FileCheck, accent: 'ai', badge: 'NEW' },
       { id: 'ai-cover-letter', label: 'AI Cover Letter', icon: Sparkles, accent: 'ai', badge: 'NEW' },
       { id: 'ai-mock-interview', label: 'AI Mock Interview', icon: Mic, accent: 'ai', badge: 'NEW' },
+      { id: 'skill-gap', label: 'Skill Gap Analyzer', icon: Target, accent: 'ai', badge: 'NEW' },
       { id: 'ai-salary', label: 'Salary Predictor', icon: Wallet, accent: 'ai', badge: 'NEW' },
+    ],
+  },
+  {
+    label: 'Insights & Tools',
+    items: [
+      { id: 'salary-dashboard', label: 'Salary Dashboard', icon: BarChart3 },
+      { id: 'question-bank', label: 'Interview Questions', icon: BookOpen },
+      { id: 'compare-jobs', label: 'Compare Jobs', icon: GitCompare },
     ],
   },
   {

@@ -24,6 +24,11 @@ export type ViewId =
   | 'about'
   | 'pricing'
   | 'sync-status'
+  | 'salary-dashboard'
+  | 'question-bank'
+  | 'skill-gap'
+  | 'compare-jobs'
+  | 'ats-score'
 
 interface NavState {
   view: ViewId
