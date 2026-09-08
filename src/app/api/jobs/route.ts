@@ -54,6 +54,7 @@ export async function GET(req: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '100')
     const offset = parseInt(searchParams.get('offset') || '0')
     const featured = searchParams.get('featured')
+    const source = searchParams.get('source')
 
     const where: any = {}
     if (q) {
@@ -72,6 +73,7 @@ export async function GET(req: NextRequest) {
     if (minSalary) where.salaryMin = { gte: parseInt(minSalary) }
     if (maxSalary) where.salaryMax = { lte: parseInt(maxSalary) }
     if (featured === 'true') where.isFeatured = true
+    if (source && source !== 'all') where.source = source
 
     if (company) {
       where.company = { slug: company }

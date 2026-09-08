@@ -349,6 +349,21 @@ export function JobDetailView() {
               Apply link opens the official {job.company.name} application page in a new tab. CareerNest is not the employer.
             </p>
           )}
+          {(job as any).source && (job as any).source !== 'manual' && (
+            <div className="mt-3 inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-muted text-xs font-medium text-muted-foreground">
+              <SourceBadge source={(job as any).source} />
+              <span>Sourced via public {(job as any).source} API</span>
+              {(job as any).enriched && (
+                <>
+                  <span>·</span>
+                  <span className="text-violet-500 inline-flex items-center gap-1">
+                    <Sparkles className="w-3 h-3" />
+                    AI-enriched
+                  </span>
+                </>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -591,6 +606,20 @@ function StatCard({
       <div className="font-bold text-sm">{value}</div>
     </div>
   )
+}
+
+const SOURCE_EMOJI: Record<string, string> = {
+  greenhouse: '🌱',
+  lever: '⚡',
+  ashby: '🔮',
+  remotive: '🌍',
+  arbeitnow: '🇩🇪',
+  'web-search': '🔍',
+  manual: '✍️',
+}
+
+function SourceBadge({ source }: { source: string }) {
+  return <span>{SOURCE_EMOJI[source] || '📌'}</span>
 }
 
 function Row({

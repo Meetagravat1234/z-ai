@@ -16,6 +16,7 @@ import { AboutView } from '@/components/views/about-view'
 import { PricingView } from '@/components/views/pricing-view'
 import { SavedJobsView } from '@/components/views/saved-jobs-view'
 import { TrackerView } from '@/components/views/tracker-view'
+import { SyncStatusView } from '@/components/views/sync-status-view'
 import { AIResumeOptimizer } from '@/components/views/ai-resume-view'
 import { AICoverLetter } from '@/components/views/ai-cover-letter-view'
 import { AIMockInterview } from '@/components/views/ai-mock-interview-view'
@@ -87,6 +88,8 @@ function ViewRouter({ view }: { view: string }) {
       return <AboutView />
     case 'pricing':
       return <PricingView />
+    case 'sync-status':
+      return <SyncStatusView />
     default:
       return <HomeView />
   }

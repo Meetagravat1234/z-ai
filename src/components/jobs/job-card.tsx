@@ -24,6 +24,10 @@ export interface Job {
   verified: boolean
   isFeatured: boolean
   viewsCount: number
+  source?: string
+  sourceRef?: string | null
+  enriched?: boolean
+  createdAt?: string
   company: {
     id: string
     name: string
@@ -67,6 +71,14 @@ export function JobCard({ job, compact = false }: { job: Job; compact?: boolean 
   const salary = formatSalary(job.salaryMin, job.salaryMax)
   const skills = job.skills.split(',').filter(Boolean).slice(0, 4)
   const locations = job.location.split(',').filter(Boolean)
+  const isNew = (() => {
+    const ts = job.createdAt ? new Date(job.createdAt).getTime() : new Date(job.postedAt).getTime()
+    return Date.now() - ts < 24 * 60 * 60 * 1000
+  })()
+  const sourceEmoji: Record<string, string> = {
+    greenhouse: '🌱', lever: '⚡', ashby: '🔮', remotive: '🌍', arbeitnow: '🇩🇪', 'web-search': '🔍'
+  }
+  const sourceIcon = job.source && sourceEmoji[job.source]
 
   async function toggleSave(e: React.MouseEvent) {
     e.stopPropagation()
@@ -96,10 +108,20 @@ export function JobCard({ job, compact = false }: { job: Job; compact?: boolean 
     <div
       onClick={() => openJob(job.id)}
       className={cn(
-        'group cursor-pointer rounded-2xl border border-border bg-card p-5 card-lift',
-        compact && 'p-4'
+        'group cursor-pointer rounded-2xl border border-border bg-card p-5 card-lift relative',
+        compact && 'p-4',
+        isNew && 'border-emerald-500/40'
       )}
     >
+      {isNew && (
+        <span className="absolute -top-2 -right-2 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500 text-white shadow-md inline-flex items-center gap-1">
+          <span className="relative flex h-1.5 w-1.5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-white"></span>
+          </span>
+          NEW
+        </span>
+      )}
       <div className="flex items-start gap-3">
         <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-muted to-muted/50 flex items-center justify-center text-xl shrink-0 border border-border">
           {job.company.logo || <Building2 className="w-5 h-5 text-muted-foreground" />}
@@ -107,8 +129,9 @@ export function JobCard({ job, compact = false }: { job: Job; compact?: boolean 
         <div className="flex-1 min-w-0">
           <div className="flex items-start gap-2 justify-between">
             <div className="min-w-0">
-              <div className="text-xs text-muted-foreground font-medium truncate">
+              <div className="text-xs text-muted-foreground font-medium truncate flex items-center gap-1.5">
                 {job.company.name}
+                {sourceIcon && <span title={`Source: ${job.source}`}>{sourceIcon}</span>}
               </div>
               <h3 className="font-semibold text-foreground truncate group-hover:text-primary transition-colors">
                 {job.title}

@@ -50,6 +50,8 @@ export function HomeView() {
   const [companies, setCompanies] = React.useState<Company[]>([])
   const [articles, setArticles] = React.useState<Article[]>([])
   const [stats, setStats] = React.useState({ jobs: 0, companies: 0 })
+  const [newToday, setNewToday] = React.useState(0)
+  const [lastSync, setLastSync] = React.useState<{ source: string; ts: string } | null>(null)
 
   React.useEffect(() => {
     Promise.all([
@@ -57,7 +59,8 @@ export function HomeView() {
       fetch('/api/companies').then((r) => r.json()),
       fetch('/api/articles?limit=3').then((r) => r.json()),
       fetch('/api/jobs?limit=200').then((r) => r.json()),
-    ]).then(([recent, comps, arts, allJobs]) => {
+      fetch('/api/sync/status').then((r) => r.json()),
+    ]).then(([recent, comps, arts, allJobs, sync]) => {
       setJobs(recent.jobs || [])
       setCompanies((comps.companies || []).slice(0, 8))
       setArticles(arts.articles || [])
@@ -65,11 +68,45 @@ export function HomeView() {
         jobs: (allJobs.jobs || []).length,
         companies: (comps.companies || []).length,
       })
+      setNewToday(sync.newToday || 0)
+      if (sync.lastSuccess) {
+        setLastSync({ source: sync.lastSuccess.source, ts: sync.lastSuccess.startedAt })
+      }
     })
   }, [])
 
   return (
     <div className="space-y-12 pb-8">
+      {/* Live sync banner */}
+      {(newToday > 0 || lastSync) && (
+        <button
+          onClick={() => go('sync-status')}
+          className="w-full rounded-2xl border border-emerald-500/30 bg-emerald-500/5 px-4 py-3 flex items-center justify-between gap-3 hover:bg-emerald-500/10 transition-colors text-left"
+        >
+          <div className="flex items-center gap-3">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+            </span>
+            <div>
+              <div className="font-semibold text-sm">
+                {newToday > 0
+                  ? `${newToday} new job${newToday !== 1 ? 's' : ''} added in the last 24 hours`
+                  : 'Live sync active'}
+              </div>
+              {lastSync && (
+                <div className="text-xs text-muted-foreground">
+                  Last sync: {lastSync.source} · {new Date(lastSync.ts).toLocaleTimeString()}
+                </div>
+              )}
+            </div>
+          </div>
+          <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 hidden sm:inline">
+            View sync status →
+          </span>
+        </button>
+      )}
+
       {/* HERO */}
       <section className="relative overflow-hidden rounded-3xl border border-border bg-card">
         <div className="absolute inset-0 bg-grid opacity-50" />

@@ -23,6 +23,7 @@ export type ViewId =
   | 'tracker'
   | 'about'
   | 'pricing'
+  | 'sync-status'
 
 interface NavState {
   view: ViewId
