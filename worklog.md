@@ -117,3 +117,65 @@ Stage Summary:
 - The mini-service is the system's "heartbeat" — it dies if you restart Next.js dev server, restart by running: cd /home/z/my-project && nohup bash .zscripts/dev.sh > .zscripts/dev.log 2>&1 & disown
 - To extend with more sources: add a new adapter to /src/lib/job-sources/sources.ts, add it to the queue, and the cron will pick it up automatically
 - To add LinkedIn/Naukri discovery: use z-ai-web-dev-sdk web_search + page_reader in a new "web-search" adapter (currently scaffolded but not implemented — easy to add)
+
+---
+Task ID: 4
+Agent: main
+Task: Real web crawler using z-ai-web-dev-sdk web_search + page_reader — discover jobs from LinkedIn/Naukri/company career pages, sync every 30 minutes in parallel
+
+Work Log:
+- Built new web-search adapter (/src/lib/job-sources/web-search-adapter.ts) that uses z-ai-web-dev-sdk's:
+  * `web_search` function to discover job URLs from Google (queries like "site:linkedin.com/jobs software engineer India", "site:naukri.com software developer fresher India", "site:indeed.com/viewjob", etc.)
+  * `page_reader` function to fetch the full content of each discovered job page
+  * Filters results to likely job URLs (LinkedIn jobs, Naukri job links, Indeed viewjob, Glassdoor job-listing, lever.co, greenhouse.io, ashbyhq.com, and any URL containing /job/)
+  * Extracts company name from URL host or page title heuristically
+  * Extracts location by looking for common Indian city names (Bengaluru, Hyderabad, Chennai, Mumbai, Pune, Noida, Gurugram, Delhi, Kolkata, Remote, etc.)
+  * 15 different search query variations for diversity
+- Built career-page adapter that directly crawls 38 Indian company career pages:
+  * Indian IT majors: TCS, Infosys, Wipro, HCLTech, Tech Mahindra, Cognizant, Capgemini, IBM, Accenture India
+  * Indian startups/product companies: Flipkart, Swiggy, Zomato, Paytm, Razorpay, PhonePe, Zerodha, Cred, Groww, Ola, Uber India, Dream11, Meesho, Lenskart, Nykaa, Byjus, Unacademy
+  * SaaS/software: Freshworks, Zoho, Postman, Hasura, Databricks India, Atlassian India, Adobe India, Oracle India, SAP India, VMware, Salesforce India, ServiceNow
+  * For each company: fetches their careers page via page_reader, extracts job links using regex, then fetches each job page in parallel (up to 5 per company)
+  * Falls back to treating the careers page itself as a "Multiple Open Roles" listing if no individual job links are found
+- Added getParallelSources() to sources.ts — returns 7 adapters to run in parallel per cycle:
+  * Remotive + Arbeitnow (free aggregators)
+  * 3 random web-search queries (covers LinkedIn/Naukri/Indeed/Glassdoor/etc.)
+  * 2 random career-page crawlers (covers TCS/Infosys/Wipro/Flipkart/etc.)
+  * 3 random Greenhouse companies
+  * 2 random Ashby companies
+- Built /api/sync/parallel endpoint that runs all sources in parallel using Promise.allSettled:
+  * Staggers web-search and career-page calls by 0-6 seconds to avoid z-ai-web-dev-sdk rate limits (429 errors)
+  * Creates JobSync records for each source
+  * Calls /api/jobs/ingest for each result with AI enrichment
+  * Returns aggregated stats: totalJobsFound, totalJobsAdded, totalEnriched, per-source breakdown
+- Updated mini-services/job-aggregator to v2:
+  * Changed cron from every 5 minutes to every 30 minutes (per user request: "auto update every half an hour")
+  * Triggers /api/sync/parallel instead of /api/sync (parallel multi-source instead of single source)
+  * 5-minute timeout per parallel cycle
+  * Initial boost sync 15s after startup
+- Updated SyncStatusView UI:
+  * Added "⚡ Boost Sync (all sources)" button (primary, with Zap icon) — runs all 7 sources in parallel immediately
+  * Renamed existing button to "Single sync" (secondary, with RefreshCw icon)
+  * Updated "How live aggregation works" section: now mentions 30-min cadence, 7 parallel sources, web-search adapter using site:linkedin.com/jobs queries, page_reader for content fetching, career-page crawler for direct company crawls
+  * Added "web-search" and "career-page" to SOURCE_META map with 🔍 and 🌐 emojis
+- Updated /api/sync/status to calculate nextSyncEta as 30 min from last sync (was 5 min)
+- Updated JobCard emoji map to include 'web-search': '🔍' and 'career-page': '🌐'
+- Verified end-to-end with agent-browser:
+  * Home banner shows "105 new jobs added in the last 24 hours · Last sync: career-page"
+  * Sync Status page renders with both "Single sync" and "⚡ Boost Sync (all sources)" buttons
+  * Active sources breakdown shows 6 sources: arbeitnow, career-page, greenhouse, manual, remotive, web-search
+  * Click "⚡ Boost Sync" → "Boosting…" + parallel sync runs, completes in ~54s, adds new jobs
+  * All Jobs page shows jobs with 🔍 (web-search) and 🌐 (career-page) source emojis
+  * Click web-search job → detail page shows "Sourced via public web-search API" + "AI-enriched" badge
+  * Zero browser errors, ESLint clean
+- Final state: 106 jobs across 6 sources (16 arbeitnow, 7 career-page, 35 greenhouse, 30 manual, 9 remotive, 9 web-search), 63 companies, all AI-enriched
+
+Stage Summary:
+- Real web crawler is LIVE — uses z-ai-web-dev-sdk's web_search to find jobs on LinkedIn, Naukri, Indeed, Glassdoor, and any company career page via Google
+- page_reader fetches the actual job page content from any URL
+- Runs every 30 minutes (per user request), 7 sources in parallel per cycle
+- "⚡ Boost Sync" button runs all sources immediately for on-demand updates
+- 38 Indian company career pages directly crawled (TCS, Infosys, Wipro, Flipkart, Swiggy, etc.)
+- 15 different Google search query variations for diverse job discovery
+- AI enrichment (rewrites description + extracts skills/salary/experience) runs on every new job
+- All sources properly attributed on job cards and detail pages

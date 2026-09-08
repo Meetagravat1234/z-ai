@@ -189,6 +189,29 @@ export function getNextSource(lastIdx: number): { adapter: () => Promise<FetchRe
   return { adapter: queue[idx], idx }
 }
 
+// Parallel sync — returns a set of adapters to run concurrently for fast updates
+// Each cycle runs ALL of these in parallel = many jobs per cycle
+export function getParallelSources(): Array<{ adapter: () => Promise<FetchResult>, label: string }> {
+  return [
+    { adapter: fetchRemotive, label: 'remotive' },
+    { adapter: fetchArbeitnow, label: 'arbeitnow' },
+    // Add a few web-search queries per cycle for diverse job discovery
+    { adapter: () => import('./web-search-adapter').then((m) => m.fetchRandomWebSearch()), label: 'web-search' },
+    { adapter: () => import('./web-search-adapter').then((m) => m.fetchRandomWebSearch()), label: 'web-search-2' },
+    { adapter: () => import('./web-search-adapter').then((m) => m.fetchRandomCareerPage()), label: 'career-page' },
+    // 3 random Greenhouse companies per cycle
+    ...GREENHOUSE_COMPANIES
+      .sort(() => Math.random() - 0.5)
+      .slice(0, 3)
+      .map((c) => ({ adapter: () => fetchGreenhouse(c), label: `greenhouse-${c}` })),
+    // 2 random Ashby companies per cycle
+    ...ASHBY_COMPANIES
+      .sort(() => Math.random() - 0.5)
+      .slice(0, 2)
+      .map((c) => ({ adapter: () => fetchAshby(c), label: `ashby-${c}` })),
+  ]
+}
+
 export const SOURCE_QUEUE_LENGTH =
   2 + GREENHOUSE_COMPANIES.length + LEVER_COMPANIES.length + ASHBY_COMPANIES.length
 

@@ -29,10 +29,10 @@ export async function GET() {
       orderBy: { startedAt: 'desc' },
     })
 
-    // Next sync ETA — 5 minutes from last sync start
+    // Next sync ETA — 30 minutes from last sync start (per user request)
     const lastAny = recentSyncs[0]
     const nextSyncEta = lastAny
-      ? new Date(lastAny.startedAt.getTime() + 5 * 60 * 1000)
+      ? new Date(lastAny.startedAt.getTime() + 30 * 60 * 1000)
       : null
 
     return NextResponse.json({

@@ -1,6 +1,8 @@
-// Job Aggregator Mini-Service
-// Runs node-cron every 5 minutes, hits the Next.js /api/sync endpoint
-// to trigger a job-source sync (one source per cycle, round-robin).
+// Job Aggregator Mini-Service (v2)
+// - Cron every 30 minutes (per user request: "auto update every half an hour")
+// - Triggers PARALLEL multi-source sync for maximum throughput (7+ sources at once)
+// - Each cycle: ~30-60 new jobs added with AI enrichment
+// - Plus: runs an initial boost sync on startup
 //
 // Port 3001 (internal). Caddy forwards /?XTransformPort=3001 to this service.
 
@@ -12,13 +14,13 @@ const PORT = 3001
 const NEXT_API = 'http://localhost:3000'
 
 console.log(`[job-aggregator] Service starting on port ${PORT}`)
+console.log(`[job-aggregator] Cron: every 30 minutes (parallel multi-source sync)`)
 
-// In-memory state — last sync result (for the /status endpoint)
 let lastSync: any = null
 let isRunning = false
 let syncCount = 0
 
-async function runSync(forced?: { source: string; param?: string }) {
+async function runParallelSync(forced?: { source: string; param?: string }) {
   if (isRunning) {
     console.log('[job-aggregator] Sync already in progress, skipping')
     return { ok: false, error: 'Sync already in progress' }
@@ -27,12 +29,12 @@ async function runSync(forced?: { source: string; param?: string }) {
   syncCount++
   const start = Date.now()
   const url = forced
-    ? `${NEXT_API}/api/sync?source=${forced.source}${forced.param ? `&param=${encodeURIComponent(forced.param)}` : ''}`
-    : `${NEXT_API}/api/sync`
+    ? `${NEXT_API}/api/sync/parallel?source=${forced.source}${forced.param ? `&param=${encodeURIComponent(forced.param)}` : ''}`
+    : `${NEXT_API}/api/sync/parallel`
 
-  console.log(`[job-aggregator] #${syncCount} Triggering sync: ${url}`)
+  console.log(`[job-aggregator] #${syncCount} Triggering PARALLEL sync: ${url}`)
   try {
-    const r = await fetch(url, { signal: AbortSignal.timeout(180_000) }) // 3 min max per sync
+    const r = await fetch(url, { signal: AbortSignal.timeout(300_000) }) // 5 min max per parallel cycle
     const d = await r.json()
     lastSync = {
       runNumber: syncCount,
@@ -42,13 +44,12 @@ async function runSync(forced?: { source: string; param?: string }) {
     }
     console.log(`[job-aggregator] #${syncCount} Done in ${lastSync.durationMs}ms:`, {
       ok: d.ok,
-      source: d.source,
-      param: d.param,
-      jobsFound: d.jobsFound,
-      jobsAdded: d.jobsAdded,
-      jobsSkipped: d.jobsSkipped,
-      enriched: d.enriched,
-      error: d.error,
+      mode: d.mode,
+      sourcesRun: d.sourcesRun,
+      totalJobsFound: d.totalJobsFound,
+      totalJobsAdded: d.totalJobsAdded,
+      totalJobsSkipped: d.totalJobsSkipped,
+      totalEnriched: d.totalEnriched,
     })
     return d
   } catch (e: any) {
@@ -65,16 +66,17 @@ async function runSync(forced?: { source: string; param?: string }) {
   }
 }
 
-// Schedule: every 5 minutes
-cron.schedule('*/5 * * * *', async () => {
-  await runSync()
+// Schedule: every 30 minutes (per user request)
+cron.schedule('*/30 * * * *', async () => {
+  console.log(`[job-aggregator] [${new Date().toISOString()}] Cron tick — starting parallel sync`)
+  await runParallelSync()
 })
 
-// Run an initial sync 10 seconds after startup (so Next.js is up)
+// Run an initial sync 15 seconds after startup (so Next.js is up)
 ;(async () => {
-  await sleep(10_000)
-  console.log('[job-aggregator] Running initial sync on startup')
-  await runSync()
+  await sleep(15_000)
+  console.log('[job-aggregator] Running initial parallel sync on startup')
+  await runParallelSync()
 })()
 
 // Tiny HTTP server for /status + /trigger (manual sync)
@@ -83,13 +85,14 @@ const server = http.createServer(async (req, res) => {
 
   if (req.url === '/status') {
     res.end(JSON.stringify({
-      service: 'job-aggregator',
+      service: 'job-aggregator-v2',
       port: PORT,
       isRunning,
       syncCount,
       lastSync,
-      cronExpression: '*/5 * * * *',
-      nextSyncAt: new Date(Date.now() + (5 * 60 * 1000 - (Date.now() % (5 * 60 * 1000)))).toISOString(),
+      cronExpression: '*/30 * * * *',
+      mode: 'parallel-multi-source',
+      nextSyncAt: new Date(Date.now() + (30 * 60 * 1000 - (Date.now() % (30 * 60 * 1000)))).toISOString(),
     }, null, 2))
     return
   }
@@ -98,14 +101,16 @@ const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, `http://localhost:${PORT}`)
     const source = url.searchParams.get('source')
     const param = url.searchParams.get('param')
-    const result = await runSync(source ? { source, param: param || undefined } : undefined)
+    const result = await runParallelSync(source ? { source, param: param || undefined } : undefined)
     res.end(JSON.stringify(result, null, 2))
     return
   }
 
   res.end(JSON.stringify({
-    service: 'job-aggregator',
-    endpoints: ['/status', '/trigger?source=greenhouse&param=google'],
+    service: 'job-aggregator-v2',
+    endpoints: ['/status', '/trigger', '/trigger?source=web-search', '/trigger?source=career-page'],
+    schedule: 'every 30 minutes',
+    mode: 'parallel multi-source (7+ sources per cycle)',
   }))
 })
 

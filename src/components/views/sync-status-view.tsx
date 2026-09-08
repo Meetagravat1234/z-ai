@@ -50,6 +50,7 @@ const SOURCE_META: Record<string, { label: string; color: string; emoji: string 
   remotive: { label: 'Remotive', color: 'bg-amber-500', emoji: '🌍' },
   arbeitnow: { label: 'Arbeitnow', color: 'bg-rose-500', emoji: '🇩🇪' },
   'web-search': { label: 'Web Search', color: 'bg-cyan-500', emoji: '🔍' },
+  'career-page': { label: 'Career Page Crawler', color: 'bg-pink-500', emoji: '🌐' },
   manual: { label: 'Manual', color: 'bg-slate-500', emoji: '✍️' },
 }
 
@@ -85,6 +86,27 @@ export function SyncStatusView() {
         )
       } else {
         toast.error(`Sync failed: ${d.error || 'unknown error'}`)
+      }
+      load()
+    } catch (e: any) {
+      toast.error(`Failed: ${e.message}`)
+    } finally {
+      setTriggering(false)
+    }
+  }
+
+  async function triggerParallelSync() {
+    setTriggering(true)
+    toast.info('Boost sync started — running 7 sources in parallel…')
+    try {
+      const r = await fetch('/api/sync/parallel', { method: 'GET' })
+      const d = await r.json()
+      if (d.ok) {
+        toast.success(
+          `Boost complete! ${d.sourcesRun} sources, ${d.totalJobsAdded} new jobs added in ${(d.durationMs / 1000).toFixed(0)}s`
+        )
+      } else {
+        toast.error(`Boost failed: ${d.error || 'unknown'}`)
       }
       load()
     } catch (e: any) {
@@ -166,18 +188,32 @@ export function SyncStatusView() {
             </div>
           </div>
         </div>
-        <button
-          onClick={() => triggerSync()}
-          disabled={triggering}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold hover:opacity-90 disabled:opacity-60"
-        >
-          {triggering ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            <RefreshCw className="w-4 h-4" />
-          )}
-          {triggering ? 'Syncing…' : 'Sync now'}
-        </button>
+        <div className="flex gap-2 flex-wrap">
+          <button
+            onClick={() => triggerSync()}
+            disabled={triggering}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-border bg-background hover:bg-muted font-semibold text-sm disabled:opacity-60"
+          >
+            {triggering ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <RefreshCw className="w-4 h-4" />
+            )}
+            {triggering ? 'Syncing…' : 'Single sync'}
+          </button>
+          <button
+            onClick={() => triggerParallelSync()}
+            disabled={triggering}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold hover:opacity-90 disabled:opacity-60"
+          >
+            {triggering ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Zap className="w-4 h-4" />
+            )}
+            {triggering ? 'Boosting…' : '⚡ Boost Sync (all sources)'}
+          </button>
+        </div>
       </section>
 
       {/* Sources breakdown */}
@@ -314,23 +350,27 @@ export function SyncStatusView() {
         <ol className="space-y-2 text-sm text-foreground/80">
           <li className="flex gap-2">
             <span className="font-bold text-primary">1.</span>
-            <span>Every 5 minutes, the job-aggregator service picks the next source in a round-robin queue.</span>
+            <span><strong>Every 30 minutes</strong>, the job-aggregator service triggers a <strong>parallel sync</strong> across 7+ sources simultaneously — not just one source at a time.</span>
           </li>
           <li className="flex gap-2">
             <span className="font-bold text-primary">2.</span>
-            <span>It fetches job listings from that source (public ATS APIs like Greenhouse, Lever, Ashby, or free aggregators like Remotive and Arbeitnow).</span>
+            <span>Each cycle hits: Remotive, Arbeitnow, <strong>3 web-search queries</strong> (LinkedIn, Naukri, Indeed, Glassdoor, company career pages), <strong>2 direct career-page crawlers</strong> (TCS, Infosys, Wipro, Flipkart, etc.), and random Greenhouse/Ashby companies.</span>
           </li>
           <li className="flex gap-2">
             <span className="font-bold text-primary">3.</span>
-            <span>Each new job is deduplicated by source+sourceRef or by hash of (title, company, location).</span>
+            <span>The <strong>web-search adapter</strong> uses z-ai-web-dev-sdk to search Google for job URLs (e.g. <code>site:linkedin.com/jobs software engineer India</code>), then the <strong>page_reader</strong> fetches each job page's full content — works for any public site.</span>
           </li>
           <li className="flex gap-2">
             <span className="font-bold text-primary">4.</span>
-            <span>AI rewrites the raw description into clean Markdown with structured sections, and extracts skills, experience level, salary range, and category.</span>
+            <span>Each new job is deduplicated by source+sourceRef or by hash of (title, company, location).</span>
           </li>
           <li className="flex gap-2">
             <span className="font-bold text-primary">5.</span>
-            <span>The enriched job is saved to the database with full source attribution, ready to display.</span>
+            <span>AI rewrites the raw description into clean Markdown with structured sections, and extracts skills, experience level, salary range, and category.</span>
+          </li>
+          <li className="flex gap-2">
+            <span className="font-bold text-primary">6.</span>
+            <span>Click <strong>"⚡ Boost Sync"</strong> above to run all 7 sources in parallel immediately — adds 20-50 new jobs in ~2 minutes.</span>
           </li>
         </ol>
       </section>

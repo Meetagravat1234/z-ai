@@ -76,7 +76,8 @@ export function JobCard({ job, compact = false }: { job: Job; compact?: boolean 
     return Date.now() - ts < 24 * 60 * 60 * 1000
   })()
   const sourceEmoji: Record<string, string> = {
-    greenhouse: '🌱', lever: '⚡', ashby: '🔮', remotive: '🌍', arbeitnow: '🇩🇪', 'web-search': '🔍'
+    greenhouse: '🌱', lever: '⚡', ashby: '🔮', remotive: '🌍', arbeitnow: '🇩🇪',
+    'web-search': '🔍', 'career-page': '🌐',
   }
   const sourceIcon = job.source && sourceEmoji[job.source]
 
