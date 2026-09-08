@@ -18,7 +18,10 @@ export async function GET(req: NextRequest) {
         },
       })
       if (!company) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-      return NextResponse.json({ company })
+
+      // Inject the parent company into each job so JobCard can render without a separate fetch
+      const jobs = company.jobs.map((j) => ({ ...j, company }))
+      return NextResponse.json({ company: { ...company, jobs } })
     }
 
     const companies = await db.company.findMany({

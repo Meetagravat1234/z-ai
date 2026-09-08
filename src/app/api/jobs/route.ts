@@ -4,6 +4,42 @@ import { db } from '@/lib/db'
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
+
+    // Single job fetch: /api/jobs?id=<jobId>
+    const id = searchParams.get('id')
+    if (id) {
+      const job = await db.job.findUnique({
+        where: { id },
+        include: { company: true },
+      })
+      if (!job) return NextResponse.json({ error: 'Job not found' }, { status: 404 })
+
+      // Related jobs: same category or same company, exclude self
+      const related = await db.job.findMany({
+        where: {
+          AND: [
+            { id: { not: job.id } },
+            { verified: true },
+            {
+              OR: [
+                { companyId: job.companyId },
+                { category: job.category },
+                { skills: { contains: job.skills.split(',')[0] || '' } },
+              ],
+            },
+          ],
+        },
+        include: { company: true },
+        take: 6,
+        orderBy: { postedAt: 'desc' },
+      })
+
+      // Increment view count (fire-and-forget)
+      db.job.update({ where: { id }, data: { viewsCount: { increment: 1 } } }).catch(() => {})
+
+      return NextResponse.json({ job, related })
+    }
+
     const q = searchParams.get('q')?.toLowerCase()
     const category = searchParams.get('category')
     const company = searchParams.get('company')

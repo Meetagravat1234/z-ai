@@ -48,8 +48,10 @@ function timeAgo(dateStr: string) {
 function formatSalary(min: number | null, max: number | null) {
   if (min == null && max == null) return null
   const fmt = (n: number) => {
-    if (n >= 100) return `${(n / 100).toFixed(0)} LPA`
-    return `${(n / 10).toFixed(1)} LPA`
+    // Schema stores salary in LPA * 10 (so 8.5 LPA = 85, 18 LPA = 180)
+    const lpa = n / 10
+    if (Number.isInteger(lpa)) return `${lpa} LPA`
+    return `${lpa.toFixed(1)} LPA`
   }
   if (min != null && max != null) return `₹${fmt(min)} – ${fmt(max)}`
   if (min != null) return `₹${fmt(min)}+`
@@ -58,7 +60,7 @@ function formatSalary(min: number | null, max: number | null) {
 }
 
 export function JobCard({ job, compact = false }: { job: Job; compact?: boolean }) {
-  const { go } = useNav()
+  const { openJob } = useNav()
   const [saved, setSaved] = React.useState(false)
   const [saving, setSaving] = React.useState(false)
 
@@ -92,7 +94,7 @@ export function JobCard({ job, compact = false }: { job: Job; compact?: boolean 
 
   return (
     <div
-      onClick={() => go('all-jobs', { q: job.title })}
+      onClick={() => openJob(job.id)}
       className={cn(
         'group cursor-pointer rounded-2xl border border-border bg-card p-5 card-lift',
         compact && 'p-4'

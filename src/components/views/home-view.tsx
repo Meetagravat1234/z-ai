@@ -45,7 +45,7 @@ interface Article {
 }
 
 export function HomeView() {
-  const { go } = useNav()
+  const { go, openCompany } = useNav()
   const [jobs, setJobs] = React.useState<Job[]>([])
   const [companies, setCompanies] = React.useState<Company[]>([])
   const [articles, setArticles] = React.useState<Article[]>([])
@@ -294,7 +294,7 @@ export function HomeView() {
             return (
               <button
                 key={c.id}
-                onClick={() => go('companies')}
+                onClick={() => openCompany(c.slug)}
                 className="text-left rounded-2xl border border-border bg-card p-4 card-lift"
               >
                 <div className="flex items-center gap-3">

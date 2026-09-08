@@ -19,7 +19,7 @@ interface Company {
 }
 
 export function CompaniesView() {
-  const { go } = useNav()
+  const { openCompany } = useNav()
   const [companies, setCompanies] = React.useState<Company[]>([])
   const [loading, setLoading] = React.useState(true)
   const [q, setQ] = React.useState('')
@@ -89,7 +89,7 @@ export function CompaniesView() {
               <div
                 key={c.id}
                 className="rounded-2xl border border-border bg-card p-5 card-lift cursor-pointer"
-                onClick={() => go('all-jobs', { company: c.slug })}
+                onClick={() => openCompany(c.slug)}
               >
                 <div className="flex items-start gap-3">
                   <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-muted to-muted/50 border border-border flex items-center justify-center text-2xl">
@@ -142,7 +142,7 @@ export function CompaniesView() {
                 <button
                   onClick={(e) => {
                     e.stopPropagation()
-                    go('all-jobs', { company: c.slug })
+                    openCompany(c.slug)
                   }}
                   className="mt-4 w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-primary/10 text-primary text-sm font-semibold hover:bg-primary/20 transition-colors"
                 >

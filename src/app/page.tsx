@@ -6,6 +6,8 @@ import { Sidebar, TopNav, BottomNav } from '@/components/layout/sidebar'
 import { CommandPalette } from '@/components/command/command-palette'
 import { HomeView } from '@/components/views/home-view'
 import { JobsView } from '@/components/views/jobs-view'
+import { JobDetailView } from '@/components/views/job-detail-view'
+import { CompanyDetailView } from '@/components/views/company-detail-view'
 import { CompaniesView } from '@/components/views/companies-view'
 import { InsightsView } from '@/components/views/insights-view'
 import { DiscoverView } from '@/components/views/discover-view'
@@ -51,8 +53,12 @@ function ViewRouter({ view }: { view: string }) {
       return <DiscoverView />
     case 'all-jobs':
       return <JobsView />
+    case 'job-detail':
+      return <JobDetailView />
     case 'companies':
       return <CompaniesView />
+    case 'company-detail':
+      return <CompanyDetailView />
     case 'insights':
       return <InsightsView />
     case 'ground-truth':

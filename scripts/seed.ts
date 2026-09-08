@@ -103,6 +103,7 @@ async function main() {
   for (const j of jobs) {
     const companyId = companyMap[j.company]
     if (!companyId) continue
+    const companyData = companies.find((c) => c.name === j.company)
     await db.job.create({
       data: {
         title: j.title,
@@ -117,7 +118,7 @@ async function main() {
         location: j.location,
         skills: j.skills,
         description: j.description,
-        applyUrl: `https://example.com/apply`,
+        applyUrl: companyData?.website ? `${companyData.website}/careers` : 'https://example.com/careers',
         postedAt: new Date(Date.now() - j.postedAtDaysAgo * 24 * 60 * 60 * 1000),
         isFeatured: Math.random() > 0.7,
         verified: true,
