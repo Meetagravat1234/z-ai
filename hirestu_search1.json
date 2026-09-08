@@ -1,0 +1,83 @@
+[
+  {
+    "url": "https://sourcehut.org",
+    "name": "sourcehut - the hacker's forge",
+    "snippet": "sourcehut is a network of useful open source tools for software project maintainers and collaborators, including git repos, bug tracking, ...",
+    "host_name": "sourcehut.org",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://contexture.org/unified-contexture-hie-platform",
+    "name": "Contexture Upgrades to Unified HIE Technology Platform",
+    "snippet": "Apr 4, 2023 — Improved data exchange capabilities : The platform will provide greater electronic health record (EHR) interoperability and data management. Read more",
+    "host_name": "contexture.org",
+    "rank": 1,
+    "date": "Apr 4, 2023",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.coursera.org/articles/hris",
+    "name": "What is a Human Resource Information System (HRIS)",
+    "snippet": "Mar 4, 2026 — These systems typically include modules for tracking employee data, managing employee records, and processing payroll.",
+    "host_name": "www.coursera.org",
+    "rank": 2,
+    "date": "Mar 4, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://slashdot.org/software/comparison/HireHumain-vs-ThirstySprout",
+    "name": "Compare HireHumain vs. ThirstySprout in 2026",
+    "snippet": "The platform combines an intelligent CRM with agentic AI that automates candidate sourcing, personalized outreach, pre-screening, scheduling, and engagement. Read more",
+    "host_name": "slashdot.org",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.hrcloud.com/blog/what-is-an-hris",
+    "name": "What Is an HRIS? Why Every Business Needs One",
+    "snippet": "Aug 19, 2026 — An HRIS centralizes employee data, documents, compliance records, and HR workflows in one searchable, permission-controlled system. Read more",
+    "host_name": "www.hrcloud.com",
+    "rank": 4,
+    "date": "Aug 19, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.peoplegoal.com/blog/hris-systems-list",
+    "name": "Top 10 HRIS Systems to Streamline HR Operations",
+    "snippet": "Jul 3, 2026 — A modern Human Resource Information System (HRIS), also known as an HRMS, brings all your core HR functions into one centralized platform . Read more",
+    "host_name": "www.peoplegoal.com",
+    "rank": 5,
+    "date": "Jul 3, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://intuitionlabs.ai/articles/global-health-information-systems",
+    "name": "Guide to Global Health Management Information Systems",
+    "snippet": "Aug 19, 2025 — Strengths: Robust clinical functionality and configurable modules ; long track record across diverse health systems; strong internationalization ... Read more",
+    "host_name": "intuitionlabs.ai",
+    "rank": 6,
+    "date": "Aug 19, 2025",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.indeed.com/hire/c/info/hris-software-tools",
+    "name": "16 HRIS Software Tools for 2025",
+    "snippet": "Jan 30, 2026 — Its key capabilities include advanced org charts, position management and succession planning . The platform also offers add-ons for other HR ... Read more",
+    "host_name": "www.indeed.com",
+    "rank": 7,
+    "date": "Jan 30, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://resources.workable.com/tutorial/hris-software-features",
+    "name": "10 HRIS software features to look for in an HR solution",
+    "snippet": "Oct 2, 2023 — Top 10 must-have HRIS software features · 1. Employee self-service · 2. Recruitment management and onboarding · 3. Employee database · 4. Payroll ... Read more",
+    "host_name": "resources.workable.com",
+    "rank": 8,
+    "date": "Oct 2, 2023",
+    "favicon": ""
+  }
+]
