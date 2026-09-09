@@ -4,6 +4,7 @@ import * as React from 'react'
 import { Loader2, Sparkles, AlertCircle, CheckCircle2, Target, BookOpen, Rocket, Lightbulb, Clock } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { ResumeUpload } from '@/components/resume-upload'
 
 interface GapResult {
   targetRoleSummary?: string
@@ -85,10 +86,14 @@ export function SkillGapView() {
         <div className="space-y-4 rounded-2xl border border-border bg-card p-5">
           <div>
             <label className="text-sm font-bold mb-1.5 block">Your current skills (comma-separated)</label>
+            <ResumeUpload
+              onTextExtracted={(text) => setSkills(text)}
+              label="Upload resume to auto-extract skills"
+            />
             <textarea
               value={skills}
               onChange={(e) => setSkills(e.target.value)}
-              placeholder="e.g. Python, JavaScript, React, SQL, Git, basic AWS"
+              placeholder="e.g. Python, JavaScript, React, SQL, Git, basic AWS — or upload your resume above to auto-extract."
               className="w-full min-h-[100px] p-3 rounded-xl border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
             />
             <div className="text-xs text-muted-foreground mt-1">{skills.split(',').filter(s => s.trim()).length} skills</div>

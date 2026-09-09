@@ -3,6 +3,7 @@
 import * as React from 'react'
 import { Loader2, Sparkles, Copy, Check, AlertCircle, FileText } from 'lucide-react'
 import { toast } from 'sonner'
+import { ResumeUpload } from '@/components/resume-upload'
 
 export function AICoverLetter() {
   const [resume, setResume] = React.useState('')
@@ -77,10 +78,11 @@ export function AICoverLetter() {
           </div>
           <div>
             <label className="text-sm font-bold mb-1.5 block">Your resume</label>
+            <ResumeUpload onTextExtracted={(text) => setResume(text)} />
             <textarea
               value={resume}
               onChange={(e) => setResume(e.target.value)}
-              placeholder="Paste your resume here."
+              placeholder="Paste your resume here, or upload a PDF/Word file above."
               className="w-full min-h-[200px] p-4 rounded-xl border border-border bg-card text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/40"
             />
           </div>

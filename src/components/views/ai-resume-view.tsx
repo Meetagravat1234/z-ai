@@ -3,6 +3,7 @@
 import * as React from 'react'
 import { Loader2, FileText, Sparkles, Copy, Check, AlertCircle } from 'lucide-react'
 import { toast } from 'sonner'
+import { ResumeUpload } from '@/components/resume-upload'
 
 export function AIResumeOptimizer() {
   const [resume, setResume] = React.useState('')
@@ -55,10 +56,11 @@ export function AIResumeOptimizer() {
         <div className="space-y-4">
           <div>
             <label className="text-sm font-bold mb-1.5 block">Your current resume</label>
+            <ResumeUpload onTextExtracted={(text) => setResume(text)} />
             <textarea
               value={resume}
               onChange={(e) => setResume(e.target.value)}
-              placeholder="Paste your full resume here. Include work experience, education, skills, and projects."
+              placeholder="Paste your full resume here, or upload a PDF/Word file above. Include work experience, education, skills, and projects."
               className="w-full min-h-[260px] p-4 rounded-xl border border-border bg-card text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/40"
             />
             <div className="text-xs text-muted-foreground mt-1">{resume.length} chars</div>

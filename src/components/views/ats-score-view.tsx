@@ -4,6 +4,7 @@ import * as React from 'react'
 import { Loader2, Sparkles, AlertCircle, CheckCircle2, FileText, TrendingUp, Copy, Check } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { ResumeUpload } from '@/components/resume-upload'
 
 interface ATSResult {
   overallScore?: number
@@ -86,10 +87,11 @@ export function ATSScoreView() {
         <div className="space-y-4">
           <div>
             <label className="text-sm font-bold mb-1.5 block">Your resume</label>
+            <ResumeUpload onTextExtracted={(text) => setResume(text)} />
             <textarea
               value={resume}
               onChange={(e) => setResume(e.target.value)}
-              placeholder="Paste your full resume text here."
+              placeholder="Paste your resume text here, or upload a PDF/Word file above."
               className="w-full min-h-[240px] p-4 rounded-xl border border-border bg-card text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/40"
             />
             <div className="text-xs text-muted-foreground mt-1">{resume.length} chars</div>
