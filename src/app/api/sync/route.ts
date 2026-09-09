@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { ingestJobs } from '@/lib/ingest'
+import crypto from 'crypto'
 import {
   getNextSource,
   SOURCE_QUEUE_LENGTH,
