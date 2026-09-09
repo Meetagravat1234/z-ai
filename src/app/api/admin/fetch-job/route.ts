@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import ZAI from 'z-ai-web-dev-sdk'
+import { getZai } from '@/lib/zai-loader'
 import { db } from '@/lib/db'
 import { getAdminUser } from '@/lib/admin-auth'
 import crypto from 'crypto'
@@ -19,7 +20,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Step 1: Fetch the page content using z-ai-web-dev-sdk page_reader
-    const zai = await ZAI.create()
+    const zai = await getZai()
     const pageData: any = await zai.functions.invoke('page_reader', { url })
 
     if (!pageData || !pageData.data) {

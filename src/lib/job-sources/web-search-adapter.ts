@@ -128,13 +128,7 @@ const SEARCH_QUERIES = [
   'walk in interview software jobs India',
 ]
 
-let zaiInstance: any = null
-async function getZai() {
-  if (!zaiInstance) {
-    zaiInstance = await ZAI.create()
-  }
-  return zaiInstance
-}
+import { getZai } from '@/lib/zai-loader'
 
 // Search the web for jobs, then fetch each result page to extract job content
 export async function fetchWebSearch(query: string): Promise<FetchResult> {

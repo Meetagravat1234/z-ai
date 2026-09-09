@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import ZAI from 'z-ai-web-dev-sdk'
+import { getZai } from '@/lib/zai-loader'
 
 // POST /api/ai/mock-interview
 // Body: { messages: [{role, content}], role?: string, company?: string }
@@ -11,7 +12,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'messages array required' }, { status: 400 })
     }
 
-    const zai = await ZAI.create()
+    const zai = await getZai()
     const systemPrompt = `You are an experienced technical interviewer${company ? ` at ${company}` : ''}${role ? ` interviewing for the role of ${role}` : ''}.
 
 Rules:

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import ZAI from 'z-ai-web-dev-sdk'
+import { getZai } from '@/lib/zai-loader'
 
 // POST /api/ai/skill-gap
 // Body: { currentSkills: string[], targetRole: string, experienceYears?: number }
@@ -11,7 +12,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'currentSkills (array) and targetRole are required' }, { status: 400 })
     }
 
-    const zai = await ZAI.create()
+    const zai = await getZai()
     const completion = await zai.chat.completions.create({
       messages: [
         {
