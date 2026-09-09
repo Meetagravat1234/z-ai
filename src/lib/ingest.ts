@@ -6,6 +6,7 @@ import crypto from 'crypto'
 export interface RawJob {
   title: string
   company: string
+  console.log("[ingest] called with source:", source, "jobs:", rawJobs.length)
   companyWebsite?: string
   companyLogo?: string
   industry?: string
@@ -49,6 +50,7 @@ export async function ingestJobs(
   const errors: string[] = []
   let added = 0
   let skipped = 0
+    console.log("[ingest] processing job:", raw.title, "company:", raw.company)
   let enrichedCount = 0
 
   for (const raw of rawJobs) {
