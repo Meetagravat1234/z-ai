@@ -13,14 +13,25 @@ model User {
   id        String   @id @default(cuid())
   email     String   @unique
   name      String?
+  password  String?  // hashed with bcrypt (null for OAuth-only users in future)
   role      String   @default("candidate") // candidate | employer | admin
   avatar    String?
-  headline  String?
+  headline  String?  // e.g. "Full-Stack Developer"
+
+  // Profile fields — power personalized job recommendations
+  targetRole       String?  // e.g. "Senior Software Engineer"
+  skills           String?  // comma-separated, e.g. "Python,React,SQL"
+  experienceYears  Int      @default(0)
+  preferredLocations String? // comma-separated, e.g. "Bengaluru,Remote"
+  minSalary        Int?     // in LPA * 10 (so 8 LPA = 80)
+  bio              String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   savedJobs     SavedJob[]
   applications  Application[]
+  jobAlerts     JobAlert[]
 }
 
 model Company {
@@ -144,4 +155,24 @@ model JobSync {
   jobsSkipped Int      @default(0) // already existed (dedup)
   error       String?
   durationMs  Int?
+}
+
+// Per-user job alert preferences — powers the email digest feature (Tier 1 #2)
+model JobAlert {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Alert criteria
+  query           String?  // free-text search query
+  category        String?  // fresher | internship | experienced | remote | walk-in | hidden
+  workMode        String?  // Onsite | Remote | Hybrid
+  location        String?  // city name
+  minSalary       Int?     // in LPA * 10
+  // Delivery
+  email           String   // where to send the digest
+  frequency       String   @default("daily") // daily | weekly
+  lastSentAt      DateTime?
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }

@@ -28,10 +28,12 @@ import {
   Target,
   BarChart3,
   GitCompare,
+  User,
 } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { useNav, type ViewId } from '@/lib/nav-store'
 import { cn } from '@/lib/utils'
+import { useAuth } from '@/lib/auth-context'
 
 const navGroups: Array<{
   label: string
@@ -88,12 +90,14 @@ const navGroups: Array<{
     items: [
       { id: 'saved', label: 'Saved Jobs', icon: Bookmark },
       { id: 'tracker', label: 'Application Tracker', icon: KanbanSquare },
+      { id: 'profile', label: 'My Profile', icon: User },
     ],
   },
 ]
 
 export function Sidebar() {
   const { view, go, sidebarOpen, setSidebarOpen } = useNav()
+  const { user, isDemo } = useAuth()
   return (
     <>
       {sidebarOpen && (
@@ -206,10 +210,10 @@ export function Sidebar() {
             Get jobs matching your profile in your inbox.
           </p>
           <button
-            onClick={() => go('pricing')}
+            onClick={() => go(user && !isDemo ? 'profile' : 'auth')}
             className="w-full bg-primary text-primary-foreground text-xs font-bold py-2 rounded-xl hover:opacity-90 transition-opacity"
           >
-            Sign In to Enable
+            {user && !isDemo ? 'Manage Alerts' : 'Sign In to Enable'}
           </button>
         </div>
       </aside>
@@ -220,6 +224,7 @@ export function Sidebar() {
 export function TopNav() {
   const { setSidebarOpen, setCommandOpen, go } = useNav()
   const { theme, setTheme } = useTheme()
+  const { user, loading, isDemo } = useAuth()
   const [mounted, setMounted] = React.useState(false)
   React.useEffect(() => setMounted(true), [])
 
@@ -266,12 +271,29 @@ export function TopNav() {
         Tracker
       </button>
 
-      <button
-        onClick={() => go('pricing')}
-        className="hidden sm:inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
-      >
-        Sign in
-      </button>
+      {loading ? (
+        <div className="w-20 h-9 rounded-lg bg-muted animate-pulse" />
+      ) : user && !isDemo ? (
+        <button
+          onClick={() => go('profile')}
+          className="inline-flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-muted transition-colors"
+          title={`${user.email} — view profile`}
+        >
+          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white text-xs font-bold shrink-0">
+            {(user.name || user.email)[0].toUpperCase()}
+          </div>
+          <span className="hidden sm:inline text-sm font-medium max-w-[100px] truncate">
+            {user.name || 'Profile'}
+          </span>
+        </button>
+      ) : (
+        <button
+          onClick={() => go('auth')}
+          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
+        >
+          Sign in
+        </button>
+      )}
     </header>
   )
 }

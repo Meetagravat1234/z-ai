@@ -29,6 +29,9 @@ export type ViewId =
   | 'skill-gap'
   | 'compare-jobs'
   | 'ats-score'
+  | 'auth'
+  | 'profile'
+  | 'alerts'
 
 interface NavState {
   view: ViewId

@@ -22,6 +22,8 @@ import { QuestionBankView } from '@/components/views/question-bank-view'
 import { SkillGapView } from '@/components/views/skill-gap-view'
 import { CompareJobsView } from '@/components/views/compare-jobs-view'
 import { ATSScoreView } from '@/components/views/ats-score-view'
+import { AuthView } from '@/components/views/auth-view'
+import { ProfileView } from '@/components/views/profile-view'
 import { AIResumeOptimizer } from '@/components/views/ai-resume-view'
 import { AICoverLetter } from '@/components/views/ai-cover-letter-view'
 import { AIMockInterview } from '@/components/views/ai-mock-interview-view'
@@ -105,6 +107,12 @@ function ViewRouter({ view }: { view: string }) {
       return <CompareJobsView />
     case 'ats-score':
       return <ATSScoreView />
+    case 'auth':
+      return <AuthView />
+    case 'profile':
+      return <ProfileView />
+    case 'alerts':
+      return <ProfileView />  // placeholder until alerts view is built
     default:
       return <HomeView />
   }
