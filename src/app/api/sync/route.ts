@@ -145,7 +145,7 @@ export async function GET(req: NextRequest) {
   // Ingest jobs directly (no HTTP fetch — works on Vercel serverless)
   const startedAt = Date.now()
   try {
-    // Inline ingest — no external module, guaranteed to work
+    // Inline ingest v2 — cache bust — no external module, guaranteed to work
     let added = 0
     let skipped = 0
     const errors: string[] = []
