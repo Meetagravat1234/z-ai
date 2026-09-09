@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import crypto from 'crypto'
 import { getParallelSources, fetchRemotive, fetchArbeitnow, fetchGreenhouse, fetchAshby } from '@/lib/job-sources/sources'
 import { fetchRandomWebSearch, fetchRandomCareerPage, fetchWebSearch, fetchCareerPage, CAREER_PAGES_LIST, WEB_SEARCH_QUERIES } from '@/lib/job-sources/web-search-adapter'
 
@@ -92,32 +93,79 @@ export async function GET(req: NextRequest) {
       },
     })
 
-    // Call ingest directly (no HTTP fetch — works on Vercel serverless)
+    // Inline ingest — direct DB operations (no external module, no HTTP fetch)
     try {
-      const ingestData = await ingestJobs(result.source, result.jobs, true)
+      let pAdded = 0
+      let pSkipped = 0
+
+      for (const raw of result.jobs) {
+        try {
+          if (!raw.title || !raw.company || !raw.description) continue
+
+          const slug = raw.company.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60)
+          let company = await db.company.findUnique({ where: { slug } })
+          if (!company) {
+            company = await db.company.create({
+              data: { name: raw.company, slug, hiringActivity: 'Medium', sevenDayTrend: 0 }
+            })
+          }
+
+          const hash = crypto.createHash('sha1').update(raw.title + '|' + company.id + '|' + (raw.location || '').split(',')[0].trim()).digest('hex')
+          if (raw.sourceRef) {
+            const existing = await db.job.findUnique({ where: { source_sourceRef: { source: result.source, sourceRef: raw.sourceRef } } })
+            if (existing) { pSkipped++; continue }
+          }
+
+          await db.job.create({
+            data: {
+              title: raw.title,
+              companyId: company.id,
+              category: raw.category || 'experienced',
+              employmentType: raw.employmentType || 'Full-time',
+              workMode: raw.workMode || 'Onsite',
+              experience: raw.experience || '0-2 Years',
+              salaryMin: raw.salaryMin ?? null,
+              salaryMax: raw.salaryMax ?? null,
+              salaryCurrency: 'INR',
+              location: raw.location || 'Not specified',
+              skills: raw.skills || '',
+              description: raw.description,
+              applyUrl: raw.applyUrl || null,
+              postedAt: raw.sourcePostedAt ? new Date(raw.sourcePostedAt) : new Date(),
+              verified: true,
+              source: result.source,
+              sourceRef: raw.sourceRef || null,
+              hash,
+              originalDescription: raw.description,
+              enriched: false,
+              sourcePostedAt: raw.sourcePostedAt ? new Date(raw.sourcePostedAt) : null,
+            },
+          })
+          pAdded++
+        } catch {}
+      }
 
       await db.jobSync.update({
         where: { id: sync.id },
         data: {
           status: 'success',
-          jobsAdded: ingestData.added,
-          jobsSkipped: ingestData.skipped,
+          jobsAdded: pAdded,
+          jobsSkipped: pSkipped,
           finishedAt: new Date(),
           durationMs: Date.now() - startedAt,
         },
       })
 
       totalJobsFound += result.jobs.length
-      totalJobsAdded += ingestData.added
-      totalJobsSkipped += ingestData.skipped
-      totalEnriched += ingestData.enriched
+      totalJobsAdded += pAdded
+      totalJobsSkipped += pSkipped
       sourceResults.push({
         source: result.source,
         param: result.sourceParam,
         found: result.jobs.length,
-        added: ingestData.added,
-        skipped: ingestData.skipped,
-        enriched: ingestData.enriched,
+        added: pAdded,
+        skipped: pSkipped,
+        enriched: 0,
       })
     } catch (e: any) {
       await db.jobSync.update({
