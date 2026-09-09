@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import mammoth from 'mammoth'
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const pdfParse = require('pdf-parse')
 
 // POST /api/upload/resume
 // Accepts a multipart/form-data file upload (PDF, DOC, DOCX, TXT)
@@ -29,7 +27,9 @@ export async function POST(req: NextRequest) {
     let text = ''
 
     if (fileType === 'pdf') {
-      // Extract text from PDF (pdf-parse v1 — default export is a function)
+      // Dynamic import to avoid pdf-parse's module-level test file loading bug
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const pdfParse = require('pdf-parse')
       const pdfData = await pdfParse(buffer)
       text = pdfData.text || ''
     } else if (fileType === 'docx' || fileType === 'doc') {
@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
       }, { status: 400 })
     }
 
-    // Clean up the text — remove excessive whitespace
+    // Clean up the text
     text = text
       .replace(/\r\n/g, '\n')
       .replace(/[ \t]+/g, ' ')
