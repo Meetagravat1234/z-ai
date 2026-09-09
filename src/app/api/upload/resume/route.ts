@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import pdfParse from 'pdf-parse'
 import mammoth from 'mammoth'
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const pdfParse = require('pdf-parse')
 
 // POST /api/upload/resume
 // Accepts a multipart/form-data file upload (PDF, DOC, DOCX, TXT)
@@ -28,7 +29,7 @@ export async function POST(req: NextRequest) {
     let text = ''
 
     if (fileType === 'pdf') {
-      // Extract text from PDF
+      // Extract text from PDF (pdf-parse v1 — default export is a function)
       const pdfData = await pdfParse(buffer)
       text = pdfData.text || ''
     } else if (fileType === 'docx' || fileType === 'doc') {
