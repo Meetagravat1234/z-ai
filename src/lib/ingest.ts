@@ -156,7 +156,7 @@ export async function ingestJobs(
       })
       added++
     } catch (e: any) {
-      errors.push(`Failed: ${raw.title}: ${e.message}`)
+      errors.push(`Failed: ${raw.title}: ${e.message}`); console.error("[ingest] job failed:", raw.title, e.message)
     }
   }
 
