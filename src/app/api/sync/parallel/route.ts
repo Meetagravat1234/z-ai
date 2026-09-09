@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { ingestJobs } from '@/lib/ingest'
 import { getParallelSources, fetchRemotive, fetchArbeitnow, fetchGreenhouse, fetchAshby } from '@/lib/job-sources/sources'
 import { fetchRandomWebSearch, fetchRandomCareerPage, fetchWebSearch, fetchCareerPage, CAREER_PAGES_LIST, WEB_SEARCH_QUERIES } from '@/lib/job-sources/web-search-adapter'
 
@@ -92,44 +93,31 @@ export async function GET(req: NextRequest) {
       },
     })
 
-    // Ingest these jobs — use relative URL so it works on Vercel AND localhost
-    const ingestUrl = process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}/api/jobs/ingest`
-      : 'http://localhost:3000/api/jobs/ingest'
-    try {
-      const ingestRes = await fetch(ingestUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          source: result.source,
-          jobs: result.jobs,
-          enrich: true,
-        }),
-      })
-      const ingestData = await ingestRes.json()
+    // Call ingest directly (no HTTP fetch — works on Vercel serverless)
+    const ingestData = await ingestJobs(result.source, result.jobs, true)
 
       await db.jobSync.update({
         where: { id: sync.id },
         data: {
           status: 'success',
-          jobsAdded: ingestData.added || 0,
-          jobsSkipped: ingestData.skipped || 0,
+          jobsAdded: ingestData.added,
+          jobsSkipped: ingestData.skipped,
           finishedAt: new Date(),
           durationMs: Date.now() - startedAt,
         },
       })
 
       totalJobsFound += result.jobs.length
-      totalJobsAdded += ingestData.added || 0
-      totalJobsSkipped += ingestData.skipped || 0
-      totalEnriched += ingestData.enriched || 0
+      totalJobsAdded += ingestData.added
+      totalJobsSkipped += ingestData.skipped
+      totalEnriched += ingestData.enriched
       sourceResults.push({
         source: result.source,
         param: result.sourceParam,
         found: result.jobs.length,
-        added: ingestData.added || 0,
-        skipped: ingestData.skipped || 0,
-        enriched: ingestData.enriched || 0,
+        added: ingestData.added,
+        skipped: ingestData.skipped,
+        enriched: ingestData.enriched,
       })
     } catch (e: any) {
       await db.jobSync.update({

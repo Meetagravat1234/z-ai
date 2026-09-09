@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { ingestJobs } from '@/lib/ingest'
 import {
   getNextSource,
   SOURCE_QUEUE_LENGTH,
@@ -141,26 +142,17 @@ export async function GET(req: NextRequest) {
     })
   }
 
-  // Ingest jobs via the /api/jobs/ingest endpoint
+  // Ingest jobs directly (no HTTP fetch — works on Vercel serverless)
   const startedAt = Date.now()
   try {
-    const ingestRes = await fetch((process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}/api/jobs/ingest` : 'http://localhost:3000/api/jobs/ingest'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        source: result.source,
-        jobs: result.jobs,
-        enrich: true,
-      }),
-    })
-    const ingestData = await ingestRes.json()
+    const ingestData = await ingestJobs(result.source, result.jobs, true)
 
     await db.jobSync.update({
       where: { id: sync.id },
       data: {
         status: 'success',
-        jobsAdded: ingestData.added || 0,
-        jobsSkipped: ingestData.skipped || 0,
+        jobsAdded: ingestData.added,
+        jobsSkipped: ingestData.skipped,
         finishedAt: new Date(),
         durationMs: Date.now() - startedAt,
       },
@@ -171,10 +163,10 @@ export async function GET(req: NextRequest) {
       source: result.source,
       param: result.sourceParam,
       jobsFound: result.jobs.length,
-      jobsAdded: ingestData.added || 0,
-      jobsSkipped: ingestData.skipped || 0,
-      enriched: ingestData.enriched || 0,
-      errors: ingestData.errors || [],
+      jobsAdded: ingestData.added,
+      jobsSkipped: ingestData.skipped,
+      enriched: ingestData.enriched,
+      errors: ingestData.errors,
       durationMs: Date.now() - startedAt,
     })
   } catch (e: any) {
