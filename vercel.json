@@ -1,40 +1,18 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "sed -i 's/provider = \"sqlite\"/provider = \"postgresql\"/' prisma/schema.prisma && prisma db push --accept-data-loss && next build",
+  "buildCommand": "sed -i 's/provider  = \"sqlite\"/provider  = \"postgresql\"/' prisma/schema.prisma && prisma db push --accept-data-loss && next build",
   "functions": {
-    "src/app/api/sync/parallel/route.ts": {
-      "maxDuration": 60
-    },
-    "src/app/api/sync/deep-crawl/route.ts": {
-      "maxDuration": 60
-    },
-    "src/app/api/sync/route.ts": {
-      "maxDuration": 60
-    },
-    "src/app/api/admin/fetch-job/route.ts": {
-      "maxDuration": 60
-    },
-    "src/app/api/ai/resume-optimize/route.ts": {
-      "maxDuration": 60
-    },
-    "src/app/api/ai/cover-letter/route.ts": {
-      "maxDuration": 60
-    },
-    "src/app/api/ai/mock-interview/route.ts": {
-      "maxDuration": 60
-    },
-    "src/app/api/ai/salary-predict/route.ts": {
-      "maxDuration": 60
-    },
-    "src/app/api/ai/skill-gap/route.ts": {
-      "maxDuration": 60
-    },
-    "src/app/api/ai/ats-score/route.ts": {
-      "maxDuration": 60
-    },
-    "src/app/api/ai/enrich-job/route.ts": {
-      "maxDuration": 60
-    }
+    "src/app/api/sync/parallel/route.ts": { "maxDuration": 60 },
+    "src/app/api/sync/deep-crawl/route.ts": { "maxDuration": 60 },
+    "src/app/api/sync/route.ts": { "maxDuration": 60 },
+    "src/app/api/admin/fetch-job/route.ts": { "maxDuration": 60 },
+    "src/app/api/ai/resume-optimize/route.ts": { "maxDuration": 60 },
+    "src/app/api/ai/cover-letter/route.ts": { "maxDuration": 60 },
+    "src/app/api/ai/mock-interview/route.ts": { "maxDuration": 60 },
+    "src/app/api/ai/salary-predict/route.ts": { "maxDuration": 60 },
+    "src/app/api/ai/skill-gap/route.ts": { "maxDuration": 60 },
+    "src/app/api/ai/ats-score/route.ts": { "maxDuration": 60 },
+    "src/app/api/ai/enrich-job/route.ts": { "maxDuration": 60 }
   },
   "crons": [
     {
