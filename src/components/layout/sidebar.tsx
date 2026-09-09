@@ -29,6 +29,7 @@ import {
   BarChart3,
   GitCompare,
   User,
+  Shield,
 } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { useNav, type ViewId } from '@/lib/nav-store'
@@ -98,6 +99,13 @@ const navGroups: Array<{
 export function Sidebar() {
   const { view, go, sidebarOpen, setSidebarOpen } = useNav()
   const { user, isDemo } = useAuth()
+  const isAdmin = user?.role === 'admin'
+  const groups = isAdmin
+    ? [...navGroups, {
+        label: 'Admin',
+        items: [{ id: 'admin' as ViewId, label: 'Admin Dashboard', icon: Shield }],
+      }]
+    : navGroups
   return (
     <>
       {sidebarOpen && (
@@ -142,7 +150,7 @@ export function Sidebar() {
         </div>
 
         <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-5">
-          {navGroups.map((group) => (
+          {groups.map((group) => (
             <div key={group.label}>
               <p className="px-3 mb-1.5 text-[10px] font-bold uppercase tracking-wider text-sidebar-foreground/40">
                 {group.label}

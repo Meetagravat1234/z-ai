@@ -24,6 +24,7 @@ import {
   BarChart3,
   GitCompare,
   User,
+  Shield,
 } from 'lucide-react'
 import { useNav, type ViewId } from '@/lib/nav-store'
 import { cn } from '@/lib/utils'
@@ -58,6 +59,7 @@ const COMMANDS: Array<{
   { id: 'tracker', label: 'Application Tracker', hint: 'Kanban board for applications', icon: KanbanSquare, group: 'My Career' },
   { id: 'profile', label: 'My Profile', hint: 'Update your name, skills, target role, preferences', icon: User, group: 'Account' },
   { id: 'auth', label: 'Sign in / Sign up', hint: 'Log in or create a free account', icon: User, group: 'Account' },
+  { id: 'admin', label: 'Admin Dashboard', hint: 'Add jobs by URL, manage jobs/companies, view analytics', icon: Shield, group: 'Admin' },
 ]
 
 export function CommandPalette() {

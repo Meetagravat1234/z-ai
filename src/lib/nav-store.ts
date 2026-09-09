@@ -32,6 +32,7 @@ export type ViewId =
   | 'auth'
   | 'profile'
   | 'alerts'
+  | 'admin'
 
 interface NavState {
   view: ViewId
