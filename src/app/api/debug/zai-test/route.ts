@@ -58,7 +58,7 @@ export async function GET() {
 
   // Test 2: DNS resolution of the API host
   try {
-    const dns = require('dns').promises
+    const dns = await import('dns').then(m => m.promises)
     const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'))
     const url = new URL(config.baseUrl)
     const addresses = await dns.resolve4(url.hostname)
