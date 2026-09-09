@@ -3,52 +3,53 @@ import { NextResponse } from 'next/server'
 export async function GET() {
   const results: any = {
     hasGroqKey: !!process.env.GROQ_API_KEY,
-    groqKeyPrefix: process.env.GROQ_API_KEY?.slice(0, 10) + '...',
   }
 
-  // Test 1: Direct Groq API call
+  // Get available models
   try {
-    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: 'llama-3.1-8b-instant',
-        messages: [{ role: 'user', content: 'Say OK' }],
-        max_tokens: 10,
-      }),
+    const modelsRes = await fetch('https://api.groq.com/openai/v1/models', {
+      headers: { 'Authorization': `Bearer ${process.env.GROQ_API_KEY}` },
     })
-
-    results.groqStatus = response.status
-    results.groqOk = response.ok
-
-    if (response.ok) {
-      const data = await response.json()
-      results.groqResponse = data.choices[0]?.message?.content
-      results.groqTest = 'success'
+    results.modelsStatus = modelsRes.status
+    if (modelsRes.ok) {
+      const modelsData = await modelsRes.json()
+      results.availableModels = modelsData.data?.map((m: any) => m.id) || []
     } else {
-      const errText = await response.text()
-      results.groqError = errText.slice(0, 200)
-      results.groqTest = 'failed'
+      results.modelsError = (await modelsRes.text()).slice(0, 200)
     }
   } catch (e: any) {
-    results.groqTest = 'error'
-    results.groqError = e.message
+    results.modelsError = e.message
   }
 
-  // Test 2: multi-ai chatComplete
-  try {
-    const { chatComplete } = await import('@/lib/multi-ai')
-    const result = await chatComplete([
-      { role: 'user', content: 'Say OK in one word' },
-    ])
-    results.multiAiTest = 'success'
-    results.multiAiResponse = result.slice(0, 50)
-  } catch (e: any) {
-    results.multiAiTest = 'failed'
-    results.multiAiError = e.message.slice(0, 200)
+  // Try chat with first available model
+  if (results.availableModels?.length > 0) {
+    try {
+      const chatRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: results.availableModels[0],
+          messages: [{ role: 'user', content: 'Say OK' }],
+          max_tokens: 10,
+        }),
+      })
+      results.chatStatus = chatRes.status
+      results.chatModelUsed = results.availableModels[0]
+      if (chatRes.ok) {
+        const chatData = await chatRes.json()
+        results.chatResponse = chatData.choices[0]?.message?.content
+        results.chatTest = 'success'
+      } else {
+        results.chatError = (await chatRes.text()).slice(0, 200)
+        results.chatTest = 'failed'
+      }
+    } catch (e: any) {
+      results.chatTest = 'error'
+      results.chatError = e.message
+    }
   }
 
   return NextResponse.json(results, { status: 200 })
