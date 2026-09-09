@@ -7,54 +7,64 @@ export async function GET() {
   const results: any = {
     timestamp: new Date().toISOString(),
     cwd: process.cwd(),
-    homedir: require('os').homedir(),
     nodeVersion: process.version,
-    vercelUrl: process.env.VERCEL_URL || null,
   }
 
-  // Check which config paths exist
-  const possiblePaths = [
-    path.join(process.cwd(), '.z-ai-config'),
-    path.join(__dirname, '..', '..', '..', '..', '.z-ai-config'),
-    path.join(__dirname, '..', '..', '..', '..', '..', '.z-ai-config'),
-    '/etc/.z-ai-config',
-  ]
-  results.configPaths = possiblePaths.map(p => ({ path: p, exists: fs.existsSync(p) }))
-
-  // Try to initialize ZAI
-  try {
-    const zai = await getZai()
-    results.zaiInitialized = true
-    
-    // Try a minimal chat completion
+  // Check config
+  const configPath = path.join(process.cwd(), '.z-ai-config')
+  results.configExists = fs.existsSync(configPath)
+  if (results.configExists) {
     try {
-      const r = await zai.chat.completions.create({
+      const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'))
+      results.configBaseUrl = config.baseUrl
+      results.hasApiKey = !!config.apiKey
+    } catch (e: any) {
+      results.configError = e.message
+    }
+  }
+
+  // Test 1: Raw fetch to z-ai API (bypassing the SDK)
+  try {
+    const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'))
+    const testUrl = config.baseUrl + '/chat/completions'
+    results.testUrl = testUrl
+    
+    const response = await fetch(testUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${config.apiKey}`,
+        'X-Z-AI-From': 'Z',
+      },
+      body: JSON.stringify({
         messages: [{ role: 'user', content: 'Say OK' }],
         thinking: { type: 'disabled' },
-      })
-      results.chatTest = 'success'
-      results.chatResponse = r.choices[0]?.message?.content?.slice(0, 50)
-    } catch (e: any) {
-      results.chatTest = 'failed'
-      results.chatError = e.message.slice(0, 200)
+      }),
+      signal: AbortSignal.timeout(15000),
+    })
+    results.rawFetchStatus = response.status
+    results.rawFetchOk = response.ok
+    if (response.ok) {
+      const data = await response.json()
+      results.rawFetchResponse = JSON.stringify(data).slice(0, 200)
+    } else {
+      results.rawFetchError = (await response.text()).slice(0, 200)
     }
-
-    // Try web_search function
-    try {
-      const searchResults = await zai.functions.invoke('web_search', {
-        query: 'software engineer jobs India',
-        num: 2,
-      })
-      results.webSearchTest = 'success'
-      results.webSearchResults = Array.isArray(searchResults) ? searchResults.length : typeof searchResults
-    } catch (e: any) {
-      results.webSearchTest = 'failed'
-      results.webSearchError = e.message.slice(0, 200)
-    }
-
   } catch (e: any) {
-    results.zaiInitialized = false
-    results.zaiError = e.message.slice(0, 300)
+    results.rawFetchError = e.message
+    results.rawFetchErrorName = e.name
+    results.rawFetchCause = e.cause?.message || e.cause?.code || null
+  }
+
+  // Test 2: DNS resolution of the API host
+  try {
+    const dns = require('dns').promises
+    const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'))
+    const url = new URL(config.baseUrl)
+    const addresses = await dns.resolve4(url.hostname)
+    results.dnsResolved = addresses
+  } catch (e: any) {
+    results.dnsError = e.message
   }
 
   return NextResponse.json(results, { status: 200 })
