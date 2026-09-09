@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import ZAI from 'z-ai-web-dev-sdk'
-import { getZai } from '@/lib/zai-loader'
+import { chatComplete, pageRead } from '@/lib/multi-ai'
 import { db } from '@/lib/db'
 import { getAdminUser } from '@/lib/admin-auth'
 import crypto from 'crypto'
@@ -19,17 +18,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'A valid URL (starting with http:// or https://) is required' }, { status: 400 })
     }
 
-    // Step 1: Fetch the page content using z-ai-web-dev-sdk page_reader
-    const zai = await getZai()
-    const pageData: any = await zai.functions.invoke('page_reader', { url })
-
-    if (!pageData || !pageData.data) {
-      return NextResponse.json({ error: 'Failed to fetch the page. The URL might be blocked or invalid.' }, { status: 422 })
+    // Step 1: Fetch the page content using multi-provider (z-ai → Jina AI fallback)
+    let pageTitle = ''
+    let html = ''
+    let publishedTime: string | undefined
+    try {
+      const pageData = await pageRead(url)
+      pageTitle = pageData.title
+      html = pageData.html
+      publishedTime = pageData.publishedTime
+    } catch (e: any) {
+      return NextResponse.json({ error: 'Failed to fetch the page: ' + e.message }, { status: 422 })
     }
-
-    const pageTitle = pageData.data.title || ''
-    const html = pageData.data.html || ''
-    const publishedTime = pageData.data.publishedTime || pageData.data.publish_time
 
     // Strip HTML to plain text
     const text = html
@@ -51,8 +51,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Step 2: AI enrichment — extract structured fields from the raw text
-    const completion = await zai.chat.completions.create({
-      messages: [
+    const raw = await chatComplete([
         {
           role: 'system',
           content: `You are an expert job post parser. Given the raw text of a job page (scraped from any URL), extract structured fields.
@@ -91,11 +90,7 @@ ${text}
 
 Extract the structured job fields.`
         }
-      ],
-      thinking: { type: 'disabled' },
-    })
-
-    const raw = completion.choices[0]?.message?.content || '{}'
+    ])
     let parsed: any
     try {
       const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()

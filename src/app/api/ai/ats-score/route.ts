@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import ZAI from 'z-ai-web-dev-sdk'
-import { getZai } from '@/lib/zai-loader'
+import { chatComplete } from '@/lib/multi-ai'
 
 // POST /api/ai/ats-score
 // Body: { resume: string, jobDescription: string }
@@ -12,9 +11,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'resume and jobDescription are required' }, { status: 400 })
     }
 
-    const zai = await getZai()
-    const completion = await zai.chat.completions.create({
-      messages: [
+    const raw = await chatComplete(
+      [
         {
           role: 'system',
           content: `You are an expert ATS (Applicant Tracking System) analyzer. Given a resume and job description, calculate an ATS compatibility score and provide specific, actionable recommendations.
@@ -51,11 +49,8 @@ Rules:
           role: 'user',
           content: `RESUME:\n${resume}\n\n---\n\nJOB DESCRIPTION:\n${jobDescription}\n\n---\n\nCalculate the ATS score and provide recommendations.`,
         },
-      ],
-      thinking: { type: 'disabled' },
-    })
+      ])
 
-    const raw = completion.choices[0]?.message?.content || '{}'
     let parsed: any
     try {
       const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()

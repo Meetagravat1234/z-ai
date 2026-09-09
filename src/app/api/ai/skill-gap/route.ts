@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import ZAI from 'z-ai-web-dev-sdk'
-import { getZai } from '@/lib/zai-loader'
+import { chatComplete } from '@/lib/multi-ai'
 
 // POST /api/ai/skill-gap
 // Body: { currentSkills: string[], targetRole: string, experienceYears?: number }
@@ -12,9 +11,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'currentSkills (array) and targetRole are required' }, { status: 400 })
     }
 
-    const zai = await getZai()
-    const completion = await zai.chat.completions.create({
-      messages: [
+    const raw = await chatComplete(
+      [
         {
           role: 'system',
           content: `You are an expert technical career counselor. Given a candidate's current skills and target role, perform a skill gap analysis.
@@ -48,11 +46,8 @@ CURRENT EXPERIENCE: ${experienceYears} years
 
 Perform the skill gap analysis.`,
         },
-      ],
-      thinking: { type: 'disabled' },
-    })
+      ])
 
-    const raw = completion.choices[0]?.message?.content || '{}'
     let parsed: any
     try {
       const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()

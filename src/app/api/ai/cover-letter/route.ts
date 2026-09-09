@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import ZAI from 'z-ai-web-dev-sdk'
-import { getZai } from '@/lib/zai-loader'
+import { chatComplete } from '@/lib/multi-ai'
 
 // POST /api/ai/cover-letter
 // Body: { resume: string, jobDescription: string, companyName?: string, role?: string }
@@ -11,9 +10,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'resume and jobDescription are required' }, { status: 400 })
     }
 
-    const zai = await getZai()
-    const completion = await zai.chat.completions.create({
-      messages: [
+    const raw = await chatComplete(
+      [
         {
           role: 'system',
           content: `You are an expert cover letter writer. Write a concise, professional, and authentic cover letter (no longer than 350 words) that:
@@ -28,11 +26,9 @@ Tone: warm, confident, specific. Avoid corporate buzzwords.`,
           role: 'user',
           content: `MY RESUME:\n${resume}\n\nJOB DESCRIPTION:\n${jobDescription}\n\nCOMPANY: ${companyName || 'the company'}\nROLE: ${role || 'the role'}\n\nPlease write the cover letter.`,
         },
-      ],
-      thinking: { type: 'disabled' },
-    })
+      ])
 
-    return NextResponse.json({ result: completion.choices[0]?.message?.content || '' })
+    return NextResponse.json({ result: raw || '' })
   } catch (e: any) {
     console.error('AI cover letter error:', e)
     return NextResponse.json({ error: e.message }, { status: 500 })

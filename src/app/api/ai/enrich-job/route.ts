@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import ZAI from 'z-ai-web-dev-sdk'
-import { getZai } from '@/lib/zai-loader'
+import { chatComplete } from '@/lib/multi-ai'
 
 // POST /api/ai/enrich-job
 // Body: { title, company, rawDescription, location? }
@@ -12,9 +11,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'title and rawDescription are required' }, { status: 400 })
     }
 
-    const zai = await getZai()
-    const completion = await zai.chat.completions.create({
-      messages: [
+    const raw = await chatComplete([
         {
           role: 'system',
           content: `You are an expert job post editor. Given a raw job description (possibly scraped from an ATS, career page, or aggregator), produce a clean, well-structured, candidate-friendly version.
@@ -51,11 +48,8 @@ ${rawDescription}
 
 Produce the enriched JSON now.`,
         },
-      ],
-      thinking: { type: 'disabled' },
-    })
+    ])
 
-    const raw = completion.choices[0]?.message?.content || '{}'
     let parsed: any
     try {
       const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()

@@ -128,18 +128,13 @@ const SEARCH_QUERIES = [
   'walk in interview software jobs India',
 ]
 
-import { getZai } from '@/lib/zai-loader'
+import { webSearch, pageRead } from '@/lib/multi-ai'
 
 // Search the web for jobs, then fetch each result page to extract job content
 export async function fetchWebSearch(query: string): Promise<FetchResult> {
   try {
-    const zai = await getZai()
-
-    // Step 1: Search the web for job postings
-    const searchResults: any[] = await zai.functions.invoke('web_search', {
-      query,
-      num: 8,
-    })
+    // Step 1: Search the web for job postings (multi-provider: z-ai → Jina fallback)
+    const searchResults = await webSearch(query, 8)
 
     if (!Array.isArray(searchResults) || searchResults.length === 0) {
       return { source: 'web-search', sourceParam: query, jobs: [] }
@@ -176,12 +171,11 @@ export async function fetchWebSearch(query: string): Promise<FetchResult> {
         const url = result.url
         if (!url) continue
 
-        const pageData: any = await zai.functions.invoke('page_reader', { url })
-        if (!pageData || !pageData.data) continue
+        const pageData = await pageRead(url)
+        if (!pageData) continue
 
-        const title = pageData.data.title || result.name || 'Untitled Role'
-        const html = pageData.data.html || ''
-        const text = stripHtml(html)
+        const title = pageData.title || result.name || 'Untitled Role'
+        const text = pageData.text || stripHtml(pageData.html)
 
         // Skip if too short to be a real job posting
         if (text.length < 200) continue
@@ -264,15 +258,14 @@ const CAREER_PAGES: Array<{ company: string; url: string; industry: string }> = 
 
 export async function fetchCareerPage(companyEntry: { company: string; url: string; industry: string }): Promise<FetchResult> {
   try {
-    const zai = await getZai()
-    const pageData: any = await zai.functions.invoke('page_reader', { url: companyEntry.url })
+    const pageData = await pageRead(companyEntry.url)
 
-    if (!pageData || !pageData.data) {
+    if (!pageData) {
       return { source: 'career-page', sourceParam: companyEntry.company, jobs: [] }
     }
 
-    const html = pageData.data.html || ''
-    const text = stripHtml(html)
+    const html = pageData.html || ''
+    const text = pageData.text || stripHtml(html)
 
     // Try to extract job links from the page — look for /job, /jobposting, /apply URLs
     const jobLinkPatterns = [
@@ -299,12 +292,12 @@ export async function fetchCareerPage(companyEntry: { company: string; url: stri
     if (candidateUrls.length > 0) {
       const pagePromises = candidateUrls.map(async (jobUrl) => {
         try {
-          const jobPage: any = await zai.functions.invoke('page_reader', { url: jobUrl })
-          if (!jobPage || !jobPage.data) return null
-          const jobHtml = jobPage.data.html || ''
-          const jobText = stripHtml(jobHtml)
+          const jobPage = await pageRead(jobUrl)
+          if (!jobPage) return null
+          const jobHtml = jobPage.html || ''
+          const jobText = jobPage.text || stripHtml(jobHtml)
           if (jobText.length < 200) return null
-          const title = jobPage.data.title || extractTitleFromText(jobText) || `${companyEntry.company} Role`
+          const title = jobPage.title || extractTitleFromText(jobText) || `${companyEntry.company} Role`
           return {
             title: cleanTitle(title),
             company: companyEntry.company,

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import ZAI from 'z-ai-web-dev-sdk'
-import { getZai } from '@/lib/zai-loader'
+import { chatComplete } from '@/lib/multi-ai'
 
 // POST /api/ai/resume-optimize
 // Body: { resume: string, jobDescription: string }
@@ -12,9 +11,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Both resume and jobDescription are required' }, { status: 400 })
     }
 
-    const zai = await getZai()
-    const completion = await zai.chat.completions.create({
-      messages: [
+    const raw = await chatComplete(
+      [
         {
           role: 'system',
           content: `You are an expert ATS resume optimizer. Given a candidate's current resume and a target job description, produce a tailored, ATS-friendly resume that:
@@ -30,11 +28,9 @@ export async function POST(req: NextRequest) {
           role: 'user',
           content: `MY CURRENT RESUME:\n${resume}\n\n---\n\nTARGET JOB DESCRIPTION:\n${jobDescription}\n\n---\n\nPlease produce the tailored ATS-optimized resume in Markdown.`,
         },
-      ],
-      thinking: { type: 'disabled' },
-    })
+      ])
 
-    const content = completion.choices[0]?.message?.content || ''
+    const content = raw || ''
     return NextResponse.json({ result: content })
   } catch (e: any) {
     console.error('AI resume optimize error:', e)

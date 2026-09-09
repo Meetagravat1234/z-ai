@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import ZAI from 'z-ai-web-dev-sdk'
-import { getZai } from '@/lib/zai-loader'
+import { chatComplete } from '@/lib/multi-ai'
 
 // POST /api/ai/mock-interview
 // Body: { messages: [{role, content}], role?: string, company?: string }
@@ -12,7 +11,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'messages array required' }, { status: 400 })
     }
 
-    const zai = await getZai()
     const systemPrompt = `You are an experienced technical interviewer${company ? ` at ${company}` : ''}${role ? ` interviewing for the role of ${role}` : ''}.
 
 Rules:
@@ -26,15 +24,13 @@ Rules:
 
 The candidate's first message will be a greeting or "ready". Begin with your intro and the first question.`
 
-    const completion = await zai.chat.completions.create({
-      messages: [
+    const raw = await chatComplete(
+      [
         { role: 'system', content: systemPrompt },
         ...messages.map((m: any) => ({ role: m.role, content: m.content })),
-      ],
-      thinking: { type: 'disabled' },
-    })
+      ])
 
-    return NextResponse.json({ result: completion.choices[0]?.message?.content || '' })
+    return NextResponse.json({ result: raw || '' })
   } catch (e: any) {
     console.error('AI mock interview error:', e)
     return NextResponse.json({ error: e.message }, { status: 500 })
