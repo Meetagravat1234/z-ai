@@ -98,7 +98,7 @@ export async function POST(req: NextRequest) {
 
         if (shouldEnrich) {
           try {
-            const r = await fetch('http://localhost:3000/api/ai/enrich-job', {
+            const r = await fetch((process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}/api/ai/enrich-job` : 'http://localhost:3000/api/ai/enrich-job'), {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({

@@ -132,7 +132,7 @@ export async function GET(req: NextRequest) {
   // Ingest jobs via the /api/jobs/ingest endpoint
   const startedAt = Date.now()
   try {
-    const ingestRes = await fetch('http://localhost:3000/api/jobs/ingest', {
+    const ingestRes = await fetch((process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}/api/jobs/ingest` : 'http://localhost:3000/api/jobs/ingest'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
