@@ -59,10 +59,10 @@ export function HomeView() {
 
   React.useEffect(() => {
     Promise.all([
-      fetch('/api/jobs?limit=6').then((r) => r.json()),
+      fetch('/api/jobs?limit=6&indiaOnly=true').then((r) => r.json()),
       fetch('/api/companies').then((r) => r.json()),
       fetch('/api/articles?limit=3').then((r) => r.json()),
-      fetch('/api/jobs?limit=200').then((r) => r.json()),
+      fetch('/api/jobs?limit=200&indiaOnly=true').then((r) => r.json()),
       fetch('/api/sync/status').then((r) => r.json()),
     ]).then(([recent, comps, arts, allJobs, sync]) => {
       setJobs(recent.jobs || [])

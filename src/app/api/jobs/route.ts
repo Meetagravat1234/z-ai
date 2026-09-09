@@ -55,29 +55,49 @@ export async function GET(req: NextRequest) {
     const offset = parseInt(searchParams.get('offset') || '0')
     const featured = searchParams.get('featured')
     const source = searchParams.get('source')
+    const indiaOnly = searchParams.get('indiaOnly') === 'true'
 
-    const where: any = {}
+    // Build the WHERE clause as an array of conditions (we'll AND them together)
+    const conditions: any[] = []
+
     if (q) {
-      where.OR = [
-        { title: { contains: q } },
-        { description: { contains: q } },
-        { skills: { contains: q } },
-      ]
+      conditions.push({
+        OR: [
+          { title: { contains: q } },
+          { description: { contains: q } },
+          { skills: { contains: q } },
+        ],
+      })
     }
-    if (category && category !== 'all') where.category = category
-    if (workMode && workMode !== 'all') where.workMode = workMode
-    if (employmentType && employmentType !== 'all') where.employmentType = employmentType
-    if (experience && experience !== 'all') where.experience = { contains: experience }
-    if (location && location !== 'all') where.location = { contains: location }
-    if (skill && skill !== 'all') where.skills = { contains: skill }
-    if (minSalary) where.salaryMin = { gte: parseInt(minSalary) }
-    if (maxSalary) where.salaryMax = { lte: parseInt(maxSalary) }
-    if (featured === 'true') where.isFeatured = true
-    if (source && source !== 'all') where.source = source
+
+    // India-only filter: location must contain any Indian city, "India", or "Remote"
+    if (indiaOnly) {
+      const indiaCities = [
+        'Bengaluru', 'Bangalore', 'Hyderabad', 'Chennai', 'Mumbai', 'Pune',
+        'Noida', 'Gurugram', 'Gurgaon', 'Delhi', 'Kolkata', 'Kochi',
+        'Coimbatore', 'Ahmedabad', 'Jaipur', 'Chandigarh', 'India', 'Remote',
+      ]
+      conditions.push({
+        OR: indiaCities.map((city) => ({ location: { contains: city } })),
+      })
+    }
+
+    if (category && category !== 'all') conditions.push({ category })
+    if (workMode && workMode !== 'all') conditions.push({ workMode })
+    if (employmentType && employmentType !== 'all') conditions.push({ employmentType })
+    if (experience && experience !== 'all') conditions.push({ experience: { contains: experience } })
+    if (location && location !== 'all') conditions.push({ location: { contains: location } })
+    if (skill && skill !== 'all') conditions.push({ skills: { contains: skill } })
+    if (minSalary) conditions.push({ salaryMin: { gte: parseInt(minSalary) } })
+    if (maxSalary) conditions.push({ salaryMax: { lte: parseInt(maxSalary) } })
+    if (featured === 'true') conditions.push({ isFeatured: true })
+    if (source && source !== 'all') conditions.push({ source })
 
     if (company) {
-      where.company = { slug: company }
+      conditions.push({ company: { slug: company } })
     }
+
+    const where: any = conditions.length > 0 ? { AND: conditions } : {}
 
     let orderBy: any = { postedAt: 'desc' }
     if (sort === 'salary-high') orderBy = { salaryMax: 'desc' }
