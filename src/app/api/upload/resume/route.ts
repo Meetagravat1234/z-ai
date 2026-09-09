@@ -1,34 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import mammoth from 'mammoth'
+import { extractText, getDocumentProxy } from 'unpdf'
 
 // POST /api/upload/resume
 // Accepts a multipart/form-data file upload (PDF, DOC, DOCX, TXT)
 // Returns: { text: string, fileName: string, fileType: string, charCount: number }
-
-async function extractPdfText(buffer: Buffer): Promise<string> {
-  // Use pdfjs-dist directly (no test file bug like pdf-parse)
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const pdfjsLib = require('pdfjs-dist/legacy/build/pdf.js')
-  
-  const loadingTask = pdfjsLib.getDocument({
-    data: new Uint8Array(buffer),
-    useSystemFonts: true,
-  })
-  
-  const pdf = await loadingTask.promise
-  let text = ''
-  
-  for (let i = 1; i <= pdf.numPages; i++) {
-    const page = await pdf.getPage(i)
-    const content = await page.getTextContent()
-    const pageText = content.items
-      .map((item: any) => item.str)
-      .join(' ')
-    text += pageText + '\n'
-  }
-  
-  return text
-}
 
 export async function POST(req: NextRequest) {
   try {
@@ -53,7 +29,10 @@ export async function POST(req: NextRequest) {
     let text = ''
 
     if (fileType === 'pdf') {
-      text = await extractPdfText(buffer)
+      // Use unpdf — pure JS, no native dependencies, works on Vercel serverless
+      const pdf = await getDocumentProxy(new Uint8Array(buffer))
+      const result = await extractText(pdf, { mergePages: true })
+      text = result.text || ''
     } else if (fileType === 'docx' || fileType === 'doc') {
       const result = await mammoth.extractRawText({ buffer })
       text = result.value || ''
