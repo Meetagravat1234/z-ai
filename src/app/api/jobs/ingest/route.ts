@@ -111,7 +111,14 @@ export async function POST(req: NextRequest) {
               if (e.description) finalDescription = e.description
               if (Array.isArray(e.skills) && e.skills.length > 0) skills = e.skills.join(',')
               if (e.experience) experience = e.experience
-              if (e.category) category = e.category
+              // Preserve pre-set category if the source adapter set a SPECIFIC one (fresher/internship/walk-in/hidden)
+              // — only override if AI returns something MORE specific than "experienced"
+              if (e.category && e.category !== 'experienced') category = e.category
+              else if (e.category === 'experienced' && raw.category && raw.category !== 'experienced') {
+                // Keep the pre-set category from the source adapter
+              } else if (e.category) {
+                category = e.category
+              }
               if (e.employmentType) employmentType = e.employmentType
               if (e.workMode) workMode = e.workMode
               if (e.salaryMin != null) salaryMin = e.salaryMin

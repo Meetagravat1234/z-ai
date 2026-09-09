@@ -29,25 +29,57 @@ export interface FetchResult {
 }
 
 // ============================================================================
-// GREENHOUSE — public boards API
+// GREENHOUSE — public boards API (no key, no rate limits, ~5000+ jobs available)
 // ============================================================================
 const GREENHOUSE_COMPANIES = [
+  // Big tech with many India roles
   'airbnb', 'stripe', 'pinterest', 'figma', 'datadog',
   'cloudflare', 'hubspot', 'block', 'robinhood', 'grammarly',
+  'mongodb', 'asana', 'waymo', 'lyft', 'coinbase',
+  'twilio', 'okta', 'fastly', 'mercury', 'vercel',
+  'braze', 'samsara', 'nuro',
+  // Add more as we discover them
 ]
 
-export async function fetchGreenhouse(company: string): Promise<FetchResult> {
+// India cities + Remote — used to filter Greenhouse jobs to India-relevant ones
+const INDIA_LOCATIONS = [
+  'India', 'Bengaluru', 'Bangalore', 'Hyderabad', 'Chennai', 'Mumbai', 'Pune',
+  'Noida', 'Gurugram', 'Gurgaon', 'Delhi', 'Kolkata', 'Kochi', 'Coimbatore',
+  'Ahmedabad', 'Jaipur', 'Chandigarh', 'Remote', 'Anywhere',
+]
+
+export async function fetchGreenhouse(company: string, indiaOnly = true): Promise<FetchResult> {
   try {
     const r = await fetch(`https://boards-api.greenhouse.io/v1/boards/${company}/jobs?content=true`)
     if (!r.ok) throw new Error(`HTTP ${r.status}`)
     const d = await r.json()
-    const jobs: RawJob[] = (d.jobs || [])
-      .filter((j: any) => j.title && j.absolute_url)
-      .slice(0, 5)
+    const allJobs = (d.jobs || []).filter((j: any) => j.title && j.absolute_url)
+
+    // Filter to India-relevant jobs if requested
+    const filtered = indiaOnly
+      ? allJobs.filter((j: any) => {
+          const loc = (j.location?.name || j.departments?.[0]?.location?.name || '').toLowerCase()
+          // Include if location contains India, any Indian city, Remote, or Anywhere
+          return INDIA_LOCATIONS.some((c) => loc.includes(c.toLowerCase()))
+        })
+      : allJobs
+
+    const jobs: RawJob[] = filtered
+      .slice(0, 15) // bumped from 5 → 15 per company
       .map((j: any) => {
         const loc = j.location?.name || j.departments?.[0]?.location?.name || 'Not specified'
+        const title = j.title
+        // Pre-categorize based on title — fresher indicators
+        const titleLower = title.toLowerCase()
+        let category = 'experienced'
+        if (/\b(intern|internship)\b/i.test(title)) category = 'internship'
+        else if (/\b(junior|entry[ -]?level|new grad|graduate|associate|trainee)\b/i.test(titleLower)) category = 'fresher'
+        else if (/\b(software engineer|software developer|sde)\s*(i|1|ii|2)\b/i.test(titleLower)) category = 'fresher'  // "Software Engineer I" = fresher
+        else if (/\bengineer\s*(i|1)\b/i.test(titleLower)) category = 'fresher'
+        else if (/\b0\s*years?\b/i.test(titleLower)) category = 'fresher'
+
         return {
-          title: j.title,
+          title,
           company: prettyName(company),
           companyWebsite: `https://${company}.com`,
           location: loc.includes(',') ? loc : `${loc}, India`,
@@ -55,8 +87,9 @@ export async function fetchGreenhouse(company: string): Promise<FetchResult> {
           applyUrl: j.absolute_url,
           sourceRef: `greenhouse-${j.id}`,
           sourcePostedAt: j.updated_at || undefined,
-          employmentType: 'Full-time',
+          employmentType: category === 'internship' ? 'Internship' : 'Full-time',
           workMode: /remote/i.test(loc) ? 'Remote' : 'Onsite',
+          category,  // pre-categorized — AI enrich will preserve
         }
       })
     return { source: 'greenhouse', sourceParam: company, jobs }
@@ -86,22 +119,49 @@ export async function fetchAshby(company: string): Promise<FetchResult> {
     const r = await fetch(`https://api.ashbyhq.com/posting-api/job-board/${company}?includeCompensation=true`)
     if (!r.ok) throw new Error(`HTTP ${r.status}`)
     const d = await r.json()
-    const jobs: RawJob[] = (d.jobs || [])
-      .slice(0, 5)
-      .map((j: any) => ({
-        title: j.title,
-        company: prettyName(company),
-        companyWebsite: `https://${company}.com`,
-        location: j.locationName || 'Not specified',
-        description: j.descriptionHtml?.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() || j.title,
-        applyUrl: j.externalLink || j.ashbyPostingUrl,
-        sourceRef: `ashby-${j.id}`,
-        sourcePostedAt: j.publishedDate || undefined,
-        employmentType: 'Full-time',
-        workMode: j.isRemote ? 'Remote' : 'Onsite',
-        salaryMin: j.compensation?.lowEndAmount ? Math.round(j.compensation.lowEndAmount / 100000) : null,
-        salaryMax: j.compensation?.highEndAmount ? Math.round(j.compensation.highEndAmount / 100000) : null,
-      }))
+    const allJobs = (d.jobs || [])
+
+    // Filter to India-relevant jobs (location contains India/Indian city, OR is Remote)
+    const filtered = allJobs.filter((j: any) => {
+      const loc = (j.locationName || '').toLowerCase()
+      return j.isRemote ||
+        INDIA_LOCATIONS.some((c) => loc.includes(c.toLowerCase())) ||
+        loc === '' || loc === 'not specified' // include remote-unspecified jobs
+    })
+
+    const jobs: RawJob[] = filtered
+      .slice(0, 15) // bumped from 5 → 15
+      .map((j: any) => {
+        const title = j.title
+        const titleLower = title.toLowerCase()
+        let category = 'experienced'
+        if (/\b(intern|internship)\b/i.test(title)) category = 'internship'
+        else if (/\b(junior|entry[ -]?level|new grad|graduate|associate|trainee)\b/i.test(titleLower)) category = 'fresher'
+        else if (/\b(software engineer|software developer|sde)\s*(i|1|ii|2)\b/i.test(titleLower)) category = 'fresher'
+        else if (/\bengineer\s*(i|1)\b/i.test(titleLower)) category = 'fresher'
+
+        // If location is empty/Not specified but job is remote, mark as Remote so India filter picks it up
+        let loc = j.locationName || ''
+        if (!loc || loc === 'Not specified') {
+          loc = j.isRemote ? 'Remote' : 'Not specified'
+        }
+
+        return {
+          title,
+          company: prettyName(company),
+          companyWebsite: `https://${company}.com`,
+          location: loc,
+          description: j.descriptionHtml?.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() || j.title,
+          applyUrl: j.externalLink || j.ashbyPostingUrl,
+          sourceRef: `ashby-${j.id}`,
+          sourcePostedAt: j.publishedDate || undefined,
+          employmentType: category === 'internship' ? 'Internship' : 'Full-time',
+          workMode: j.isRemote ? 'Remote' : 'Onsite',
+          category,
+          salaryMin: j.compensation?.lowEndAmount ? Math.round(j.compensation.lowEndAmount / 100000) : null,
+          salaryMax: j.compensation?.highEndAmount ? Math.round(j.compensation.highEndAmount / 100000) : null,
+        }
+      })
     return { source: 'ashby', sourceParam: company, jobs }
   } catch (e: any) {
     return { source: 'ashby', sourceParam: company, jobs: [], error: e.message }
@@ -371,18 +431,113 @@ export function getParallelSources(): Array<{ adapter: () => Promise<FetchResult
     // 3 random Greenhouse companies per cycle
     ...GREENHOUSE_COMPANIES
       .sort(() => Math.random() - 0.5)
-      .slice(0, 3)
+      .slice(0, 5) // bumped from 3 → 5 Greenhouse companies per cycle
       .map((c) => ({ adapter: () => fetchGreenhouse(c), label: `greenhouse-${c}` })),
-    // 2 random Ashby companies per cycle
+    // 3 random Ashby companies per cycle
     ...ASHBY_COMPANIES
       .sort(() => Math.random() - 0.5)
-      .slice(0, 2)
+      .slice(0, 3) // bumped from 2 → 3
       .map((c) => ({ adapter: () => fetchAshby(c), label: `ashby-${c}` })),
+    // Adzuna API (if user has provided ADZUNA_APP_ID + ADZUNA_APP_KEY in env)
+    ...(process.env.ADZUNA_APP_ID && process.env.ADZUNA_APP_KEY
+      ? [
+          { adapter: () => fetchAdzuna('software engineer', 'India'), label: 'adzuna-software' },
+          { adapter: () => fetchAdzuna('data scientist', 'India'), label: 'adzuna-data' },
+          { adapter: () => fetchAdzuna('fresher', 'India'), label: 'adzuna-fresher' },
+          { adapter: () => fetchAdzuna('devops', 'India'), label: 'adzuna-devops' },
+        ]
+      : []),
   ]
 }
 
 export const SOURCE_QUEUE_LENGTH =
   6 + GREENHOUSE_COMPANIES.length + ASHBY_COMPANIES.length
+
+// ============================================================================
+// ADZUNA — affiliate job API (legal aggregator covering India)
+// Free: 1000 requests/month × 50 results = 50,000 jobs/month
+// Sign up at: https://developer.adzuna.com/
+// Set ADZUNA_APP_ID and ADZUNA_APP_KEY in your .env file
+// ============================================================================
+export async function fetchAdzuna(what: string, where: string): Promise<FetchResult> {
+  const appId = process.env.ADZUNA_APP_ID
+  const appKey = process.env.ADZUNA_APP_KEY
+  if (!appId || !appKey) {
+    return { source: 'adzuna', sourceParam: `${what} in ${where}`, jobs: [], error: 'ADZUNA_APP_ID or ADZUNA_APP_KEY not set in env' }
+  }
+  try {
+    const url = `https://api.adzuna.com/v1/api/jobs/in/search/1?app_id=${appId}&app_key=${appKey}` +
+      `&results_per_page=20&what=${encodeURIComponent(what)}&where=${encodeURIComponent(where)}&sort=date`
+    const r = await fetch(url, { headers: { 'User-Agent': 'CareerNest/1.0' } })
+    if (!r.ok) throw new Error(`HTTP ${r.status}`)
+    const d = await r.json()
+    const jobs: RawJob[] = (d.results || [])
+      .filter((j: any) => j.title && j.description && j.url)
+      .slice(0, 20)
+      .map((j: any) => ({
+        title: j.title,
+        company: j.company?.display_name || 'Unknown',
+        location: j.location?.display_name || where,
+        description: j.description,
+        applyUrl: j.url,
+        sourceRef: `adzuna-${j.id}`,
+        sourcePostedAt: j.created || undefined,
+        category: /fresher|entry|intern/i.test(j.title) ? 'fresher' : 'experienced',
+        workMode: /remote/i.test(j.title + (j.location?.display_name || '')) ? 'Remote' : 'Onsite',
+        employmentType: /contract/i.test(j.title + j.description) ? 'Contract' : 'Full-time',
+        salaryMin: j.salary_min ? Math.round(j.salary_min / 100000) : null,
+        salaryMax: j.salary_max ? Math.round(j.salary_max / 100000) : null,
+      }))
+    return { source: 'adzuna', sourceParam: `${what} in ${where}`, jobs }
+  } catch (e: any) {
+    return { source: 'adzuna', sourceParam: `${what} in ${where}`, jobs: [], error: e.message }
+  }
+}
+
+// ============================================================================
+// CAREERJET — affiliate job API (legal aggregator, India coverage)
+// Free: requires affiliate ID (sign up at https://www.careerjet.com/partners/api/)
+// Set CAREERJET_AFFILIATE_ID in your .env file
+// ============================================================================
+export async function fetchCareerjet(what: string, where: string): Promise<FetchResult> {
+  const affId = process.env.CAREERJET_AFFILIATE_ID
+  if (!affId) {
+    return { source: 'careerjet', sourceParam: `${what} in ${where}`, jobs: [], error: 'CAREERJET_AFFILIATE_ID not set in env' }
+  }
+  try {
+    const url = 'https://www.careerjet.co.in/search/jobs?' +
+      `s=${encodeURIComponent(what)}&l=${encodeURIComponent(where)}&sort=date&affid=${affId}`
+    const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 CareerNest/1.0' } })
+    if (!r.ok) throw new Error(`HTTP ${r.status}`)
+    const html = await r.text()
+    // Careerjet doesn't expose a clean JSON API without official partnership,
+    // but the search results page contains job links. Parse the HTML for job cards.
+    const jobMatches = html.match(/<article[^>]*class="[^"]*job[^"]*"[^>]*>[\s\S]*?<\/article>/gi) || []
+    const jobs: RawJob[] = jobMatches
+      .slice(0, 15)
+      .map((html) => {
+        const title = (html.match(/<h2[^>]*>(?:<a[^>]*>)?([^<]+)/i) || [])[1]?.trim() || 'Untitled'
+        const company = (html.match(/<p[^>]*class="[^"]*company[^"]*"[^>]*>([^<]+)/i) || [])[1]?.trim() || 'Unknown'
+        const location = (html.match(/<ul[^>]*class="[^"]*location[^"]*"[^>]*>[\s\S]*?<li[^>]*>([^<]+)/i) || [])[1]?.trim() || where
+        const link = (html.match(/href="([^"]*\/job\/[^"]*)"/i) || [])[1] || ''
+        return {
+          title: title.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').trim(),
+          company: company.replace(/&amp;/g, '&').trim(),
+          location: location.includes(',') ? location : `${location}, India`,
+          description: `${title} at ${company} in ${location}. Apply via Careerjet for full details.`,
+          applyUrl: link.startsWith('http') ? link : `https://www.careerjet.co.in${link}`,
+          sourceRef: `careerjet-${Buffer.from(link).toString('base64').slice(0, 20)}`,
+          category: /fresher|entry|intern/i.test(title) ? 'fresher' : 'experienced',
+          workMode: /remote/i.test(title + location) ? 'Remote' : 'Onsite',
+          employmentType: 'Full-time',
+        }
+      })
+      .filter((j) => j.title !== 'Untitled')
+    return { source: 'careerjet', sourceParam: `${what} in ${where}`, jobs }
+  } catch (e: any) {
+    return { source: 'careerjet', sourceParam: `${what} in ${where}`, jobs: [], error: e.message }
+  }
+}
 
 // ============================================================================
 // Helpers
