@@ -93,7 +93,10 @@ export async function POST(req: NextRequest) {
         let enriched = false
         let enrichedAt: Date | null = null
 
-        if (enrich) {
+        // Skip AI enrichment if SKIP_ENRICHMENT env var is set (for Vercel 60s timeout)
+        const shouldEnrich = enrich && process.env.SKIP_ENRICHMENT !== 'true'
+
+        if (shouldEnrich) {
           try {
             const r = await fetch('http://localhost:3000/api/ai/enrich-job', {
               method: 'POST',
