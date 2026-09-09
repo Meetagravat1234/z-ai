@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { ingestJobs } from '@/lib/ingest'
 import { getParallelSources, fetchRemotive, fetchArbeitnow, fetchGreenhouse, fetchAshby } from '@/lib/job-sources/sources'
 import { fetchRandomWebSearch, fetchRandomCareerPage, fetchWebSearch, fetchCareerPage, CAREER_PAGES_LIST, WEB_SEARCH_QUERIES } from '@/lib/job-sources/web-search-adapter'
 

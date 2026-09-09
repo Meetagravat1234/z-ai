@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { ingestJobs } from '@/lib/ingest'
 import {
   fetchRemotive,
   fetchArbeitnow,
@@ -197,7 +196,9 @@ export async function GET(req: NextRequest) {
   })
 }
 
-// Helper — ingest a batch of jobs and return stats
+// Helper — ingest a batch of jobs directly (no HTTP fetch — works on Vercel)
+import crypto from 'crypto'
+
 async function ingestJobs(source: string, jobs: any[], sourceParam: string | undefined, startedAt: number) {
   // Create JobSync record
   const sync = await db.jobSync.create({
@@ -210,29 +211,71 @@ async function ingestJobs(source: string, jobs: any[], sourceParam: string | und
   })
 
   try {
-    const ingestRes = await fetch((process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}/api/jobs/ingest` : 'http://localhost:3000/api/jobs/ingest'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ source, jobs, enrich: true }),
-    })
-    const ingestData = await ingestRes.json()
+    let added = 0
+    let skipped = 0
+    const errors: string[] = []
+
+    for (const raw of jobs) {
+      try {
+        if (!raw.title || !raw.company || !raw.description) continue
+
+        const slug = raw.company.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60)
+        let company = await db.company.findUnique({ where: { slug } })
+        if (!company) {
+          company = await db.company.create({
+            data: { name: raw.company, slug, hiringActivity: 'Medium', sevenDayTrend: 0 }
+          })
+        }
+
+        const hash = crypto.createHash('sha1').update(raw.title + '|' + company.id + '|' + (raw.location || '').split(',')[0].trim()).digest('hex')
+        if (raw.sourceRef) {
+          const existing = await db.job.findUnique({ where: { source_sourceRef: { source, sourceRef: raw.sourceRef } } })
+          if (existing) { skipped++; continue }
+        }
+
+        await db.job.create({
+          data: {
+            title: raw.title,
+            companyId: company.id,
+            category: raw.category || 'experienced',
+            employmentType: raw.employmentType || 'Full-time',
+            workMode: raw.workMode || 'Onsite',
+            experience: raw.experience || '0-2 Years',
+            salaryMin: raw.salaryMin ?? null,
+            salaryMax: raw.salaryMax ?? null,
+            salaryCurrency: 'INR',
+            location: raw.location || 'Not specified',
+            skills: raw.skills || '',
+            description: raw.description,
+            applyUrl: raw.applyUrl || null,
+            postedAt: raw.sourcePostedAt ? new Date(raw.sourcePostedAt) : new Date(),
+            verified: true,
+            source,
+            sourceRef: raw.sourceRef || null,
+            hash,
+            originalDescription: raw.description,
+            enriched: false,
+            sourcePostedAt: raw.sourcePostedAt ? new Date(raw.sourcePostedAt) : null,
+          },
+        })
+        added++
+      } catch (e: any) {
+        errors.push(`${raw.title || 'unknown'}: ${e.message}`)
+      }
+    }
 
     await db.jobSync.update({
       where: { id: sync.id },
       data: {
         status: 'success',
-        jobsAdded: ingestData.added || 0,
-        jobsSkipped: ingestData.skipped || 0,
+        jobsAdded: added,
+        jobsSkipped: skipped,
         finishedAt: new Date(),
         durationMs: Date.now() - startedAt,
       },
     })
 
-    return {
-      added: ingestData.added || 0,
-      skipped: ingestData.skipped || 0,
-      enriched: ingestData.enriched || 0,
-    }
+    return { added, skipped, enriched: 0 }
   } catch (e: any) {
     await db.jobSync.update({
       where: { id: sync.id },
