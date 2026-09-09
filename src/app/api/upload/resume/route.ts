@@ -4,6 +4,32 @@ import mammoth from 'mammoth'
 // POST /api/upload/resume
 // Accepts a multipart/form-data file upload (PDF, DOC, DOCX, TXT)
 // Returns: { text: string, fileName: string, fileType: string, charCount: number }
+
+async function extractPdfText(buffer: Buffer): Promise<string> {
+  // Use pdfjs-dist directly (no test file bug like pdf-parse)
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const pdfjsLib = require('pdfjs-dist/legacy/build/pdf.js')
+  
+  const loadingTask = pdfjsLib.getDocument({
+    data: new Uint8Array(buffer),
+    useSystemFonts: true,
+  })
+  
+  const pdf = await loadingTask.promise
+  let text = ''
+  
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i)
+    const content = await page.getTextContent()
+    const pageText = content.items
+      .map((item: any) => item.str)
+      .join(' ')
+    text += pageText + '\n'
+  }
+  
+  return text
+}
+
 export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData()
@@ -27,17 +53,11 @@ export async function POST(req: NextRequest) {
     let text = ''
 
     if (fileType === 'pdf') {
-      // Dynamic import to avoid pdf-parse's module-level test file loading bug
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const pdfParse = require('pdf-parse')
-      const pdfData = await pdfParse(buffer)
-      text = pdfData.text || ''
+      text = await extractPdfText(buffer)
     } else if (fileType === 'docx' || fileType === 'doc') {
-      // Extract text from Word document
       const result = await mammoth.extractRawText({ buffer })
       text = result.value || ''
     } else if (fileType === 'txt') {
-      // Plain text file
       text = buffer.toString('utf-8')
     } else {
       return NextResponse.json({
