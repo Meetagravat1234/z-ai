@@ -439,16 +439,11 @@ export function getParallelSources(): Array<{ adapter: () => Promise<FetchResult
       .slice(0, 3) // bumped from 2 → 3
       .map((c) => ({ adapter: () => fetchAshby(c), label: `ashby-${c}` })),
     // Adzuna API (if user has provided ADZUNA_APP_ID + ADZUNA_APP_KEY in env)
+    // Free tier = 1000 requests/month. We use 2 per sync × 48 syncs/day = 96/day ≈ 2880/month
+    // That's over the limit. So we only do 1 Adzuna call per sync (fetches latest 20 India jobs)
     ...(process.env.ADZUNA_APP_ID && process.env.ADZUNA_APP_KEY
       ? [
-          { adapter: () => fetchAdzuna('software engineer', 'India'), label: 'adzuna-software' },
-          { adapter: () => fetchAdzuna('data scientist', 'India'), label: 'adzuna-data' },
-          { adapter: () => fetchAdzuna('fresher', 'India'), label: 'adzuna-fresher' },
-          { adapter: () => fetchAdzuna('devops engineer', 'India'), label: 'adzuna-devops' },
-          { adapter: () => fetchAdzuna('frontend developer', 'India'), label: 'adzuna-frontend' },
-          { adapter: () => fetchAdzuna('backend developer', 'India'), label: 'adzuna-backend' },
-          { adapter: () => fetchAdzuna('product manager', 'India'), label: 'adzuna-pm' },
-          { adapter: () => fetchAdzuna('full stack developer', 'India'), label: 'adzuna-fullstack' },
+          { adapter: () => fetchAdzuna('all', 'India'), label: 'adzuna-latest' },
         ]
       : []),
     // Careerjet API (if user has provided CAREERJET_AFFILIATE_ID in env)
