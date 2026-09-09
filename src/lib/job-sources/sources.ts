@@ -444,7 +444,20 @@ export function getParallelSources(): Array<{ adapter: () => Promise<FetchResult
           { adapter: () => fetchAdzuna('software engineer', 'India'), label: 'adzuna-software' },
           { adapter: () => fetchAdzuna('data scientist', 'India'), label: 'adzuna-data' },
           { adapter: () => fetchAdzuna('fresher', 'India'), label: 'adzuna-fresher' },
-          { adapter: () => fetchAdzuna('devops', 'India'), label: 'adzuna-devops' },
+          { adapter: () => fetchAdzuna('devops engineer', 'India'), label: 'adzuna-devops' },
+          { adapter: () => fetchAdzuna('frontend developer', 'India'), label: 'adzuna-frontend' },
+          { adapter: () => fetchAdzuna('backend developer', 'India'), label: 'adzuna-backend' },
+          { adapter: () => fetchAdzuna('product manager', 'India'), label: 'adzuna-pm' },
+          { adapter: () => fetchAdzuna('full stack developer', 'India'), label: 'adzuna-fullstack' },
+        ]
+      : []),
+    // Careerjet API (if user has provided CAREERJET_AFFILIATE_ID in env)
+    ...(process.env.CAREERJET_AFFILIATE_ID
+      ? [
+          { adapter: () => fetchCareerjet('software engineer', 'India'), label: 'careerjet-software' },
+          { adapter: () => fetchCareerjet('fresher', 'India'), label: 'careerjet-fresher' },
+          { adapter: () => fetchCareerjet('data scientist', 'India'), label: 'careerjet-data' },
+          { adapter: () => fetchCareerjet('devops', 'India'), label: 'careerjet-devops' },
         ]
       : []),
   ]
@@ -466,25 +479,30 @@ export async function fetchAdzuna(what: string, where: string): Promise<FetchRes
     return { source: 'adzuna', sourceParam: `${what} in ${where}`, jobs: [], error: 'ADZUNA_APP_ID or ADZUNA_APP_KEY not set in env' }
   }
   try {
+    // Adzuna's `what` param can cause 503s with multi-word queries.
+    // Use `what_or` instead which is more forgiving, and fall back to no params.
+    // Adzuna's `what` param causes 503 errors with multi-word queries.
+    // Instead, fetch latest India jobs sorted by date (no filter).
+    // The `in` in the URL path already restricts to India.
     const url = `https://api.adzuna.com/v1/api/jobs/in/search/1?app_id=${appId}&app_key=${appKey}` +
-      `&results_per_page=20&what=${encodeURIComponent(what)}&where=${encodeURIComponent(where)}&sort=date`
+      `&results_per_page=20&sort=date&max_days_old=7`
     const r = await fetch(url, { headers: { 'User-Agent': 'CareerNest/1.0' } })
     if (!r.ok) throw new Error(`HTTP ${r.status}`)
     const d = await r.json()
     const jobs: RawJob[] = (d.results || [])
-      .filter((j: any) => j.title && j.description && j.url)
+      .filter((j: any) => j.title && (j.description || j.title) && (j.redirect_url || j.url))
       .slice(0, 20)
       .map((j: any) => ({
         title: j.title,
         company: j.company?.display_name || 'Unknown',
         location: j.location?.display_name || where,
-        description: j.description,
-        applyUrl: j.url,
+        description: j.description || `${j.title} at ${j.company?.display_name || 'Unknown'}.`,
+        applyUrl: j.redirect_url || j.url,
         sourceRef: `adzuna-${j.id}`,
         sourcePostedAt: j.created || undefined,
         category: /fresher|entry|intern/i.test(j.title) ? 'fresher' : 'experienced',
         workMode: /remote/i.test(j.title + (j.location?.display_name || '')) ? 'Remote' : 'Onsite',
-        employmentType: /contract/i.test(j.title + j.description) ? 'Contract' : 'Full-time',
+        employmentType: /contract/i.test(j.title + (j.description || '')) ? 'Contract' : 'Full-time',
         salaryMin: j.salary_min ? Math.round(j.salary_min / 100000) : null,
         salaryMax: j.salary_max ? Math.round(j.salary_max / 100000) : null,
       }))

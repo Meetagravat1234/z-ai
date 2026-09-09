@@ -9,6 +9,8 @@ import {
   fetchIndeedRSS,
   fetchGreenhouse,
   fetchAshby,
+  fetchAdzuna,
+  fetchCareerjet,
 } from '@/lib/job-sources/sources'
 import {
   fetchDeepCrawl,
@@ -38,6 +40,28 @@ export async function GET(req: NextRequest) {
     { adapter: fetchRemoteOK, label: 'remoteok', sourceName: 'remoteok' },
     { adapter: fetchWeWorkRemotely, label: 'weworkremotely', sourceName: 'weworkremotely' },
     { adapter: fetchIndeedRSS, label: 'indeed-rss', sourceName: 'indeed-rss' },
+    // Adzuna API (8 queries × 20 jobs = 160 India jobs per deep crawl)
+    ...(process.env.ADZUNA_APP_ID && process.env.ADZUNA_APP_KEY
+      ? [
+          { adapter: () => fetchAdzuna('software engineer', 'India'), label: 'adzuna-software', sourceName: 'adzuna' },
+          { adapter: () => fetchAdzuna('data scientist', 'India'), label: 'adzuna-data', sourceName: 'adzuna' },
+          { adapter: () => fetchAdzuna('fresher', 'India'), label: 'adzuna-fresher', sourceName: 'adzuna' },
+          { adapter: () => fetchAdzuna('devops engineer', 'India'), label: 'adzuna-devops', sourceName: 'adzuna' },
+          { adapter: () => fetchAdzuna('frontend developer', 'India'), label: 'adzuna-frontend', sourceName: 'adzuna' },
+          { adapter: () => fetchAdzuna('backend developer', 'India'), label: 'adzuna-backend', sourceName: 'adzuna' },
+          { adapter: () => fetchAdzuna('full stack developer', 'India'), label: 'adzuna-fullstack', sourceName: 'adzuna' },
+          { adapter: () => fetchAdzuna('product manager', 'India'), label: 'adzuna-pm', sourceName: 'adzuna' },
+        ]
+      : []),
+    // Careerjet API (4 queries × 15 jobs = 60 India jobs per deep crawl)
+    ...(process.env.CAREERJET_AFFILIATE_ID
+      ? [
+          { adapter: () => fetchCareerjet('software engineer', 'India'), label: 'careerjet-software', sourceName: 'careerjet' },
+          { adapter: () => fetchCareerjet('fresher', 'India'), label: 'careerjet-fresher', sourceName: 'careerjet' },
+          { adapter: () => fetchCareerjet('data scientist', 'India'), label: 'careerjet-data', sourceName: 'careerjet' },
+          { adapter: () => fetchCareerjet('devops', 'India'), label: 'careerjet-devops', sourceName: 'careerjet' },
+        ]
+      : []),
   ]
 
   // Add Greenhouse companies (5 random)

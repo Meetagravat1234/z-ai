@@ -51,6 +51,18 @@ export async function GET(req: NextRequest) {
       case 'indeed-rss':
         result = await fetchIndeedRSS()
         break
+      case 'adzuna': {
+        const { fetchAdzuna } = await import('@/lib/job-sources/sources')
+        const query = forcedParam || 'software engineer'
+        result = await fetchAdzuna(query, 'India')
+        break
+      }
+      case 'careerjet': {
+        const { fetchCareerjet } = await import('@/lib/job-sources/sources')
+        const query = forcedParam || 'software engineer'
+        result = await fetchCareerjet(query, 'India')
+        break
+      }
       case 'web-search': {
         const { fetchWebSearch } = await import('@/lib/job-sources/web-search-adapter')
         result = await fetchWebSearch(forcedParam || 'software engineer jobs India')
