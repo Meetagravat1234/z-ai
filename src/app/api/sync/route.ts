@@ -145,7 +145,9 @@ export async function GET(req: NextRequest) {
   // Ingest jobs directly (no HTTP fetch — works on Vercel serverless)
   const startedAt = Date.now()
   try {
+    console.log("[sync] calling ingestJobs with", result.jobs.length, "jobs, source:", result.source)
     const ingestData = await ingestJobs(result.source, result.jobs, true)
+    console.log("[sync] ingestJobs returned:", JSON.stringify(ingestData))
 
     await db.jobSync.update({
       where: { id: sync.id },
