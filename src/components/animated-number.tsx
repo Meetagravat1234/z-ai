@@ -10,32 +10,40 @@ interface AnimatedNumberProps {
 
 export function AnimatedNumber({ value, duration = 1500, className }: AnimatedNumberProps) {
   const [displayValue, setDisplayValue] = React.useState(0)
-  const [hasStarted, setHasStarted] = React.useState(false)
+  const [hasAnimated, setHasAnimated] = React.useState(false)
   const ref = React.useRef<HTMLSpanElement>(null)
+  const hasIntersected = React.useRef(false)
 
   React.useEffect(() => {
+    // Don't animate if value is 0 (data not loaded yet)
+    if (value <= 0) return
+
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && !hasStarted) {
-          setHasStarted(true)
-          const startTime = Date.now()
-          const startValue = 0
-          const endValue = value
+        if (entries[0].isIntersecting) {
+          hasIntersected.current = true
+          // Only animate once, and only when we have a real value
+          if (!hasAnimated) {
+            setHasAnimated(true)
+            const startTime = Date.now()
+            const startValue = 0
+            const endValue = value
 
-          const animate = () => {
-            const elapsed = Date.now() - startTime
-            const progress = Math.min(elapsed / duration, 1)
-            
-            // Ease-out cubic for natural deceleration
-            const eased = 1 - Math.pow(1 - progress, 3)
-            const current = Math.round(startValue + (endValue - startValue) * eased)
-            setDisplayValue(current)
+            const animate = () => {
+              const elapsed = Date.now() - startTime
+              const progress = Math.min(elapsed / duration, 1)
+              
+              // Ease-out cubic for natural deceleration
+              const eased = 1 - Math.pow(1 - progress, 3)
+              const current = Math.round(startValue + (endValue - startValue) * eased)
+              setDisplayValue(current)
 
-            if (progress < 1) {
-              requestAnimationFrame(animate)
+              if (progress < 1) {
+                requestAnimationFrame(animate)
+              }
             }
+            requestAnimationFrame(animate)
           }
-          requestAnimationFrame(animate)
         }
       },
       { threshold: 0.1 }
@@ -43,7 +51,15 @@ export function AnimatedNumber({ value, duration = 1500, className }: AnimatedNu
 
     if (ref.current) observer.observe(ref.current)
     return () => observer.disconnect()
-  }, [value, duration, hasStarted])
+  }, [value, duration, hasAnimated])
+
+  // If we haven't animated yet, show the raw value (no 0)
+  // This ensures the real number shows even if IntersectionObserver hasn't fired
+  React.useEffect(() => {
+    if (!hasAnimated && value > 0) {
+      setDisplayValue(value)
+    }
+  }, [value, hasAnimated])
 
   return (
     <span ref={ref} className={className}>

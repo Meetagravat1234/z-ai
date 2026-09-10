@@ -56,6 +56,7 @@ export function HomeView() {
   const [companies, setCompanies] = React.useState<Company[]>([])
   const [articles, setArticles] = React.useState<Article[]>([])
   const [stats, setStats] = React.useState({ jobs: 0, companies: 0 })
+  const [statsLoaded, setStatsLoaded] = React.useState(false)
   const [newToday, setNewToday] = React.useState(0)
   const [lastSync, setLastSync] = React.useState<{ source: string; ts: string } | null>(null)
   const [recommendedJobs, setRecommendedJobs] = React.useState<Job[]>([])
@@ -75,6 +76,7 @@ export function HomeView() {
         jobs: recent.total || (recent.jobs || []).length,
         companies: (comps.companies || []).length,
       })
+      setStatsLoaded(true)
     })
 
     // Load sync status separately (slow API, don't block the page)
@@ -159,7 +161,7 @@ export function HomeView() {
               className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-primary text-primary-foreground font-semibold shadow-lg shadow-primary/30 hover:opacity-90 transition-opacity"
             >
               <Search className="w-4 h-4" />
-              Browse {stats.jobs || ''} jobs
+              Browse {statsLoaded ? `${stats.jobs} jobs` : 'jobs'}
             </button>
             <button
               onClick={() => go('ai-resume')}
