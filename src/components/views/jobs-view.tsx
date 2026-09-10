@@ -1,9 +1,10 @@
 'use client'
 
 import * as React from 'react'
-import { Filter, X, Loader2, Search, SlidersHorizontal, Briefcase } from 'lucide-react'
+import { Filter, X, Loader2, Search, SlidersHorizontal, Briefcase, Lock, Sparkles } from 'lucide-react'
 import { JobCard, type Job } from '@/components/jobs/job-card'
 import { useNav } from '@/lib/nav-store'
+import { useAuth } from '@/lib/auth-context'
 import { cn } from '@/lib/utils'
 
 interface Props {
@@ -30,7 +31,8 @@ const SORTS = [
 ]
 
 export function JobsView({ fixedCategory, fixedTitle, showFilters = true }: Props) {
-  const { jobFilter } = useNav()
+  const { jobFilter, go } = useNav()
+  const { user, loading: authLoading } = useAuth()
   const [jobs, setJobs] = React.useState<Job[]>([])
   const [loading, setLoading] = React.useState(true)
   const [q, setQ] = React.useState(jobFilter.q || '')
@@ -205,7 +207,7 @@ export function JobsView({ fixedCategory, fixedTitle, showFilters = true }: Prop
       {/* Results */}
       <div className="flex items-center justify-between text-sm">
         <span className="text-muted-foreground">
-          {loading ? 'Loading…' : `${jobs.length} job${jobs.length !== 1 ? 's' : ''} found`}
+          {loading ? 'Loading…' : `${user ? jobs.length : Math.min(jobs.length, 3)} of ${jobs.length} job${jobs.length !== 1 ? 's' : ''} shown${!user && jobs.length > 3 ? ' — sign up to see all' : ''}`}
         </span>
       </div>
 
@@ -219,11 +221,32 @@ export function JobsView({ fixedCategory, fixedTitle, showFilters = true }: Prop
           <p className="text-muted-foreground">No jobs match your filters.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {jobs.map((job) => (
-            <JobCard key={job.id} job={job} />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {(user ? jobs : jobs.slice(0, 3)).map((job) => (
+              <JobCard key={job.id} job={job} />
+            ))}
+          </div>
+          {/* Signup gate for anonymous users */}
+          {!user && !authLoading && jobs.length > 3 && (
+            <div className="rounded-2xl border-2 border-dashed border-primary/40 bg-primary/5 p-8 text-center">
+              <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                <Lock className="w-7 h-7 text-primary" />
+              </div>
+              <h3 className="font-extrabold text-lg mb-1">{jobs.length - 3} more jobs waiting for you!</h3>
+              <p className="text-sm text-muted-foreground mb-4 max-w-md mx-auto">
+                Sign up free to unlock all {jobs.length} jobs, save your favorites, track applications, and get AI-powered career tools.
+              </p>
+              <button
+                onClick={() => go('auth')}
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-primary text-primary-foreground font-bold shadow-lg shadow-primary/30 hover:opacity-90"
+              >
+                <Sparkles className="w-4 h-4" />
+                Sign up to see all jobs — it's free
+              </button>
+            </div>
+          )}
+        </>
       )}
     </div>
   )

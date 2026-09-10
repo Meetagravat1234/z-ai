@@ -419,10 +419,24 @@ export function HomeView() {
           </button>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {jobs.map((job) => (
+          {(user ? jobs : jobs.slice(0, 3)).map((job) => (
             <JobCard key={job.id} job={job} />
           ))}
         </div>
+        {/* Signup CTA for anonymous users on Home page */}
+        {!user && !isDemo && jobs.length > 0 && (
+          <div className="mt-4 rounded-2xl border-2 border-dashed border-primary/40 bg-primary/5 p-6 text-center">
+            <p className="text-sm font-semibold text-foreground mb-2">
+              🔒 Sign up free to see all {stats.jobs || ''} jobs + AI tools + job alerts
+            </p>
+            <button
+              onClick={() => go('auth')}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:opacity-90"
+            >
+              Create free account →
+            </button>
+          </div>
+        )}
       </section>
 
       {/* TOP COMPANIES */}

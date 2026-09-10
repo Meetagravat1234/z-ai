@@ -56,7 +56,6 @@ const navGroups: Array<{
       { id: 'companies', label: 'Companies', icon: Building2 },
       { id: 'insights', label: 'Career Insights', icon: BookOpen },
       { id: 'ground-truth', label: 'Ground Truth', icon: Microscope },
-      { id: 'sync-status', label: 'Live Sync Status', icon: Activity, badge: 'LIVE' },
     ],
   },
   {
@@ -105,7 +104,10 @@ export function Sidebar() {
   const groups = isAdmin
     ? [...navGroups, {
         label: 'Admin',
-        items: [{ id: 'admin' as ViewId, label: 'Admin Dashboard', icon: Shield }],
+        items: [
+          { id: 'admin' as ViewId, label: 'Admin Dashboard', icon: Shield },
+          { id: 'sync-status' as ViewId, label: 'Live Sync Status', icon: Activity, badge: 'LIVE' },
+        ],
       }]
     : navGroups
   return (
