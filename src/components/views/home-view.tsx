@@ -27,6 +27,7 @@ import { useAuth } from '@/lib/auth-context'
 import { AnimatedNumber } from '@/components/animated-number'
 import { JobCard, type Job } from '@/components/jobs/job-card'
 import { cn } from '@/lib/utils'
+import type { HomeInitialData } from '@/lib/home-types'
 
 interface Company {
   id: string
@@ -50,34 +51,47 @@ interface Article {
   createdAt: string
 }
 
-export function HomeView() {
+export function HomeView({ initialData }: { initialData?: HomeInitialData }) {
   const { go, openCompany } = useNav()
-  const [jobs, setJobs] = React.useState<Job[]>([])
-  const [companies, setCompanies] = React.useState<Company[]>([])
-  const [articles, setArticles] = React.useState<Article[]>([])
-  const [stats, setStats] = React.useState({ jobs: 0, companies: 0 })
-  const [statsLoaded, setStatsLoaded] = React.useState(false)
+  // Use SSR-provided initial data on first render (so HTML includes jobs/companies for SEO),
+  // then refresh from the API in the background for live updates.
+  const [jobs, setJobs] = React.useState<Job[]>(
+    (initialData?.initialJobs as Job[]) || []
+  )
+  const [companies, setCompanies] = React.useState<Company[]>(
+    (initialData?.initialCompanies as Company[]) || []
+  )
+  const [articles, setArticles] = React.useState<Article[]>(
+    (initialData?.initialArticles as Article[]) || []
+  )
+  const [stats, setStats] = React.useState(
+    initialData?.stats || { jobs: 0, companies: 0 }
+  )
+  const [statsLoaded, setStatsLoaded] = React.useState(!!initialData)
   const [newToday, setNewToday] = React.useState(0)
   const [lastSync, setLastSync] = React.useState<{ source: string; ts: string } | null>(null)
   const [recommendedJobs, setRecommendedJobs] = React.useState<Job[]>([])
   const { user, isDemo } = useAuth()
 
   React.useEffect(() => {
-    // Load critical data first (jobs + companies) — these are fast (~1-2s)
-    Promise.all([
-      fetch('/api/jobs?limit=6&indiaOnly=true').then((r) => r.json()),
-      fetch('/api/companies').then((r) => r.json()),
-      fetch('/api/articles?limit=3').then((r) => r.json()),
-    ]).then(([recent, comps, arts]) => {
-      setJobs(recent.jobs || [])
-      setCompanies((comps.companies || []).slice(0, 8))
-      setArticles(arts.articles || [])
-      setStats({
-        jobs: recent.total || (recent.jobs || []).length,
-        companies: (comps.companies || []).length,
+    // Refresh in the background — only fetch if we don't have initial data already
+    // (initial data already came from SSR, so we can skip those fetches)
+    if (!initialData) {
+      Promise.all([
+        fetch('/api/jobs?limit=6&indiaOnly=true').then((r) => r.json()),
+        fetch('/api/companies').then((r) => r.json()),
+        fetch('/api/articles?limit=3').then((r) => r.json()),
+      ]).then(([recent, comps, arts]) => {
+        setJobs(recent.jobs || [])
+        setCompanies((comps.companies || []).slice(0, 8))
+        setArticles(arts.articles || [])
+        setStats({
+          jobs: recent.total || (recent.jobs || []).length,
+          companies: (comps.companies || []).length,
+        })
+        setStatsLoaded(true)
       })
-      setStatsLoaded(true)
-    })
+    }
 
     // Load sync status separately (slow API, don't block the page)
     fetch('/api/sync/status')
@@ -90,7 +104,7 @@ export function HomeView() {
         }
       })
       .catch(() => {})
-  }, [])
+  }, [initialData])
 
   // Fetch personalized jobs when user has targetRole
   React.useEffect(() => {
@@ -105,7 +119,7 @@ export function HomeView() {
   }, [user, isDemo])
 
   return (
-    <div className="space-y-12 pb-8">
+    <div className="space-y-8 sm:space-y-12 pb-8">
       {/* Live sync banner */}
       {(newToday > 0 || lastSync) && (
         <button
@@ -142,30 +156,30 @@ export function HomeView() {
         <div className="absolute -top-32 -right-32 w-96 h-96 bg-primary/20 rounded-full blur-3xl" />
         <div className="absolute -bottom-32 -left-32 w-96 h-96 bg-accent/15 rounded-full blur-3xl" />
 
-        <div className="relative px-6 py-12 sm:px-10 sm:py-16 lg:py-20 lg:px-14 max-w-4xl">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-primary/30 bg-primary/10 text-primary text-xs font-semibold mb-5">
+        <div className="relative px-5 py-8 sm:px-10 sm:py-16 lg:py-20 lg:px-14 max-w-4xl">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-primary/30 bg-primary/10 text-primary text-xs font-semibold mb-4 sm:mb-5">
             <Sparkles className="w-3.5 h-3.5" />
             AI-powered career intelligence
           </div>
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight leading-tight">
-            Find <span className="gradient-text">verified jobs</span>,<br />
+          <h1 className="text-[26px] leading-[1.15] sm:text-4xl lg:text-5xl font-extrabold tracking-tight">
+            Find <span className="gradient-text">verified jobs</span>,<br className="hidden sm:block" />
             research companies, and tailor your resume with AI.
           </h1>
-          <p className="mt-4 text-base sm:text-lg text-muted-foreground max-w-2xl">
+          <p className="mt-3 sm:mt-4 text-sm sm:text-base lg:text-lg text-muted-foreground max-w-2xl">
             Hirebase combines employer-sourced job discovery, company hiring signals, AI resume tools, and editorial guidance — not a generic repost board.
           </p>
 
-          <div className="mt-7 flex flex-wrap gap-3">
+          <div className="mt-5 sm:mt-7 flex flex-col sm:flex-row flex-wrap gap-3">
             <button
               onClick={() => go('all-jobs')}
-              className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-primary text-primary-foreground font-semibold shadow-lg shadow-primary/30 hover:opacity-90 transition-opacity"
+              className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-primary text-primary-foreground font-semibold shadow-lg shadow-primary/30 hover:opacity-90 transition-opacity"
             >
               <Search className="w-4 h-4" />
               Browse {statsLoaded ? `${stats.jobs} jobs` : 'jobs'}
             </button>
             <button
               onClick={() => go('ai-resume')}
-              className="inline-flex items-center gap-2 px-5 py-3 rounded-xl border border-border bg-background hover:bg-muted font-semibold transition-colors"
+              className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl border border-border bg-background hover:bg-muted font-semibold transition-colors"
             >
               <Sparkles className="w-4 h-4 text-violet-500" />
               Try AI Resume Optimizer
@@ -173,7 +187,7 @@ export function HomeView() {
           </div>
 
           {/* Stats */}
-          <div className="mt-10 grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="mt-8 sm:mt-10 grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
             {[
               { label: 'Verified jobs', value: stats.jobs, icon: Briefcase, color: 'text-primary' },
               { label: 'Companies', value: stats.companies, icon: Building2, color: 'text-accent' },
@@ -184,17 +198,17 @@ export function HomeView() {
               return (
                 <div
                   key={s.label}
-                  className="rounded-2xl border border-border bg-background/80 backdrop-blur p-4"
+                  className="rounded-2xl border border-border bg-background/80 backdrop-blur p-3 sm:p-4"
                 >
-                  <Icon className={cn('w-5 h-5 mb-2', s.color)} />
-                  <div className="text-2xl font-extrabold text-foreground tabular-nums">
+                  <Icon className={cn('w-4 h-4 sm:w-5 sm:h-5 mb-1.5 sm:mb-2', s.color)} />
+                  <div className="text-xl sm:text-2xl font-extrabold text-foreground tabular-nums">
                     <AnimatedNumber 
                       value={s.value} 
                       storageKey={`hirebase_stat_${s.label}`}
                       fallback={s.label === 'Verified jobs' ? 311 : s.label === 'Companies' ? 139 : s.value}
                     />
                   </div>
-                  <div className="text-xs text-muted-foreground font-medium">
+                  <div className="text-[11px] sm:text-xs text-muted-foreground font-medium">
                     {s.label}
                   </div>
                 </div>
@@ -207,10 +221,10 @@ export function HomeView() {
       {/* JOBS FOR YOU — personalized recommendations */}
       {user && !isDemo && user.targetRole && (
         <section>
-          <div className="flex items-end justify-between mb-5">
+          <div className="flex items-end justify-between mb-4 sm:mb-5">
             <div>
-              <h2 className="text-2xl font-bold tracking-tight">Jobs for you</h2>
-              <p className="text-sm text-muted-foreground mt-1">
+              <h2 className="text-xl sm:text-2xl font-bold tracking-tight">Jobs for you</h2>
+              <p className="text-xs sm:text-sm text-muted-foreground mt-1">
                 Based on your target role: <strong className="text-primary">{user.targetRole}</strong>
                 {user.skills && ` · Skills: ${user.skills.split(',').slice(0, 5).join(', ')}`}
               </p>
@@ -232,15 +246,15 @@ export function HomeView() {
 
       {/* AI TOOLS */}
       <section>
-        <div className="flex items-end justify-between mb-5">
+        <div className="flex items-end justify-between mb-4 sm:mb-5">
           <div>
-            <h2 className="text-2xl font-bold tracking-tight">AI-Powered Career Tools</h2>
-            <p className="text-sm text-muted-foreground mt-1">
+            <h2 className="text-xl sm:text-2xl font-bold tracking-tight">AI-Powered Career Tools</h2>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-1">
               Six intelligent assistants to accelerate your job search.
             </p>
           </div>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           {[
             {
               id: 'ai-resume',
@@ -327,15 +341,15 @@ export function HomeView() {
 
       {/* INSIGHTS & TOOLS */}
       <section>
-        <div className="flex items-end justify-between mb-5">
+        <div className="flex items-end justify-between mb-4 sm:mb-5">
           <div>
-            <h2 className="text-2xl font-bold tracking-tight">Insights & Decision Tools</h2>
-            <p className="text-sm text-muted-foreground mt-1">
+            <h2 className="text-xl sm:text-2xl font-bold tracking-tight">Insights & Decision Tools</h2>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-1">
               Data-driven tools to help you research, compare, and prepare.
             </p>
           </div>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
           {[
             {
               id: 'salary-dashboard',
@@ -376,15 +390,15 @@ export function HomeView() {
 
       {/* CATEGORIES */}
       <section>
-        <div className="flex items-end justify-between mb-5">
+        <div className="flex items-end justify-between mb-4 sm:mb-5">
           <div>
-            <h2 className="text-2xl font-bold tracking-tight">Browse by category</h2>
-            <p className="text-sm text-muted-foreground mt-1">
+            <h2 className="text-xl sm:text-2xl font-bold tracking-tight">Browse by category</h2>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-1">
               Curated job lists for every stage of your career.
             </p>
           </div>
         </div>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           {[
             { id: 'freshers', label: 'Freshers', desc: '0 years experience jobs', icon: GraduationCap, count: null },
             { id: 'internships', label: 'Internships', desc: 'Student & college roles', icon: UserCheck, count: null },
@@ -411,21 +425,21 @@ export function HomeView() {
 
       {/* FEATURED JOBS */}
       <section>
-        <div className="flex items-end justify-between mb-5">
+        <div className="flex items-end justify-between mb-4 sm:mb-5">
           <div>
-            <h2 className="text-2xl font-bold tracking-tight">Featured jobs</h2>
-            <p className="text-sm text-muted-foreground mt-1">
+            <h2 className="text-xl sm:text-2xl font-bold tracking-tight">Featured jobs</h2>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-1">
               Hand-picked verified openings from top employers.
             </p>
           </div>
           <button
             onClick={() => go('all-jobs')}
-            className="text-sm font-semibold text-primary hover:underline"
+            className="text-sm font-semibold text-primary hover:underline shrink-0"
           >
             View all →
           </button>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           {(user ? jobs : jobs.slice(0, 3)).map((job) => (
             <JobCard key={job.id} job={job} />
           ))}
@@ -448,21 +462,21 @@ export function HomeView() {
 
       {/* TOP COMPANIES */}
       <section>
-        <div className="flex items-end justify-between mb-5">
+        <div className="flex items-end justify-between mb-4 sm:mb-5">
           <div>
-            <h2 className="text-2xl font-bold tracking-tight">Top companies hiring</h2>
-            <p className="text-sm text-muted-foreground mt-1">
+            <h2 className="text-xl sm:text-2xl font-bold tracking-tight">Top companies hiring</h2>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-1">
               Active openings, hiring velocity, and 7-day trends.
             </p>
           </div>
           <button
             onClick={() => go('companies')}
-            className="text-sm font-semibold text-primary hover:underline"
+            className="text-sm font-semibold text-primary hover:underline shrink-0"
           >
             View all →
           </button>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3">
           {companies.map((c) => {
             const trendUp = c.sevenDayTrend > 0
             const trendDown = c.sevenDayTrend < 0
@@ -470,20 +484,20 @@ export function HomeView() {
               <button
                 key={c.id}
                 onClick={() => openCompany(c.slug)}
-                className="text-left rounded-2xl border border-border bg-card p-4 card-lift"
+                className="text-left rounded-2xl border border-border bg-card p-3 sm:p-4 card-lift"
               >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center text-xl">
-                    {c.logo || <Building2 className="w-5 h-5" />}
+                <div className="flex items-center gap-2.5 sm:gap-3">
+                  <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-muted flex items-center justify-center text-lg sm:text-xl shrink-0">
+                    {c.logo || <Building2 className="w-4 h-4 sm:w-5 sm:h-5" />}
                   </div>
-                  <div className="min-w-0">
-                    <div className="font-semibold text-sm truncate">{c.name}</div>
-                    <div className="text-xs text-muted-foreground truncate">
+                  <div className="min-w-0 flex-1">
+                    <div className="font-semibold text-xs sm:text-sm truncate">{c.name}</div>
+                    <div className="text-[11px] sm:text-xs text-muted-foreground truncate">
                       {c.openRoles} open role{c.openRoles !== 1 && 's'}
                     </div>
                   </div>
                 </div>
-                <div className="mt-3 flex items-center justify-between text-xs">
+                <div className="mt-2.5 sm:mt-3 flex items-center justify-between text-[11px] sm:text-xs">
                   <span
                     className={cn(
                       'inline-flex items-center gap-1 font-semibold',
@@ -497,7 +511,7 @@ export function HomeView() {
                     />
                     {trendUp ? `+${c.sevenDayTrend}%` : trendDown ? `${c.sevenDayTrend}%` : 'Steady'}
                   </span>
-                  <span className="text-muted-foreground">{c.industry}</span>
+                  <span className="text-muted-foreground truncate ml-2">{c.industry}</span>
                 </div>
               </button>
             )
@@ -508,21 +522,21 @@ export function HomeView() {
       {/* INSIGHTS */}
       {articles.length > 0 && (
         <section>
-          <div className="flex items-end justify-between mb-5">
+          <div className="flex items-end justify-between mb-4 sm:mb-5">
             <div>
-              <h2 className="text-2xl font-bold tracking-tight">Career insights</h2>
-              <p className="text-sm text-muted-foreground mt-1">
+              <h2 className="text-xl sm:text-2xl font-bold tracking-tight">Career insights</h2>
+              <p className="text-xs sm:text-sm text-muted-foreground mt-1">
                 Editorial guidance from hiring insiders.
               </p>
             </div>
             <button
               onClick={() => go('insights')}
-              className="text-sm font-semibold text-primary hover:underline"
+              className="text-sm font-semibold text-primary hover:underline shrink-0"
             >
               All articles →
             </button>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
             {articles.map((a) => (
               <button
                 key={a.id}
@@ -548,12 +562,12 @@ export function HomeView() {
       )}
 
       {/* CTA */}
-      <section className="rounded-3xl bg-gradient-to-br from-primary/10 via-primary/5 to-accent/10 border border-primary/20 p-8 sm:p-12 text-center">
+      <section className="rounded-3xl bg-gradient-to-br from-primary/10 via-primary/5 to-accent/10 border border-primary/20 p-6 sm:p-8 lg:p-12 text-center">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-background/70 backdrop-blur border border-border text-xs font-semibold mb-4">
           <CheckCircle2 className="w-3.5 h-3.5 text-primary" />
           100% free to browse
         </div>
-        <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
+        <h2 className="text-xl sm:text-2xl lg:text-3xl font-extrabold tracking-tight">
           Start your job search smarter today
         </h2>
         <p className="mt-3 text-muted-foreground max-w-xl mx-auto">
@@ -573,6 +587,32 @@ export function HomeView() {
             Learn more
           </button>
         </div>
+      </section>
+
+      {/* SEO content block — natural-language paragraphs that help Google understand what Hirebase is.
+          Rendered as plain HTML so even no-JS crawlers can read it. */}
+      <section aria-label="About Hirebase" className="prose prose-sm dark:prose-invert max-w-none text-muted-foreground">
+        <h2 className="text-xl font-bold text-foreground mb-3">About Hirebase</h2>
+        <p className="leading-relaxed mb-3">
+          Hirebase is India&rsquo;s AI-powered job portal aggregating verified openings from leading employers
+          across Bengaluru, Hyderabad, Pune, Chennai, Mumbai, Delhi NCR, and remote-first companies. Every listing is
+          enriched with structured data &mdash; salary range, required skills, work mode, employment type, and experience
+          level &mdash; so candidates can compare opportunities on equal footing without guessing.
+        </p>
+        <p className="leading-relaxed mb-3">
+          Beyond job listings, Hirebase ships six AI tools built specifically for Indian job seekers: an
+          AI Resume Optimizer that tailors your CV to any job description, an ATS Score Checker that grades
+          resume compatibility (0&ndash;100), an AI Cover Letter generator, an AI Mock Interview simulator with
+          voice or text input, a Skill Gap Analyzer that produces a personalised learning path, and a Salary
+          Predictor with negotiation tips. All tools are free for registered users.
+        </p>
+        <p className="leading-relaxed">
+          The platform crawls 30+ sources every 30 minutes using public APIs (Greenhouse, Ashby, Remotive,
+          Arbeitnow, The Muse, RemoteOK, We Work Remotely), Google search for LinkedIn, Naukri, Internshala,
+          Indeed, and Glassdoor listings, and direct career-page crawls for 38 Indian companies including TCS,
+          Infosys, Wipro, Flipkart, Swiggy, Zomato, Razorpay, PhonePe, and Zerodha. Each new job is
+          AI-enriched within seconds of discovery.
+        </p>
       </section>
     </div>
   )

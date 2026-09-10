@@ -75,7 +75,16 @@ export const metadata: Metadata = {
     },
   },
   verification: {
-    google: "google-site-verification=YOUR_CODE_HERE",
+    // Google Search Console verification code.
+    // Paste ONLY the code value (not "google-site-verification=...").
+    // Get it from https://search.google.com/search-console → Settings → Ownership verification → HTML tag
+    // Example value: "google1234567890abcdef.html" or just the alphanumeric code.
+    // Set via env var GOOGLE_SITE_VERIFICATION in your hosting dashboard so you don't need to redeploy.
+    google: process.env.GOOGLE_SITE_VERIFICATION || process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION || "",
+    other: {
+      // Optional: add Microsoft Clarity / Bing Webmaster verification here
+      ...(process.env.MS_SITE_VERIFICATION ? { "msvalidate.01": process.env.MS_SITE_VERIFICATION } : {}),
+    },
   },
   category: "jobs",
 };

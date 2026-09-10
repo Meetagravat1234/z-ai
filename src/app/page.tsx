@@ -1,213 +1,190 @@
-'use client'
+import { db } from '@/lib/db'
+import HomeShell from './home-shell'
+import type { HomeInitialData } from '@/lib/home-types'
+import type { Metadata } from 'next'
 
-import * as React from 'react'
-import { useNav } from '@/lib/nav-store'
-import { Sidebar, TopNav, BottomNav } from '@/components/layout/sidebar'
-import { CommandPalette } from '@/components/command/command-palette'
-import { HomeView } from '@/components/views/home-view'
-import { JobsView } from '@/components/views/jobs-view'
-import { JobDetailView } from '@/components/views/job-detail-view'
-import { CompanyDetailView } from '@/components/views/company-detail-view'
-import { CompaniesView } from '@/components/views/companies-view'
-import { InsightsView } from '@/components/views/insights-view'
-import { DiscoverView } from '@/components/views/discover-view'
-import { GroundTruthView } from '@/components/views/ground-truth-view'
-import { AboutView } from '@/components/views/about-view'
-import { PricingView } from '@/components/views/pricing-view'
-import { SavedJobsView } from '@/components/views/saved-jobs-view'
-import { TrackerView } from '@/components/views/tracker-view'
-import { SyncStatusView } from '@/components/views/sync-status-view'
-import { SalaryDashboardView } from '@/components/views/salary-dashboard-view'
-import { QuestionBankView } from '@/components/views/question-bank-view'
-import { SkillGapView } from '@/components/views/skill-gap-view'
-import { CompareJobsView } from '@/components/views/compare-jobs-view'
-import { ATSScoreView } from '@/components/views/ats-score-view'
-import { AuthView } from '@/components/views/auth-view'
-import { ProfileView } from '@/components/views/profile-view'
-import { AlertsView } from '@/components/views/alerts-view'
-import { AdminDashboardView } from '@/components/views/admin-dashboard-view'
-import { AIResumeOptimizer } from '@/components/views/ai-resume-view'
-import { AICoverLetter } from '@/components/views/ai-cover-letter-view'
-import { AIMockInterview } from '@/components/views/ai-mock-interview-view'
-import { AISalaryPredictor } from '@/components/views/ai-salary-view'
+// Force dynamic rendering — always shows fresh jobs/companies to Google
+export const dynamic = 'force-dynamic'
+export const revalidate = 300 // 5 min ISR — fast but always fresh
 
-export default function Home() {
-  const { view } = useNav()
+// Page-specific metadata (the layout.tsx has the defaults; this overrides per-page)
+export const metadata: Metadata = {
+  title: 'Hirebase — India\'s AI-Powered Job Portal | 300+ Verified Jobs',
+  description:
+    'Find verified jobs in India with AI-powered tools. Browse 300+ jobs from top companies like Google, Amazon, Microsoft, Flipkart and TCS. Optimize your resume with AI, practice mock interviews, check ATS scores, and get email job alerts — all free on Hirebase.',
+  alternates: { canonical: 'https://www.hirebase.in' },
+}
+
+// Server-side data fetch — runs on the server so the initial HTML includes jobs + companies.
+// This is what fixes the "Featured jobs" / "Top companies" empty sections in Google's crawl.
+async function getHomeData(): Promise<HomeInitialData> {
+  try {
+    // Build the India-only filter (same logic as /api/jobs?indiaOnly=true)
+    const indiaCondition = {
+      OR: [
+        { location: { contains: 'India', mode: 'insensitive' as const } },
+        { location: { contains: 'Bengaluru', mode: 'insensitive' as const } },
+        { location: { contains: 'Bangalore', mode: 'insensitive' as const } },
+        { location: { contains: 'Hyderabad', mode: 'insensitive' as const } },
+        { location: { contains: 'Chennai', mode: 'insensitive' as const } },
+        { location: { contains: 'Mumbai', mode: 'insensitive' as const } },
+        { location: { contains: 'Pune', mode: 'insensitive' as const } },
+        { location: { contains: 'Noida', mode: 'insensitive' as const } },
+        { location: { contains: 'Gurugram', mode: 'insensitive' as const } },
+        { location: { contains: 'Gurgaon', mode: 'insensitive' as const } },
+        { location: { contains: 'Delhi', mode: 'insensitive' as const } },
+        { location: { contains: 'Kolkata', mode: 'insensitive' as const } },
+        { location: { contains: 'Remote', mode: 'insensitive' as const } },
+        { location: { contains: 'Kochi', mode: 'insensitive' as const } },
+        { location: { contains: 'Ahmedabad', mode: 'insensitive' as const } },
+        { location: { contains: 'Jaipur', mode: 'insensitive' as const } },
+        { location: { contains: 'Chandigarh', mode: 'insensitive' as const } },
+        { location: { contains: 'Coimbatore', mode: 'insensitive' as const } },
+      ],
+    }
+
+    // Parallel fetch — same as the client Promise.all
+    const [jobs, companies, articles, totalJobs, totalCompanies] = await Promise.all([
+      db.job.findMany({
+        where: { AND: [{ verified: true }, indiaCondition] },
+        include: { company: true },
+        orderBy: { postedAt: 'desc' },
+        take: 6,
+      }),
+      db.company.findMany({
+        include: { _count: { select: { jobs: { where: { verified: true } } } } },
+        orderBy: { name: 'asc' },
+      }),
+      db.article.findMany({
+        where: { published: true },
+        orderBy: { createdAt: 'desc' },
+        take: 3,
+      }),
+      db.job.count({ where: { verified: true } }),
+      db.company.count(),
+    ])
+
+    return {
+      initialJobs: jobs.map((j) => ({
+        ...j,
+        postedAt: j.postedAt.toISOString(),
+        createdAt: j.createdAt?.toISOString(),
+        updatedAt: j.updatedAt?.toISOString(),
+      })),
+      initialCompanies: companies.slice(0, 8).map((c) => ({
+        id: c.id,
+        name: c.name,
+        slug: c.slug,
+        logo: c.logo,
+        industry: c.industry,
+        hiringActivity: c.hiringActivity,
+        sevenDayTrend: c.sevenDayTrend,
+        openRoles: c._count.jobs,
+      })),
+      initialArticles: articles.map((a) => ({
+        id: a.id,
+        title: a.title,
+        slug: a.slug,
+        excerpt: a.excerpt,
+        category: a.category,
+        coverEmoji: a.coverEmoji,
+        readMinutes: a.readMinutes,
+        createdAt: a.createdAt.toISOString(),
+      })),
+      stats: { jobs: totalJobs, companies: totalCompanies },
+    }
+  } catch (e) {
+    // Fail gracefully — empty initial state, client will retry
+    console.error('Home SSR data fetch failed:', e)
+    return {
+      initialJobs: [],
+      initialCompanies: [],
+      initialArticles: [],
+      stats: { jobs: 0, companies: 0 },
+    }
+  }
+}
+
+export default async function Page() {
+  const data = await getHomeData()
 
   // JSON-LD structured data for Google rich results
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "WebSite",
-    "name": "Hirebase",
-    "url": "https://www.hirebase.in",
-    "description": "India's AI-powered job portal with 300+ verified jobs, AI resume tools, mock interviews, and company reviews.",
-    "potentialAction": {
-      "@type": "SearchAction",
-      "target": {
-        "@type": "EntryPoint",
-        "urlTemplate": "https://www.hirebase.in/?view=all-jobs&q={search_term_string}",
+  const websiteLd = {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: 'Hirebase',
+    url: 'https://www.hirebase.in',
+    description:
+      "India's AI-powered job portal with 300+ verified jobs, AI resume tools, mock interviews, and company reviews.",
+    potentialAction: {
+      '@type': 'SearchAction',
+      target: {
+        '@type': 'EntryPoint',
+        urlTemplate:
+          'https://www.hirebase.in/?view=all-jobs&q={search_term_string}',
       },
-      "query-input": "required name=search_term_string",
+      'query-input': 'required name=search_term_string',
     },
   }
 
   const orgLd = {
-    "@context": "https://schema.org",
-    "@type": "Organization",
-    "name": "Hirebase",
-    "url": "https://www.hirebase.in",
-    "description": "India's AI-powered job portal with verified jobs, AI resume tools, mock interviews, salary insights, and company reviews.",
-    "areaServed": "IN",
-    "knowsAbout": ["Jobs", "Hiring", "Career", "AI Resume Tools", "Mock Interviews", "Salary Predictor"],
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: 'Hirebase',
+    url: 'https://www.hirebase.in',
+    description:
+      "India's AI-powered job portal with verified jobs, AI resume tools, mock interviews, salary insights, and company reviews.",
+    areaServed: 'IN',
+    knowsAbout: [
+      'Jobs',
+      'Hiring',
+      'Career',
+      'AI Resume Tools',
+      'Mock Interviews',
+      'Salary Predictor',
+    ],
   }
 
+  // JobPosting schema — critical for showing up in Google for Jobs
+  const jobPostingsLd = data.initialJobs.map((job: any) => ({
+    '@context': 'https://schema.org',
+    '@type': 'JobPosting',
+    title: job.title,
+    description: (job.description || '').slice(0, 5000),
+    datePosted: job.postedAt,
+    hiringOrganization: {
+      '@type': 'Organization',
+      name: job.company?.name || 'Hirebase',
+    },
+    jobLocation: {
+      '@type': 'Place',
+      address: {
+        '@type': 'PostalAddress',
+        addressLocality: job.location,
+        addressCountry: 'IN',
+      },
+    },
+    employmentType: job.employmentType,
+    url: `https://www.hirebase.in/?view=job-detail&jobId=${job.id}`,
+  }))
+
   return (
-    <div className="min-h-screen flex flex-col bg-background">
-      {/* JSON-LD for SEO */}
+    <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteLd) }}
       />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(orgLd) }}
       />
-      <div className="flex flex-1">
-        <Sidebar />
-        <div className="flex-1 flex flex-col min-w-0">
-          <TopNav />
-          <main className="flex-1 px-4 lg:px-6 py-6 pb-24 lg:pb-6">
-            <div className="max-w-7xl mx-auto">
-              <ViewRouter view={view} />
-            </div>
-          </main>
-        </div>
-      </div>
-
-      <Footer />
-      <BottomNav />
-      <CommandPalette />
-    </div>
-  )
-}
-
-function ViewRouter({ view }: { view: string }) {
-  switch (view) {
-    case 'home':
-      return <HomeView />
-    case 'discover':
-      return <DiscoverView />
-    case 'all-jobs':
-      return <JobsView />
-    case 'job-detail':
-      return <JobDetailView />
-    case 'companies':
-      return <CompaniesView />
-    case 'company-detail':
-      return <CompanyDetailView />
-    case 'insights':
-      return <InsightsView />
-    case 'ground-truth':
-      return <GroundTruthView />
-    case 'freshers':
-      return <JobsView fixedCategory="fresher" fixedTitle="Fresher Jobs" />
-    case 'internships':
-      return <JobsView fixedCategory="internship" fixedTitle="Internships" />
-    case 'walk-in':
-      return <JobsView fixedCategory="walk-in" fixedTitle="Walk-in Jobs" />
-    case 'hidden':
-      return <JobsView fixedCategory="hidden" fixedTitle="Hidden Jobs" />
-    case 'saved':
-      return <SavedJobsView />
-    case 'ai-resume':
-      return <AIResumeOptimizer />
-    case 'ai-cover-letter':
-      return <AICoverLetter />
-    case 'ai-mock-interview':
-      return <AIMockInterview />
-    case 'ai-salary':
-      return <AISalaryPredictor />
-    case 'tracker':
-      return <TrackerView />
-    case 'about':
-      return <AboutView />
-    case 'pricing':
-      return <PricingView />
-    case 'sync-status':
-      return <SyncStatusView />
-    case 'salary-dashboard':
-      return <SalaryDashboardView />
-    case 'question-bank':
-      return <QuestionBankView />
-    case 'skill-gap':
-      return <SkillGapView />
-    case 'compare-jobs':
-      return <CompareJobsView />
-    case 'ats-score':
-      return <ATSScoreView />
-    case 'auth':
-      return <AuthView />
-    case 'profile':
-      return <ProfileView />
-    case 'alerts':
-      return <AlertsView />
-    case 'admin':
-      return <AdminDashboardView />
-    default:
-      return <HomeView />
-  }
-}
-
-function Footer() {
-  const { go } = useNav()
-  return (
-    <footer className="border-t border-border bg-card mt-auto">
-      <div className="max-w-7xl mx-auto px-4 lg:px-6 py-8">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
-          <div className="col-span-2 sm:col-span-1">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-                <span className="text-white text-xs font-bold">C</span>
-              </div>
-              <span className="font-extrabold">Hirebase</span>
-            </div>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              Career intelligence platform for verified jobs, AI tools, and editorial guidance.
-            </p>
-          </div>
-          <div>
-            <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">Find Jobs</h4>
-            <ul className="space-y-2 text-sm">
-              <li><button onClick={() => go('all-jobs')} className="hover:text-primary text-muted-foreground">All Jobs</button></li>
-              <li><button onClick={() => go('freshers')} className="hover:text-primary text-muted-foreground">Freshers</button></li>
-              <li><button onClick={() => go('internships')} className="hover:text-primary text-muted-foreground">Internships</button></li>
-              <li><button onClick={() => go('hidden')} className="hover:text-primary text-muted-foreground">Hidden Jobs</button></li>
-            </ul>
-          </div>
-          <div>
-            <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">AI Tools</h4>
-            <ul className="space-y-2 text-sm">
-              <li><button onClick={() => go('ai-resume')} className="hover:text-primary text-muted-foreground">Resume Optimizer</button></li>
-              <li><button onClick={() => go('ai-cover-letter')} className="hover:text-primary text-muted-foreground">Cover Letter</button></li>
-              <li><button onClick={() => go('ai-mock-interview')} className="hover:text-primary text-muted-foreground">Mock Interview</button></li>
-              <li><button onClick={() => go('ai-salary')} className="hover:text-primary text-muted-foreground">Salary Predictor</button></li>
-            </ul>
-          </div>
-          <div>
-            <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">Company</h4>
-            <ul className="space-y-2 text-sm">
-              <li><button onClick={() => go('about')} className="hover:text-primary text-muted-foreground">About</button></li>
-              <li><button onClick={() => go('ground-truth')} className="hover:text-primary text-muted-foreground">Ground Truth</button></li>
-              <li><button onClick={() => go('pricing')} className="hover:text-primary text-muted-foreground">Pricing</button></li>
-              <li><button onClick={() => go('tracker')} className="hover:text-primary text-muted-foreground">Tracker</button></li>
-            </ul>
-          </div>
-        </div>
-        <div className="mt-8 pt-6 border-t border-border flex flex-col sm:flex-row justify-between gap-3 text-xs text-muted-foreground">
-          <p>© {new Date().getFullYear()} Hirebase. Built for Indian job seekers.</p>
-          <p>Contact: contact@hirebase.in</p>
-        </div>
-      </div>
-    </footer>
+      {jobPostingsLd.length > 0 && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jobPostingsLd) }}
+        />
+      )}
+      <HomeShell initialData={data} />
+    </>
   )
 }

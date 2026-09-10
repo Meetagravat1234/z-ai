@@ -138,7 +138,7 @@ export function Sidebar() {
             </div>
             <div className="text-left leading-tight">
               <div className="font-extrabold text-lg text-sidebar-foreground tracking-tight">
-                Career<span className="text-primary">Nest</span>
+                Hire<span className="text-primary">base</span>
               </div>
               <div className="text-[10px] uppercase tracking-wider text-sidebar-foreground/60 font-semibold">
                 India's #1 AI Job Portal

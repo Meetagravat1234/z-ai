@@ -110,8 +110,8 @@ export function JobCard({ job, compact = false }: { job: Job; compact?: boolean 
     <div
       onClick={() => openJob(job.id)}
       className={cn(
-        'group cursor-pointer rounded-2xl border border-border bg-card p-5 card-lift relative',
-        compact && 'p-4',
+        'group cursor-pointer rounded-2xl border border-border bg-card p-4 sm:p-5 card-lift relative',
+        compact && 'p-3 sm:p-4',
         isNew && 'border-emerald-500/40'
       )}
     >
@@ -124,18 +124,18 @@ export function JobCard({ job, compact = false }: { job: Job; compact?: boolean 
           NEW
         </span>
       )}
-      <div className="flex items-start gap-3">
-        <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-muted to-muted/50 flex items-center justify-center text-xl shrink-0 border border-border">
-          {job.company.logo || <Building2 className="w-5 h-5 text-muted-foreground" />}
+      <div className="flex items-start gap-2.5 sm:gap-3">
+        <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-br from-muted to-muted/50 flex items-center justify-center text-lg sm:text-xl shrink-0 border border-border">
+          {job.company.logo || <Building2 className="w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground" />}
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-start gap-2 justify-between">
             <div className="min-w-0">
-              <div className="text-xs text-muted-foreground font-medium truncate flex items-center gap-1.5">
+              <div className="text-[11px] sm:text-xs text-muted-foreground font-medium truncate flex items-center gap-1.5">
                 {job.company.name}
                 {sourceIcon && <span title={`Source: ${job.source}`}>{sourceIcon}</span>}
               </div>
-              <h3 className="font-semibold text-foreground truncate group-hover:text-primary transition-colors">
+              <h3 className="font-semibold text-sm sm:text-base text-foreground truncate group-hover:text-primary transition-colors">
                 {job.title}
               </h3>
             </div>
@@ -147,7 +147,7 @@ export function JobCard({ job, compact = false }: { job: Job; compact?: boolean 
             )}
           </div>
 
-          <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-muted-foreground">
+          <div className="mt-2.5 sm:mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] sm:text-xs text-muted-foreground">
             <span className="inline-flex items-center gap-1">
               <Briefcase className="w-3.5 h-3.5" />
               {job.employmentType}

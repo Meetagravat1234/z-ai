@@ -265,3 +265,71 @@ Stage Summary:
   3. 🚀 Deep Crawl (34 sources including 12 web-search queries, ~3-5 min)
 - Web-search queries expanded from 15 → 60+ covering LinkedIn, Naukri, Internshala, Indeed, Glassdoor, Google Jobs, plus role/location/experience-specific queries
 - Honest note: Naukri/LinkedIn/Internshala/Indeed don't have free open APIs — we use Google search via z-ai-web-dev-sdk's web_search to find their public job pages, then page_reader to fetch content. This is exactly what HireSetu and similar aggregators do.
+
+---
+Task ID: 6
+Agent: main
+Task: Fix SEO issues (branding mismatch, broken Google verification, SSR for job listings, mobile UX) + create SEO checklist and feature suggestions doc
+
+Work Log:
+- Identified branding mismatch: sidebar showed "CareerNest" while everything else said "Hirebase"
+- Identified Google Search Console verification meta tag was broken: had literal string "google-site-verification=YOUR_CODE_HERE" as content attribute (Next.js Metadata API expects just the code, not the key=value pair)
+- Identified "Featured jobs" / "Top companies" sections were empty in static HTML because page.tsx was a Client Component that fetched data via useEffect after mount
+- Identified og-image.png was 404 (referenced in metadata but file didn't exist)
+- Fixed branding: changed sidebar.tsx from "Career<span>Nest</span>" → "Hire<span>base</span>"
+- Fixed footer logo letter: changed "C" → "H" in page.tsx Footer component
+- Fixed Google Search Console verification: now reads from GOOGLE_SITE_VERIFICATION env var (and NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION as fallback). When empty, no broken meta tag is emitted. Also added optional MS_SITE_VERIFICATION env var for Bing Webmaster verification.
+- Refactored page.tsx from Client Component to Server Component:
+  * Renamed old page.tsx → home-shell.tsx (kept 'use client' for the SPA-style view router)
+  * Created new page.tsx as async Server Component that fetches jobs/companies/articles directly from Prisma DB at request time
+  * Added force-dynamic + revalidate=300 (5-min ISR) for fresh content + fast response
+  * Extracted HomeInitialData type to /src/lib/home-types.ts to avoid circular import (server page → client shell → view → shell)
+  * Fixed bug: page.tsx was using `import { HomeShell }` (named import) but home-shell.tsx only exports default — changed to `import HomeShell from './home-shell'`
+  * HomeView now accepts initialData prop and uses it on first render (so static HTML includes job cards + company cards). Skips redundant client-side fetch when SSR data is present.
+- Added JobPosting JSON-LD structured data for each of 6 featured jobs (critical for Google for Jobs eligibility)
+- Added WebSite schema with SearchAction (for Google sitelinks search box) + Organization schema with areaServed: IN
+- Added "About Hirebase" SEO content section at bottom of home view — 3 paragraphs of natural language explaining what Hirebase does, target markets, AI tools, and source coverage. Helps Google understand the site's topical authority.
+- Created og-image.png (1200x630) — branded image with Hirebase logo, headline "Find verified jobs. Research companies. Tailor your resume with AI.", and brand stats (300+ jobs, 100+ companies, 6 AI tools). Saved to /public/og-image.png + /download/og-image.png
+- Improved mobile responsiveness throughout home-view.tsx:
+  * Hero: tighter padding (px-5 py-8 on mobile), smaller heading (26px), CTA buttons stack vertically on mobile, stats grid 2-cols with smaller fonts
+  * Section headings: responsive sizing (text-xl on mobile, text-2xl on desktop)
+  * Section spacing: 32px on mobile vs 48px on desktop
+  * AI tool cards: gap-3 on mobile (was gap-4)
+  * Job cards (in job-card.tsx): smaller padding, smaller font sizes, smaller company logo (40px on mobile vs 44px on desktop), tighter meta row spacing
+  * Company cards: smaller padding, smaller logo, 2-col grid on mobile with 10px gaps, smaller font for company name and trend indicator
+  * CTA section: smaller padding (24px on mobile vs 48px on desktop)
+- Verified end-to-end with local dev server (using production Supabase env):
+  * HTTP 200, 325KB HTML response
+  * "Featured jobs" + "Top companies hiring" sections present in static HTML
+  * JobPosting JSON-LD present in static HTML
+  * 3 job cards render in static HTML (was 0 before SSR)
+  * 5+ "open role" mentions in static HTML
+  * "CareerNest" completely absent (was 4+ mentions before)
+  * "Hire<span>base</span>" branding present in sidebar
+  * Google verification meta tag is no longer broken (empty until env var is set)
+- Wrote comprehensive SEO Action Plan docx (45KB, 197 paragraphs, 7 tables) at /download/Hirebase_SEO_Action_Plan.docx covering:
+  * Section 1: What was fixed in this session (with verified ✓ marks)
+  * Section 2: Action items for the user (GSC verification step-by-step, sitemap submission, indexing requests, www-vs-non-www canonical, Bing Webmaster)
+  * Section 3: How to monitor indexing progress (timeline table + sanity-check curl commands)
+  * Section 4: Technical SEO recommendations (URL restructuring, per-page metadata, internal linking, blog strategy, BreadcrumbList schema, Core Web Vitals)
+  * Section 5: Feature roadmap in 4 tiers (SEO multiplier features, engagement features, AI differentiators, monetization) — 15 concrete feature ideas with effort/impact estimates
+  * Section 6: Quick wins shippable in <1 hour each (9 ideas)
+  * Section 7: Common SEO mistakes to avoid
+  * Section 8: 30-day SEO plan with weekly milestones + expected results
+
+Stage Summary:
+- All 5 originally-identified issues are fixed in the codebase:
+  1. Branding mismatch — fixed (sidebar + footer now match Hirebase)
+  2. Google Search Console verification — fixed (env-var driven, no broken placeholder)
+  3. Featured jobs / Top companies in static HTML — fixed (SSR with Prisma direct fetch)
+  4. Mobile responsiveness — improved (responsive font sizes, paddings, grid gaps throughout)
+  5. og-image.png 404 — fixed (created branded image)
+- Bonus: added JobPosting + WebSite + Organization JSON-LD structured data
+- Bonus: added "About Hirebase" SEO content section for topical authority
+- Created comprehensive SEO + feature roadmap doc at /download/Hirebase_SEO_Action_Plan.docx
+- Next steps for the user (cannot be done by AI — require Google account access):
+  * Set GOOGLE_SITE_VERIFICATION env var on Vercel with their real code from Search Console
+  * Submit sitemap.xml in Google Search Console
+  * Request indexing for the homepage + key inner pages
+  * Set up 301 redirect from hirebase.in → www.hirebase.in
+  * Submit to Bing Webmaster Tools (1-click import from GSC)
