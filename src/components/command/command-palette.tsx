@@ -25,6 +25,7 @@ import {
   GitCompare,
   User,
   Shield,
+  Bell,
 } from 'lucide-react'
 import { useNav, type ViewId } from '@/lib/nav-store'
 import { cn } from '@/lib/utils'
