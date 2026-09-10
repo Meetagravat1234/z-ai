@@ -54,6 +54,8 @@ model Company {
   updatedAt     DateTime @updatedAt
 
   jobs Job[]
+  reviews Review[]
+  salaryReports SalaryReport[]
 }
 
 model Job {
@@ -176,4 +178,37 @@ model JobAlert {
   isActive        Boolean  @default(true)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+}
+
+// Company reviews — like Glassdoor
+model Review {
+  id          String   @id @default(cuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  userId      String?
+  rating      Int      // 1-5 stars
+  title       String
+  pros        String?
+  cons        String?
+  interviewExperience String?
+  salaryOffered String?
+  role        String?
+  isAnonymous Boolean  @default(true)
+  isApproved  Boolean  @default(false) // admin moderation
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Anonymous salary reports — like Glassdoor
+model SalaryReport {
+  id          String   @id @default(cuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  userId      String?
+  role        String
+  location    String?
+  salary      Int      // in LPA * 10 (so 12 LPA = 120)
+  experience  String
+  isAnonymous Boolean  @default(true)
+  createdAt   DateTime @default(now())
 }

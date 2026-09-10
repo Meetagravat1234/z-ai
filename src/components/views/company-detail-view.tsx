@@ -1,4 +1,5 @@
 'use client'
+import { ReviewsSection } from '@/components/reviews/reviews-section'
 
 import * as React from 'react'
 import {
@@ -244,6 +245,14 @@ export function CompanyDetailView() {
             ))}
           </div>
         )}
+      </section>
+
+      {/* Company Reviews + Salary Reports */}
+      <section className="rounded-2xl border border-border bg-card p-5">
+        <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
+          <span>⭐ Reviews & Salaries</span>
+        </h2>
+        <ReviewsSection companyId={company.id} companyName={company.name} companyLogo={company.logo} />
       </section>
 
       {/* External link CTA */}

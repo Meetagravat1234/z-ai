@@ -23,6 +23,7 @@ import {
   GitCompare,
 } from 'lucide-react'
 import { useNav } from '@/lib/nav-store'
+import { useAuth } from '@/lib/auth-context'
 import { JobCard, type Job } from '@/components/jobs/job-card'
 import { cn } from '@/lib/utils'
 
@@ -56,6 +57,8 @@ export function HomeView() {
   const [stats, setStats] = React.useState({ jobs: 0, companies: 0 })
   const [newToday, setNewToday] = React.useState(0)
   const [lastSync, setLastSync] = React.useState<{ source: string; ts: string } | null>(null)
+  const [recommendedJobs, setRecommendedJobs] = React.useState<Job[]>([])
+  const { user, isDemo } = useAuth()
 
   React.useEffect(() => {
     Promise.all([
@@ -78,6 +81,18 @@ export function HomeView() {
       }
     })
   }, [])
+
+  // Fetch personalized jobs when user has targetRole
+  React.useEffect(() => {
+    if (user && !isDemo && user.targetRole) {
+      const params = new URLSearchParams({ limit: '6', indiaOnly: 'true' })
+      if (user.targetRole) params.set('q', user.targetRole)
+      fetch(`/api/jobs?${params}`)
+        .then((r) => r.json())
+        .then((d) => setRecommendedJobs(d.jobs || []))
+        .catch(() => {})
+    }
+  }, [user, isDemo])
 
   return (
     <div className="space-y-12 pb-8">
@@ -174,6 +189,32 @@ export function HomeView() {
           </div>
         </div>
       </section>
+
+      {/* JOBS FOR YOU — personalized recommendations */}
+      {user && !isDemo && user.targetRole && (
+        <section>
+          <div className="flex items-end justify-between mb-5">
+            <div>
+              <h2 className="text-2xl font-bold tracking-tight">Jobs for you</h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                Based on your target role: <strong className="text-primary">{user.targetRole}</strong>
+                {user.skills && ` · Skills: ${user.skills.split(',').slice(0, 5).join(', ')}`}
+              </p>
+            </div>
+          </div>
+          {recommendedJobs.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {recommendedJobs.map((job) => (
+                <JobCard key={job.id} job={job} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 rounded-2xl border border-dashed border-border">
+              <p className="text-sm text-muted-foreground">No personalized matches yet. Try updating your profile with more skills.</p>
+            </div>
+          )}
+        </section>
+      )}
 
       {/* AI TOOLS */}
       <section>

@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { Loader2, User, Mail, Briefcase, MapPin, IndianRupee, Sparkles, Save, LogOut, AlertCircle, CheckCircle2, TrendingUp } from 'lucide-react'
+import { Loader2, User, Mail, Briefcase, MapPin, IndianRupee, Sparkles, Save, LogOut, AlertCircle, CheckCircle2, TrendingUp, Lock } from 'lucide-react'
 import { useNav } from '@/lib/nav-store'
 import { useAuth } from '@/lib/auth-context'
 import { toast } from 'sonner'
@@ -263,7 +263,86 @@ export function ProfileView() {
           </button>
         </div>
       </form>
+
+      {/* Password Change Section */}
+      <PasswordChangeSection />
     </div>
+  )
+}
+
+function PasswordChangeSection() {
+  const [currentPassword, setCurrentPassword] = React.useState('')
+  const [newPassword, setNewPassword] = React.useState('')
+  const [confirmPassword, setConfirmPassword] = React.useState('')
+  const [saving, setSaving] = React.useState(false)
+  const [error, setError] = React.useState('')
+
+  async function changePassword(e: React.FormEvent) {
+    e.preventDefault()
+    setError('')
+    if (newPassword !== confirmPassword) {
+      setError('New passwords do not match')
+      return
+    }
+    if (newPassword.length < 6) {
+      setError('New password must be at least 6 characters')
+      return
+    }
+    setSaving(true)
+    try {
+      const r = await fetch('/api/auth/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      })
+      const d = await r.json()
+      if (!r.ok) throw new Error(d.error)
+      toast.success('Password changed successfully!')
+      setCurrentPassword(''); setNewPassword(''); setConfirmPassword('')
+    } catch (e: any) {
+      setError(e.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <form onSubmit={changePassword} className="rounded-2xl border border-border bg-card p-5">
+      <h3 className="font-bold text-sm mb-4 flex items-center gap-2">
+        <Lock className="w-4 h-4 text-primary" />
+        Change Password
+      </h3>
+      <div className="space-y-3">
+        <div>
+          <label className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1 block">Current password</label>
+          <input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} required
+            className="w-full p-2.5 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/40" />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1 block">New password</label>
+            <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required
+              className="w-full p-2.5 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/40" />
+          </div>
+          <div>
+            <label className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1 block">Confirm new password</label>
+            <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required
+              className="w-full p-2.5 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/40" />
+          </div>
+        </div>
+        {error && (
+          <div className="flex items-start gap-2 p-2.5 rounded-lg bg-rose-500/10 text-rose-700 dark:text-rose-400 text-sm">
+            <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+        <button type="submit" disabled={saving}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 disabled:opacity-60">
+          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />}
+          {saving ? 'Changing…' : 'Change password'}
+        </button>
+      </div>
+    </form>
   )
 }
 
