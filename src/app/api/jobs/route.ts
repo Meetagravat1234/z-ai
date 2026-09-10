@@ -111,7 +111,10 @@ export async function GET(req: NextRequest) {
       skip: offset,
     })
 
-    return NextResponse.json({ jobs, count: jobs.length })
+    // Get total count for pagination/display (single count query)
+    const total = await db.job.count({ where })
+
+    return NextResponse.json({ jobs, count: jobs.length, total })
   } catch (e: any) {
     console.error('Jobs API error:', e)
     return NextResponse.json({ error: e.message }, { status: 500 })

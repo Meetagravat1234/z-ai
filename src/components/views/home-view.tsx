@@ -61,25 +61,32 @@ export function HomeView() {
   const { user, isDemo } = useAuth()
 
   React.useEffect(() => {
+    // Load critical data first (jobs + companies) — these are fast (~1-2s)
     Promise.all([
       fetch('/api/jobs?limit=6&indiaOnly=true').then((r) => r.json()),
       fetch('/api/companies').then((r) => r.json()),
       fetch('/api/articles?limit=3').then((r) => r.json()),
-      fetch('/api/jobs?limit=200&indiaOnly=true').then((r) => r.json()),
-      fetch('/api/sync/status').then((r) => r.json()),
-    ]).then(([recent, comps, arts, allJobs, sync]) => {
+    ]).then(([recent, comps, arts]) => {
       setJobs(recent.jobs || [])
       setCompanies((comps.companies || []).slice(0, 8))
       setArticles(arts.articles || [])
       setStats({
-        jobs: (allJobs.jobs || []).length,
+        jobs: recent.total || (recent.jobs || []).length,
         companies: (comps.companies || []).length,
       })
-      setNewToday(sync.newToday || 0)
-      if (sync.lastSuccess) {
-        setLastSync({ source: sync.lastSuccess.source, ts: sync.lastSuccess.startedAt })
-      }
     })
+
+    // Load sync status separately (slow API, don't block the page)
+    fetch('/api/sync/status')
+      .then((r) => r.json())
+      .then((sync) => {
+        setNewToday(sync.newToday || 0)
+        setStats(prev => ({ ...prev, jobs: sync.totalJobs || prev.jobs }))
+        if (sync.lastSuccess) {
+          setLastSync({ source: sync.lastSuccess.source, ts: sync.lastSuccess.startedAt })
+        }
+      })
+      .catch(() => {})
   }, [])
 
   // Fetch personalized jobs when user has targetRole
