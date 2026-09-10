@@ -175,8 +175,8 @@ export function HomeView() {
           {/* Stats */}
           <div className="mt-10 grid grid-cols-2 sm:grid-cols-4 gap-3">
             {[
-              { label: 'Verified jobs', value: stats.jobs || 0, icon: Briefcase, color: 'text-primary' },
-              { label: 'Companies', value: stats.companies || 0, icon: Building2, color: 'text-accent' },
+              { label: 'Verified jobs', value: stats.jobs, icon: Briefcase, color: 'text-primary' },
+              { label: 'Companies', value: stats.companies, icon: Building2, color: 'text-accent' },
               { label: 'AI tools', value: 6, icon: Sparkles, color: 'text-violet-500' },
               { label: 'Career articles', value: 12, icon: TrendingUp, color: 'text-rose-500' },
             ].map((s) => {
