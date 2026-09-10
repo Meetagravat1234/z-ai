@@ -188,7 +188,11 @@ export function HomeView() {
                 >
                   <Icon className={cn('w-5 h-5 mb-2', s.color)} />
                   <div className="text-2xl font-extrabold text-foreground tabular-nums">
-                    <AnimatedNumber value={s.value} />
+                    <AnimatedNumber 
+                      value={s.value} 
+                      storageKey={`hirebase_stat_${s.label}`}
+                      fallback={s.label === 'Verified jobs' ? 311 : s.label === 'Companies' ? 139 : s.value}
+                    />
                   </div>
                   <div className="text-xs text-muted-foreground font-medium">
                     {s.label}
