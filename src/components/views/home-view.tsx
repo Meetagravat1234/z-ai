@@ -24,6 +24,7 @@ import {
 } from 'lucide-react'
 import { useNav } from '@/lib/nav-store'
 import { useAuth } from '@/lib/auth-context'
+import { AnimatedNumber } from '@/components/animated-number'
 import { JobCard, type Job } from '@/components/jobs/job-card'
 import { cn } from '@/lib/utils'
 
@@ -172,10 +173,10 @@ export function HomeView() {
           {/* Stats */}
           <div className="mt-10 grid grid-cols-2 sm:grid-cols-4 gap-3">
             {[
-              { label: 'Verified jobs', value: stats.jobs, icon: Briefcase, color: 'text-primary' },
-              { label: 'Companies', value: stats.companies, icon: Building2, color: 'text-accent' },
-              { label: 'AI tools', value: 4, icon: Sparkles, color: 'text-violet-500' },
-              { label: 'Career articles', value: articles.length * 4, icon: TrendingUp, color: 'text-rose-500' },
+              { label: 'Verified jobs', value: stats.jobs || 0, icon: Briefcase, color: 'text-primary' },
+              { label: 'Companies', value: stats.companies || 0, icon: Building2, color: 'text-accent' },
+              { label: 'AI tools', value: 6, icon: Sparkles, color: 'text-violet-500' },
+              { label: 'Career articles', value: 12, icon: TrendingUp, color: 'text-rose-500' },
             ].map((s) => {
               const Icon = s.icon
               return (
@@ -184,8 +185,8 @@ export function HomeView() {
                   className="rounded-2xl border border-border bg-background/80 backdrop-blur p-4"
                 >
                   <Icon className={cn('w-5 h-5 mb-2', s.color)} />
-                  <div className="text-2xl font-extrabold text-foreground">
-                    {s.value || '—'}
+                  <div className="text-2xl font-extrabold text-foreground tabular-nums">
+                    <AnimatedNumber value={s.value} />
                   </div>
                   <div className="text-xs text-muted-foreground font-medium">
                     {s.label}

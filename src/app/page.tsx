@@ -34,8 +34,44 @@ import { AISalaryPredictor } from '@/components/views/ai-salary-view'
 export default function Home() {
   const { view } = useNav()
 
+  // JSON-LD structured data for Google rich results
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "Hirebase",
+    "url": "https://www.hirebase.in",
+    "description": "India's AI-powered job portal with 300+ verified jobs, AI resume tools, mock interviews, and company reviews.",
+    "potentialAction": {
+      "@type": "SearchAction",
+      "target": {
+        "@type": "EntryPoint",
+        "urlTemplate": "https://www.hirebase.in/?view=all-jobs&q={search_term_string}",
+      },
+      "query-input": "required name=search_term_string",
+    },
+  }
+
+  const orgLd = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "Hirebase",
+    "url": "https://www.hirebase.in",
+    "description": "India's AI-powered job portal with verified jobs, AI resume tools, mock interviews, salary insights, and company reviews.",
+    "areaServed": "IN",
+    "knowsAbout": ["Jobs", "Hiring", "Career", "AI Resume Tools", "Mock Interviews", "Salary Predictor"],
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
+      {/* JSON-LD for SEO */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(orgLd) }}
+      />
       <div className="flex flex-1">
         <Sidebar />
         <div className="flex-1 flex flex-col min-w-0">
@@ -169,7 +205,7 @@ function Footer() {
         </div>
         <div className="mt-8 pt-6 border-t border-border flex flex-col sm:flex-row justify-between gap-3 text-xs text-muted-foreground">
           <p>© {new Date().getFullYear()} Hirebase. Built for Indian job seekers.</p>
-          <p>Contact: contact@hirebase.org</p>
+          <p>Contact: contact@hirebase.in</p>
         </div>
       </div>
     </footer>

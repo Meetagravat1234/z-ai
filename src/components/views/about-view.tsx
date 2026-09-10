@@ -68,7 +68,7 @@ export function AboutView() {
         <div className="rounded-2xl border border-border bg-card p-5">
           <Mail className="w-5 h-5 text-primary mb-2" />
           <h3 className="font-bold mb-1">Contact</h3>
-          <p className="text-sm text-muted-foreground">contact@hirebase.org</p>
+          <p className="text-sm text-muted-foreground">contact@hirebase.in</p>
           <p className="text-sm text-muted-foreground">+91-87909-XXXXX</p>
         </div>
         <div className="rounded-2xl border border-border bg-card p-5">

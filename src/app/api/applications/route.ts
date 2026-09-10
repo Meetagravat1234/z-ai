@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 
-const DEMO_USER_EMAIL = 'demo@hirebase.org'
+const DEMO_USER_EMAIL = 'demo@hirebase.in'
 
 async function getCurrentUser() {
   const session = await getServerSession(authOptions)

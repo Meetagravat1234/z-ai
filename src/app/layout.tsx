@@ -17,33 +17,74 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Hirebase | Jobs, Companies & AI-Powered Career Tools",
-  description:
-    "Career intelligence platform: verified jobs, company insights, AI resume optimizer, AI cover letter generator, AI mock interview, salary predictor, and application tracker — built for Indian freshers and professionals.",
+  title: "Hirebase — India's AI-Powered Job Portal | 300+ Verified Jobs",
+  description: "Find verified jobs in India with AI-powered tools. Browse 300+ jobs from top companies, optimize your resume with AI, practice mock interviews, check ATS scores, and get email job alerts — all free on Hirebase.",
   keywords: [
-    "jobs",
-    "freshers",
-    "internships",
+    "jobs in India",
+    "fresher jobs India",
+    "internship jobs India",
+    "software engineer jobs Bengaluru",
+    "IT jobs India",
+    "remote jobs India",
     "AI resume optimizer",
-    "mock interview",
-    "salary predictor",
-    "career",
-    "India",
-    "hiring",
+    "ATS score checker",
+    "mock interview AI",
+    "salary predictor India",
+    "job alerts India",
+    "company reviews India",
+    "walk-in jobs India",
+    "Naukri alternative",
+    "LinkedIn jobs India",
+    "Hirebase",
   ],
   authors: [{ name: "Hirebase" }],
+  creator: "Hirebase",
+  publisher: "Hirebase",
+  metadataBase: new URL("https://www.hirebase.in"),
+  alternates: {
+    canonical: "https://www.hirebase.in",
+  },
   openGraph: {
-    title: "Hirebase — Career Intelligence Platform",
-    description:
-      "Verified jobs, AI resume tools, AI mock interviews, salary predictor, and an application tracker — all in one place.",
+    title: "Hirebase — India's AI-Powered Job Portal",
+    description: "300+ verified jobs, AI resume tools, mock interviews, salary insights, company reviews, and email job alerts. Free for job seekers in India.",
     siteName: "Hirebase",
     type: "website",
+    locale: "en_IN",
+    url: "https://www.hirebase.in",
+    images: [{
+      url: "/og-image.png",
+      width: 1200,
+      height: 630,
+      alt: "Hirebase — India's AI-Powered Job Portal",
+    }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Hirebase",
-    description: "Verified jobs, AI career tools, application tracker.",
+    title: "Hirebase — India's AI-Powered Job Portal",
+    description: "300+ verified jobs, AI resume tools, mock interviews, and more. Free for Indian job seekers.",
+    images: ["/og-image.png"],
   },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
+  verification: {
+    google: "google-site-verification=YOUR_CODE_HERE",
+  },
+  category: "jobs",
+};
+
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  themeColor: "#10b981",
 };
 
 export default function RootLayout({

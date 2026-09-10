@@ -86,7 +86,7 @@ async function main() {
   
   const demoUser = await db.user.create({
     data: {
-      email: "demo@hirebase.org",
+      email: "demo@hirebase.in",
       name: "Demo User",
       role: "candidate",
       headline: "Full-Stack Developer",
