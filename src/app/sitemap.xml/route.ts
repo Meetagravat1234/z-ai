@@ -33,6 +33,21 @@ export async function GET() {
       changefreq: 'weekly',
     }))
 
+    // Insights articles
+    const articles = await db.article.findMany({
+      where: { published: true },
+      select: { slug: true, updatedAt: true },
+    })
+    const articlePages = [
+      { loc: `${baseUrl}/insights`, lastmod: null as string | null, priority: '0.8', changefreq: 'weekly' as const },
+      ...articles.map((a) => ({
+        loc: `${baseUrl}/insights/${a.slug}`,
+        lastmod: a.updatedAt.toISOString().split('T')[0],
+        priority: '0.7',
+        changefreq: 'monthly' as const,
+      })),
+    ]
+
     // Job detail pages
     const jobs = await db.job.findMany({
       where: { verified: true },
@@ -59,8 +74,10 @@ export async function GET() {
     }))
 
     let xml = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
-    for (const p of [...staticPages, ...cityPages, ...rolePages]) {
-      xml += `  <url><loc>${p.loc}</loc><changefreq>${p.changefreq}</changefreq><priority>${p.priority}</priority></url>\n`
+    for (const p of [...staticPages, ...cityPages, ...rolePages, ...articlePages]) {
+      xml += `  <url><loc>${p.loc}</loc>`
+      if ('lastmod' in p && p.lastmod) xml += `<lastmod>${p.lastmod}</lastmod>`
+      xml += `<changefreq>${p.changefreq}</changefreq><priority>${p.priority}</priority></url>\n`
     }
     for (const p of [...jobPages, ...companyPages]) {
       xml += `  <url><loc>${p.loc}</loc>`
