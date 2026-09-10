@@ -26,6 +26,7 @@ import {
 } from 'lucide-react'
 import { useNav } from '@/lib/nav-store'
 import { JobCard, type Job } from '@/components/jobs/job-card'
+import { JobMatchBadge } from '@/components/jobs/job-match-badge'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 
@@ -89,18 +90,33 @@ const WORK_MODE_ICONS: Record<string, React.ComponentType<{ className?: string }
   Hybrid: Plane,
 }
 
-export function JobDetailView() {
+export function JobDetailView({
+  initialJob,
+  initialRelated,
+  jobId: propJobId,
+}: {
+  initialJob?: JobDetail | null
+  initialRelated?: Job[]
+  jobId?: string
+} = {}) {
   const { selectedJobId, go, openJob, openCompany } = useNav()
-  const [job, setJob] = React.useState<JobDetail | null>(null)
-  const [related, setRelated] = React.useState<Job[]>([])
-  const [loading, setLoading] = React.useState(true)
+  // Resolve the active job ID — prop (from SSR route) > Zustand selectedJobId (in-app nav)
+  const activeJobId = propJobId || selectedJobId
+  const [job, setJob] = React.useState<JobDetail | null>(initialJob || null)
+  const [related, setRelated] = React.useState<Job[]>(initialRelated || [])
+  const [loading, setLoading] = React.useState(!initialJob && !activeJobId ? false : !initialJob)
   const [error, setError] = React.useState('')
   const [saved, setSaved] = React.useState(false)
   const [saving, setSaving] = React.useState(false)
   const [applying, setApplying] = React.useState(false)
 
   React.useEffect(() => {
-    if (!selectedJobId) {
+    // If SSR provided initial data, don't refetch
+    if (initialJob) {
+      setLoading(false)
+      return
+    }
+    if (!activeJobId) {
       setError('No job selected')
       setLoading(false)
       return
@@ -108,7 +124,7 @@ export function JobDetailView() {
     setLoading(true)
     setError('')
     setJob(null)
-    fetch(`/api/jobs?id=${selectedJobId}`)
+    fetch(`/api/jobs?id=${activeJobId}`)
       .then(async (r) => {
         if (!r.ok) {
           const d = await r.json()
@@ -123,19 +139,19 @@ export function JobDetailView() {
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false))
     window.scrollTo({ top: 0, behavior: 'smooth' })
-  }, [selectedJobId])
+  }, [activeJobId, initialJob])
 
   // Check if job is saved
   React.useEffect(() => {
-    if (!selectedJobId) return
+    if (!activeJobId) return
     fetch('/api/save')
       .then((r) => r.json())
       .then((d) => {
-        const isSaved = (d.saved || []).some((s: any) => s.jobId === selectedJobId)
+        const isSaved = (d.saved || []).some((s: any) => s.jobId === activeJobId)
         setSaved(isSaved)
       })
       .catch(() => {})
-  }, [selectedJobId])
+  }, [activeJobId])
 
   async function toggleSave() {
     if (!job) return
@@ -310,6 +326,12 @@ export function JobDetailView() {
             <StatCard icon={Briefcase} label="Experience" value={job.experience} />
             <StatCard icon={WorkIcon} label="Work mode" value={job.workMode} />
             <StatCard icon={Calendar} label="Employment" value={job.employmentType} />
+          </div>
+
+          {/* AI Match Score — only shows for logged-in users with a profile */}
+          <div className="mt-4 flex items-center gap-2 flex-wrap">
+            <span className="text-xs font-semibold text-muted-foreground">Your fit:</span>
+            <JobMatchBadge jobId={job.id} />
           </div>
 
           {/* Action buttons */}

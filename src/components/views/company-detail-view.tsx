@@ -35,21 +35,33 @@ interface Company {
   sevenDayTrend: number
 }
 
-export function CompanyDetailView() {
+export function CompanyDetailView({
+  initialCompany,
+  slug: propSlug,
+}: {
+  initialCompany?: any
+  slug?: string
+} = {}) {
   const { selectedCompanySlug, go } = useNav()
-  const [company, setCompany] = React.useState<Company | null>(null)
-  const [jobs, setJobs] = React.useState<Job[]>([])
-  const [loading, setLoading] = React.useState(true)
+  const activeSlug = propSlug || selectedCompanySlug
+  const [company, setCompany] = React.useState<Company | null>(initialCompany || null)
+  const [jobs, setJobs] = React.useState<Job[]>(initialCompany?.jobs || [])
+  const [loading, setLoading] = React.useState(!initialCompany)
   const [error, setError] = React.useState('')
 
   React.useEffect(() => {
-    if (!selectedCompanySlug) {
+    // Skip fetch if SSR provided initial data
+    if (initialCompany) {
+      setLoading(false)
+      return
+    }
+    if (!activeSlug) {
       setError('No company selected')
       setLoading(false)
       return
     }
     setLoading(true)
-    fetch(`/api/companies?slug=${selectedCompanySlug}`)
+    fetch(`/api/companies?slug=${activeSlug}`)
       .then(async (r) => {
         if (!r.ok) {
           const d = await r.json()
@@ -64,7 +76,7 @@ export function CompanyDetailView() {
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false))
     window.scrollTo({ top: 0, behavior: 'smooth' })
-  }, [selectedCompanySlug])
+  }, [activeSlug, initialCompany])
 
   if (loading) {
     return (

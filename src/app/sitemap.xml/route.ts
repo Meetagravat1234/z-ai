@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { CITY_PAGES, ROLE_PAGES, jobUrl } from '@/lib/seo-routes'
 
 // GET /sitemap.xml — dynamic sitemap for Google
 export async function GET() {
@@ -7,37 +8,64 @@ export async function GET() {
     const baseUrl = 'https://www.hirebase.in'
     const staticPages = [
       { loc: `${baseUrl}/`, priority: '1.0', changefreq: 'daily' },
-      { loc: `${baseUrl}/?view=all-jobs`, priority: '0.9', changefreq: 'daily' },
-      { loc: `${baseUrl}/?view=freshers`, priority: '0.9', changefreq: 'daily' },
-      { loc: `${baseUrl}/?view=internships`, priority: '0.9', changefreq: 'daily' },
-      { loc: `${baseUrl}/?view=companies`, priority: '0.8', changefreq: 'weekly' },
-      { loc: `${baseUrl}/?view=salary-dashboard`, priority: '0.8', changefreq: 'weekly' },
-      { loc: `${baseUrl}/?view=question-bank`, priority: '0.7', changefreq: 'weekly' },
-      { loc: `${baseUrl}/?view=ai-resume`, priority: '0.8', changefreq: 'monthly' },
-      { loc: `${baseUrl}/?view=ai-cover-letter`, priority: '0.7', changefreq: 'monthly' },
-      { loc: `${baseUrl}/?view=ai-mock-interview`, priority: '0.7', changefreq: 'monthly' },
-      { loc: `${baseUrl}/?view=skill-gap`, priority: '0.7', changefreq: 'monthly' },
-      { loc: `${baseUrl}/?view=ats-score`, priority: '0.7', changefreq: 'monthly' },
-      { loc: `${baseUrl}/?view=ai-salary`, priority: '0.7', changefreq: 'monthly' },
-      { loc: `${baseUrl}/?view=insights`, priority: '0.7', changefreq: 'weekly' },
-      { loc: `${baseUrl}/?view=compare-jobs`, priority: '0.6', changefreq: 'monthly' },
-      { loc: `${baseUrl}/?view=auth`, priority: '0.5', changefreq: 'monthly' },
-      { loc: `${baseUrl}/?view=about`, priority: '0.4', changefreq: 'monthly' },
-      { loc: `${baseUrl}/?view=pricing`, priority: '0.4', changefreq: 'monthly' },
+      { loc: `${baseUrl}/jobs`, priority: '0.9', changefreq: 'daily' },
+      { loc: `${baseUrl}/companies`, priority: '0.9', changefreq: 'daily' },
+      { loc: `${baseUrl}/roles`, priority: '0.9', changefreq: 'weekly' },
+      // Category pages
+      { loc: `${baseUrl}/jobs/fresher`, priority: '0.9', changefreq: 'daily' },
+      { loc: `${baseUrl}/jobs/internship`, priority: '0.9', changefreq: 'daily' },
+      { loc: `${baseUrl}/jobs/walk-in`, priority: '0.8', changefreq: 'daily' },
+      { loc: `${baseUrl}/jobs/hidden`, priority: '0.7', changefreq: 'weekly' },
+      { loc: `${baseUrl}/jobs/experienced`, priority: '0.7', changefreq: 'weekly' },
     ]
 
-    const jobs = await db.job.findMany({ where: { verified: true }, select: { id: true, updatedAt: true }, take: 500 })
-    const companies = await db.company.findMany({ select: { slug: true, updatedAt: true }, take: 200 })
+    // City pages
+    const cityPages = CITY_PAGES.map((c) => ({
+      loc: `${baseUrl}/jobs/${c.slug}`,
+      priority: '0.9',
+      changefreq: 'daily',
+    }))
+
+    // Role pages
+    const rolePages = ROLE_PAGES.map((r) => ({
+      loc: `${baseUrl}/roles/${r.slug}`,
+      priority: '0.8',
+      changefreq: 'weekly',
+    }))
+
+    // Job detail pages
+    const jobs = await db.job.findMany({
+      where: { verified: true },
+      select: { id: true, title: true, updatedAt: true },
+      take: 1000,
+    })
+    const jobPages = jobs.map((j) => ({
+      loc: `${baseUrl}${jobUrl(j)}`,
+      lastmod: j.updatedAt.toISOString().split('T')[0],
+      priority: '0.8',
+      changefreq: 'weekly',
+    }))
+
+    // Company detail pages
+    const companies = await db.company.findMany({
+      select: { slug: true, updatedAt: true },
+      take: 500,
+    })
+    const companyPages = companies.map((c) => ({
+      loc: `${baseUrl}/companies/${c.slug}`,
+      lastmod: c.updatedAt.toISOString().split('T')[0],
+      priority: '0.7',
+      changefreq: 'weekly',
+    }))
 
     let xml = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
-    for (const p of staticPages) {
+    for (const p of [...staticPages, ...cityPages, ...rolePages]) {
       xml += `  <url><loc>${p.loc}</loc><changefreq>${p.changefreq}</changefreq><priority>${p.priority}</priority></url>\n`
     }
-    for (const job of jobs) {
-      xml += `  <url><loc>${baseUrl}/?view=job-detail&jobId=${job.id}</loc><lastmod>${job.updatedAt.toISOString().split('T')[0]}</lastmod><priority>0.8</priority></url>\n`
-    }
-    for (const c of companies) {
-      xml += `  <url><loc>${baseUrl}/?view=company-detail&slug=${c.slug}</loc><lastmod>${c.updatedAt.toISOString().split('T')[0]}</lastmod><priority>0.7</priority></url>\n`
+    for (const p of [...jobPages, ...companyPages]) {
+      xml += `  <url><loc>${p.loc}</loc>`
+      if (p.lastmod) xml += `<lastmod>${p.lastmod}</lastmod>`
+      xml += `<changefreq>${p.changefreq}</changefreq><priority>${p.priority}</priority></url>\n`
     }
     xml += '</urlset>'
 
@@ -46,3 +74,4 @@ export async function GET() {
     return NextResponse.json({ error: e.message }, { status: 500 })
   }
 }
+
