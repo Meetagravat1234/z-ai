@@ -71,7 +71,7 @@ export function AuthView() {
 
       // Refresh auth context to get the new user
       await refresh()
-      toast.success(mode === 'signup' ? 'Welcome to CareerNest! 🎉' : 'Welcome back! 👋')
+      toast.success(mode === 'signup' ? 'Welcome to Hirebase! 🎉' : 'Welcome back! 👋')
 
       // Take them to the profile page to finish setup (or home)
       go(mode === 'signup' ? 'profile' : 'home')
@@ -91,7 +91,7 @@ export function AuthView() {
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold mb-3">
               <Sparkles className="w-3 h-3" />
-              CAREERNEST
+              HIREBASE
             </div>
             <h1 className="text-4xl font-extrabold tracking-tight">
               Your career, <span className="gradient-text">supercharged</span> with AI.

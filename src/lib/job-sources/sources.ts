@@ -269,7 +269,7 @@ export async function fetchTheMuse(): Promise<FetchResult> {
 // ============================================================================
 export async function fetchRemoteOK(): Promise<FetchResult> {
   try {
-    const r = await fetch('https://remoteok.com/api', { headers: { 'User-Agent': 'CareerNest/1.0' } })
+    const r = await fetch('https://remoteok.com/api', { headers: { 'User-Agent': 'Hirebase/1.0' } })
     if (!r.ok) throw new Error(`HTTP ${r.status}`)
     const d = await r.json()
     // First item is a meta object with 'legal' key; skip it
@@ -359,7 +359,7 @@ export async function fetchIndeedRSS(): Promise<FetchResult> {
     // Pick a random query for diversity
     const query = INDEED_QUERIES[Math.floor(Math.random() * INDEED_QUERIES.length)]
     const url = `https://www.indeed.com/rss?q=${encodeURIComponent(query.q)}&l=${encodeURIComponent(query.l)}&sort=date`
-    const r = await fetch(url, { headers: { 'User-Agent': 'CareerNest/1.0' } })
+    const r = await fetch(url, { headers: { 'User-Agent': 'Hirebase/1.0' } })
     if (!r.ok) throw new Error(`HTTP ${r.status}`)
     const xml = await r.text()
     const itemMatches = xml.match(/<item>([\s\S]*?)<\/item>/g) || []
@@ -481,7 +481,7 @@ export async function fetchAdzuna(what: string, where: string): Promise<FetchRes
     // The `in` in the URL path already restricts to India.
     const url = `https://api.adzuna.com/v1/api/jobs/in/search/1?app_id=${appId}&app_key=${appKey}` +
       `&results_per_page=20&sort=date&max_days_old=7`
-    const r = await fetch(url, { headers: { 'User-Agent': 'CareerNest/1.0' } })
+    const r = await fetch(url, { headers: { 'User-Agent': 'Hirebase/1.0' } })
     if (!r.ok) throw new Error(`HTTP ${r.status}`)
     const d = await r.json()
     const jobs: RawJob[] = (d.results || [])
@@ -520,7 +520,7 @@ export async function fetchCareerjet(what: string, where: string): Promise<Fetch
   try {
     const url = 'https://www.careerjet.co.in/search/jobs?' +
       `s=${encodeURIComponent(what)}&l=${encodeURIComponent(where)}&sort=date&affid=${affId}`
-    const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 CareerNest/1.0' } })
+    const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 Hirebase/1.0' } })
     if (!r.ok) throw new Error(`HTTP ${r.status}`)
     const html = await r.text()
     // Careerjet doesn't expose a clean JSON API without official partnership,

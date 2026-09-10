@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "CareerNest | Jobs, Companies & AI-Powered Career Tools",
+  title: "Hirebase | Jobs, Companies & AI-Powered Career Tools",
   description:
     "Career intelligence platform: verified jobs, company insights, AI resume optimizer, AI cover letter generator, AI mock interview, salary predictor, and application tracker — built for Indian freshers and professionals.",
   keywords: [
@@ -31,17 +31,17 @@ export const metadata: Metadata = {
     "India",
     "hiring",
   ],
-  authors: [{ name: "CareerNest" }],
+  authors: [{ name: "Hirebase" }],
   openGraph: {
-    title: "CareerNest — Career Intelligence Platform",
+    title: "Hirebase — Career Intelligence Platform",
     description:
       "Verified jobs, AI resume tools, AI mock interviews, salary predictor, and an application tracker — all in one place.",
-    siteName: "CareerNest",
+    siteName: "Hirebase",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "CareerNest",
+    title: "Hirebase",
     description: "Verified jobs, AI career tools, application tracker.",
   },
 };

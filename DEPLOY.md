@@ -1,4 +1,4 @@
-# 🚀 Deploy CareerNest to Vercel (FREE — $0/month)
+# 🚀 Deploy Hirebase to Vercel (FREE — $0/month)
 
 **Time required: 15 minutes** | **Cost: $0** | **Everything on free tiers**
 
@@ -20,7 +20,7 @@ Your Supabase project is set up and the database is **already populated** with:
 - ✅ 30 India jobs (Google, Amazon, NVIDIA, Cisco, Accenture, etc.)
 - ✅ 22 companies
 - ✅ 12 career articles
-- ✅ 1 admin user (`admin@careernest.org` / `admin123`)
+- ✅ 1 admin user (`admin@hirebase.org` / `admin123`)
 
 Your Supabase credentials:
 - **Project ref**: `cggjtjzshhwzbycobrud`
@@ -71,7 +71,7 @@ You hit the "max clients reached in session mode" error because the build was us
 
 1. Go to **https://cron-job.org** → "Register" (free)
 2. Click **"Create Cronjob"**:
-   - **Title**: `CareerNest Auto-Sync`
+   - **Title**: `Hirebase Auto-Sync`
    - **URL**: `https://YOUR-VERCEL-URL.vercel.app/api/sync/parallel` (replace with your actual Vercel URL)
    - **Execution Schedule**: select **"Every 30 minutes"** (or "Every 15 minutes" for faster updates)
    - **Request Method**: `GET`
@@ -81,7 +81,7 @@ You hit the "max clients reached in session mode" error because the build was us
 
 1. Open your Vercel URL (`https://z-ai-XXX.vercel.app`)
 2. Click **"Sign in"** (top right) → switch to **"Log in"** mode
-3. Use: `admin@careernest.org` / `admin123`
+3. Use: `admin@hirebase.org` / `admin123`
 4. Click **"Admin Dashboard"** in the sidebar → **"Fetch from URL"** tab → paste any job URL → "Fetch & preview job" → "Save job to website"
 
 ---

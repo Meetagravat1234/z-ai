@@ -52,7 +52,7 @@ export function AdminDashboardView() {
         </p>
         <p className="text-xs text-muted-foreground">
           To get admin access, ask an existing admin to promote your account,
-          or use the default admin: <code className="bg-muted px-1.5 py-0.5 rounded">admin@careernest.org</code> / <code className="bg-muted px-1.5 py-0.5 rounded">admin123</code>
+          or use the default admin: <code className="bg-muted px-1.5 py-0.5 rounded">admin@hirebase.org</code> / <code className="bg-muted px-1.5 py-0.5 rounded">admin123</code>
         </p>
       </div>
     )

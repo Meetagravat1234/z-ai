@@ -1,4 +1,4 @@
-// Prisma schema for CareerNest — career intelligence platform with real-time job aggregation
+// Prisma schema for Hirebase — career intelligence platform with real-time job aggregation
 
 generator client {
   provider = "prisma-client-js"
@@ -137,7 +137,7 @@ model Article {
   content     String
   category    String
   tags        String
-  author      String   @default("CareerNest Editorial")
+  author      String   @default("Hirebase Editorial")
   readMinutes Int      @default(5)
   coverEmoji  String   @default("📄")
   published   Boolean  @default(true)

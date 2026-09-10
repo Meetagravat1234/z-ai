@@ -48,7 +48,7 @@ export function AIResumeOptimizer() {
         </div>
         <h1 className="text-3xl font-extrabold tracking-tight">AI Resume Optimizer</h1>
         <p className="text-muted-foreground mt-2 max-w-2xl">
-          Paste your current resume and the job description you want to target. CareerNest will produce an ATS-friendly, keyword-aligned version that highlights your most relevant experience.
+          Paste your current resume and the job description you want to target. Hirebase will produce an ATS-friendly, keyword-aligned version that highlights your most relevant experience.
         </p>
       </header>
 

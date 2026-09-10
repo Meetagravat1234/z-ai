@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 
 // Fallback demo user for unauthenticated users (so the UI still works as a demo)
-const DEMO_USER_EMAIL = 'demo@careernest.org'
+const DEMO_USER_EMAIL = 'demo@hirebase.org'
 
 async function getCurrentUser() {
   const session = await getServerSession(authOptions)

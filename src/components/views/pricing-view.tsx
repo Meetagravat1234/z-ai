@@ -150,7 +150,7 @@ export function PricingView() {
       </section>
 
       <section className="text-center text-sm text-muted-foreground">
-        <p>Have questions? Reach out to <span className="text-primary font-medium">contact@careernest.org</span></p>
+        <p>Have questions? Reach out to <span className="text-primary font-medium">contact@hirebase.org</span></p>
       </section>
     </div>
   )

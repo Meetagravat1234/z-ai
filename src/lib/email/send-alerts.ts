@@ -83,7 +83,7 @@ export async function sendJobAlertEmail({ to, userName, alertCriteria, jobs }: J
           <tr>
             <td style="background: linear-gradient(135deg, #10b981, #6366f1); padding: 32px 24px; text-align: center;">
               <div style="font-size: 28px; font-weight: 800; color: white; margin-bottom: 4px;">
-                CareerNest
+                Hirebase
               </div>
               <div style="font-size: 13px; color: rgba(255,255,255,0.8); text-transform: uppercase; letter-spacing: 1px;">
                 Job Alerts
@@ -106,14 +106,14 @@ export async function sendJobAlertEmail({ to, userName, alertCriteria, jobs }: J
               </table>
 
               <div style="text-align: center; margin-top: 32px;">
-                <a href="https://z-ai-plum.vercel.app/all-jobs" style="display: inline-block; padding: 12px 32px; border-radius: 12px; background: #10b981; color: white; text-decoration: none; font-weight: 700; font-size: 15px;">
+                <a href="https://hirebase.in/all-jobs" style="display: inline-block; padding: 12px 32px; border-radius: 12px; background: #10b981; color: white; text-decoration: none; font-weight: 700; font-size: 15px;">
                   Browse all jobs →
                 </a>
               </div>
 
               <p style="font-size: 12px; color: #9ca3af; margin: 32px 0 0; text-align: center;">
-                You're receiving this because you set up a job alert on CareerNest.<br>
-                <a href="https://z-ai-plum.vercel.app/profile" style="color: #6b7280;">Manage your alerts</a>
+                You're receiving this because you set up a job alert on Hirebase.<br>
+                <a href="https://hirebase.in/profile" style="color: #6b7280;">Manage your alerts</a>
               </p>
             </td>
           </tr>
@@ -125,9 +125,9 @@ export async function sendJobAlertEmail({ to, userName, alertCriteria, jobs }: J
 </html>`
 
     const { data, error } = await resend.emails.send({
-      from: 'CareerNest <onboarding@resend.dev>',
+      from: 'Hirebase <onboarding@resend.dev>',
       to,
-      subject: `${jobs.length} new ${jobs.length === 1 ? 'job' : 'jobs'} matching your alert on CareerNest`,
+      subject: `${jobs.length} new ${jobs.length === 1 ? 'job' : 'jobs'} matching your alert on Hirebase`,
       html,
     })
 

@@ -1,4 +1,4 @@
-# CareerNest 🚀
+# Hirebase 🚀
 
 Career intelligence platform — verified jobs from multiple sources, AI resume tools, salary analytics, and an application tracker.
 

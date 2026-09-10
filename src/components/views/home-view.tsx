@@ -142,7 +142,7 @@ export function HomeView() {
             research companies, and tailor your resume with AI.
           </h1>
           <p className="mt-4 text-base sm:text-lg text-muted-foreground max-w-2xl">
-            CareerNest combines employer-sourced job discovery, company hiring signals, AI resume tools, and editorial guidance — not a generic repost board.
+            Hirebase combines employer-sourced job discovery, company hiring signals, AI resume tools, and editorial guidance — not a generic repost board.
           </p>
 
           <div className="mt-7 flex flex-wrap gap-3">
@@ -529,7 +529,7 @@ export function HomeView() {
           Start your job search smarter today
         </h2>
         <p className="mt-3 text-muted-foreground max-w-xl mx-auto">
-          Join thousands of candidates using CareerNest to land verified roles at top employers across India.
+          Join thousands of candidates using Hirebase to land verified roles at top employers across India.
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-3">
           <button

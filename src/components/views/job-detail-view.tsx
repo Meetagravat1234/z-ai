@@ -346,7 +346,7 @@ export function JobDetailView() {
           {job.applyUrl && (
             <p className="mt-2 text-xs text-muted-foreground">
               <ExternalLink className="w-3 h-3 inline mr-1" />
-              Apply link opens the official {job.company.name} application page in a new tab. CareerNest is not the employer.
+              Apply link opens the official {job.company.name} application page in a new tab. Hirebase is not the employer.
             </p>
           )}
           {(job as any).source && (job as any).source !== 'manual' && (

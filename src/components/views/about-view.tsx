@@ -12,9 +12,9 @@ export function AboutView() {
           <Building2 className="w-3 h-3" />
           ABOUT
         </div>
-        <h1 className="text-3xl font-extrabold tracking-tight">About CareerNest</h1>
+        <h1 className="text-3xl font-extrabold tracking-tight">About Hirebase</h1>
         <p className="text-muted-foreground mt-2 text-lg">
-          CareerNest is a career intelligence platform: verified jobs from employer sources, company research, AI resume tools, and editorial guidance — not a generic repost board.
+          Hirebase is a career intelligence platform: verified jobs from employer sources, company research, AI resume tools, and editorial guidance — not a generic repost board.
         </p>
       </header>
 
@@ -27,17 +27,17 @@ export function AboutView() {
           Candidates today jump between company career sites, aggregator boards, LinkedIn posts, and WhatsApp hiring messages. Many listings are stale, duplicated, or posted by unverified consultancies. Meanwhile, students and freshers struggle to learn what employers actually expect beyond college syllabi and certificate courses.
         </p>
         <p className="text-foreground/90 leading-relaxed mt-3">
-          CareerNest solves this by combining employer-sourced job discovery with company research and application tools — so people can find real openings, understand employers, and tailor a resume without guessing which boards to trust.
+          Hirebase solves this by combining employer-sourced job discovery with company research and application tools — so people can find real openings, understand employers, and tailor a resume without guessing which boards to trust.
         </p>
       </section>
 
       <section>
         <h2 className="text-xl font-bold mb-2 flex items-center gap-2">
           <Sparkles className="w-5 h-5 text-violet-500" />
-          What CareerNest does
+          What Hirebase does
         </h2>
         <p className="text-foreground/90 leading-relaxed">
-          CareerNest helps candidates discover and understand employment opportunities — with organized job pages, company hiring signals, career articles, and AI tools (Resume Optimizer, Cover Letter Generator, Mock Interview, Salary Predictor). We focus on useful candidate context, not on pretending to be the employer.
+          Hirebase helps candidates discover and understand employment opportunities — with organized job pages, company hiring signals, career articles, and AI tools (Resume Optimizer, Cover Letter Generator, Mock Interview, Salary Predictor). We focus on useful candidate context, not on pretending to be the employer.
         </p>
       </section>
 
@@ -60,7 +60,7 @@ export function AboutView() {
           Relationship with employers
         </h2>
         <p className="text-sm text-foreground/90 leading-relaxed">
-          Unless explicitly stated otherwise, CareerNest is not the employer for jobs listed on the platform and does not make hiring decisions on behalf of employers. Apply links send you to the employer's own application page. If a listing looks wrong or outdated, use Report a Job or Contact.
+          Unless explicitly stated otherwise, Hirebase is not the employer for jobs listed on the platform and does not make hiring decisions on behalf of employers. Apply links send you to the employer's own application page. If a listing looks wrong or outdated, use Report a Job or Contact.
         </p>
       </section>
 
@@ -68,7 +68,7 @@ export function AboutView() {
         <div className="rounded-2xl border border-border bg-card p-5">
           <Mail className="w-5 h-5 text-primary mb-2" />
           <h3 className="font-bold mb-1">Contact</h3>
-          <p className="text-sm text-muted-foreground">contact@careernest.org</p>
+          <p className="text-sm text-muted-foreground">contact@hirebase.org</p>
           <p className="text-sm text-muted-foreground">+91-87909-XXXXX</p>
         </div>
         <div className="rounded-2xl border border-border bg-card p-5">
@@ -82,7 +82,7 @@ export function AboutView() {
       <section className="text-center">
         <div className="inline-flex items-center gap-2 text-sm text-muted-foreground">
           <Heart className="w-4 h-4 text-rose-500" />
-          Built for Indian job seekers by the CareerNest team
+          Built for Indian job seekers by the Hirebase team
         </div>
         <div className="mt-4">
           <button

@@ -10,9 +10,9 @@ export function GroundTruthView() {
           <Microscope className="w-3 h-3" />
           GROUND TRUTH
         </div>
-        <h1 className="text-3xl font-extrabold tracking-tight">How we verify jobs on CareerNest</h1>
+        <h1 className="text-3xl font-extrabold tracking-tight">How we verify jobs on Hirebase</h1>
         <p className="text-muted-foreground mt-2">
-          Most job boards scrape and repost listings automatically. We don't. Every job on CareerNest goes through a multi-step verification and enrichment process before it reaches you.
+          Most job boards scrape and repost listings automatically. We don't. Every job on Hirebase goes through a multi-step verification and enrichment process before it reaches you.
         </p>
       </header>
 

@@ -42,7 +42,7 @@ export function CompaniesView() {
   return (
     <div className="space-y-6 pb-8">
       <div>
-        <h1 className="text-3xl font-extrabold tracking-tight">Companies hiring on CareerNest</h1>
+        <h1 className="text-3xl font-extrabold tracking-tight">Companies hiring on Hirebase</h1>
         <p className="text-muted-foreground mt-2">
           See how employers are hiring right now — active openings, locations, hiring velocity, and 7-day trends.
         </p>

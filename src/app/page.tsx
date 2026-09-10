@@ -133,7 +133,7 @@ function Footer() {
               <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
                 <span className="text-white text-xs font-bold">C</span>
               </div>
-              <span className="font-extrabold">CareerNest</span>
+              <span className="font-extrabold">Hirebase</span>
             </div>
             <p className="text-xs text-muted-foreground leading-relaxed">
               Career intelligence platform for verified jobs, AI tools, and editorial guidance.
@@ -168,8 +168,8 @@ function Footer() {
           </div>
         </div>
         <div className="mt-8 pt-6 border-t border-border flex flex-col sm:flex-row justify-between gap-3 text-xs text-muted-foreground">
-          <p>© {new Date().getFullYear()} CareerNest. Built for Indian job seekers.</p>
-          <p>Contact: contact@careernest.org</p>
+          <p>© {new Date().getFullYear()} Hirebase. Built for Indian job seekers.</p>
+          <p>Contact: contact@hirebase.org</p>
         </div>
       </div>
     </footer>

@@ -139,7 +139,7 @@ export function Sidebar() {
                 Career<span className="text-primary">Nest</span>
               </div>
               <div className="text-[10px] uppercase tracking-wider text-sidebar-foreground/60 font-semibold">
-                Your Career, Our Intelligence
+                India's #1 AI Job Portal
               </div>
             </div>
           </button>

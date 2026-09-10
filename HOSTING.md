@@ -1,6 +1,6 @@
-# 🚀 Free Hosting Guide for CareerNest
+# 🚀 Free Hosting Guide for Hirebase
 
-This guide walks you through deploying CareerNest to free hosting services. The app is built with Next.js 16, so it deploys perfectly to Vercel (the company behind Next.js).
+This guide walks you through deploying Hirebase to free hosting services. The app is built with Next.js 16, so it deploys perfectly to Vercel (the company behind Next.js).
 
 **Total monthly cost: $0** (with free tiers of Vercel + Supabase + Vercel Cron)
 
@@ -32,7 +32,7 @@ This guide walks you through deploying CareerNest to free hosting services. The 
 
 ### Why not Render / Railway / Fly.io?
 
-| Option | Free tier | Problem for CareerNest |
+| Option | Free tier | Problem for Hirebase |
 |---|---|---|
 | **Vercel** ✅ | Yes — generous | None. Perfect for Next.js. |
 | **Render** | Yes — but sleeps after 15 min inactivity | Cron stops when app sleeps |
@@ -57,7 +57,7 @@ This guide walks you through deploying CareerNest to free hosting services. The 
 1. Go to **https://supabase.com** → Sign up (use GitHub login)
 2. Click **"New project"**
 3. Fill in:
-   - **Name**: `careernest`
+   - **Name**: `hirebase`
    - **Database password**: generate a strong one and SAVE it (you'll need it)
    - **Region**: choose the closest to your users (e.g., `Mumbai (ap-south-1)` for India)
    - **Pricing plan**: Free
@@ -152,15 +152,15 @@ Vercel will auto-redeploy with the cron configured. Every 30 minutes, Vercel wil
 
 ### Step 5: Update NEXTAUTH_URL
 
-After your first deploy, Vercel gives you a URL like `careernest-xyz.vercel.app`. Update the environment variable:
+After your first deploy, Vercel gives you a URL like `hirebase-xyz.vercel.app`. Update the environment variable:
 
 1. Vercel dashboard → your project → **Settings → Environment Variables**
-2. Edit `NEXTAUTH_URL` → set to `https://careernest-xyz.vercel.app`
+2. Edit `NEXTAUTH_URL` → set to `https://hirebase-xyz.vercel.app`
 3. Trigger a redeploy (Deployments → "Redeploy")
 
 ### Step 6 (optional): Add a custom domain
 
-1. Buy a domain (e.g., `careernest.in` from GoDaddy/Namecheap — ~₹700/year)
+1. Buy a domain (e.g., `hirebase.in` from GoDaddy/Namecheap — ~₹700/year)
 2. Vercel dashboard → your project → **Settings → Domains**
 3. Add your domain → follow the DNS instructions
 4. Update `NEXTAUTH_URL` to your custom domain
@@ -173,12 +173,12 @@ After your first deploy, Vercel gives you a URL like `careernest-xyz.vercel.app`
 ### Vercel Hobby (free)
 - 100GB bandwidth/month
 - 100GB-hours of serverless function execution
-- **For CareerNest**: 1 sync every 30 min × ~10s each = ~5 min/day of function execution. **Way under the limit.**
+- **For Hirebase**: 1 sync every 30 min × ~10s each = ~5 min/day of function execution. **Way under the limit.**
 
 ### Supabase Free
 - 500MB database storage
 - 50,000 monthly active users
-- **For CareerNest**: each job is ~2KB. 500MB = ~250,000 jobs. **Plenty.**
+- **For Hirebase**: each job is ~2KB. 500MB = ~250,000 jobs. **Plenty.**
 
 ### z-ai-web-dev-sdk
 - This is the rate-limited one. The 429 errors you're seeing are from this.
@@ -232,7 +232,7 @@ If you prefer to keep the `mini-services/job-aggregator` running as a separate p
 |---|---|---|
 | `DATABASE_URL` | Supabase → Settings → Database → Connection URI | `postgresql://postgres:abc123@db.xyz.supabase.co:5432/postgres` |
 | `NEXTAUTH_SECRET` | Generate at https://generate-secret.now.sh | `a1b2c3d4e5f6...` (32+ random chars) |
-| `NEXTAUTH_URL` | Your Vercel app URL | `https://careernest-xyz.vercel.app` |
+| `NEXTAUTH_URL` | Your Vercel app URL | `https://hirebase-xyz.vercel.app` |
 
 ---
 
