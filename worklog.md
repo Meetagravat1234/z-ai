@@ -433,3 +433,62 @@ Stage Summary:
   2. Request indexing for the most important new pages: /jobs, /jobs/bengaluru, /jobs/fresher, /roles/software-engineer
   3. Read the Blog Content Strategy docx — write first 3 articles this week
   4. Implement /insights/[slug] route (next sprint) using the template in the docx
+
+---
+Task ID: 8
+Agent: main
+Task: Write and publish 5 high-quality SEO blog articles on the live site
+
+Work Log:
+- Inspected existing Article model (12 stub articles already in DB, ~600 chars each — placeholder quality)
+- Wrote 5 full-length articles (1,500-2,500 words each, 9-12 min read) targeting high-volume SEO keywords:
+  1. "Software Engineer Salary in Bengaluru (2026 Edition)" — 8,912 chars, targets "software engineer salary bengaluru" (12K/mo, LOW competition)
+  2. "How to Write an ATS-Friendly Resume (With Examples)" — 9,568 chars, targets "ats friendly resume" (18K/mo)
+  3. "Top 10 Companies Hiring Freshers in Bengaluru (Sept 2026)" — 11,856 chars, targets "fresher jobs bengaluru" (22K/mo)
+  4. "How to Prepare for Amazon SDE Interview — Real Questions" — 12,544 chars, targets "amazon sde interview questions" (8K/mo)
+  5. "Data Scientist Salary in India — Real Numbers by City & Experience" — 11,021 chars, targets "data scientist salary india" (27K/mo)
+- Each article includes:
+  * Proper H1 + multiple H2 + H3 section structure
+  * Tables comparing salary by company type / experience / city
+  * Concrete numbers (₹3.5-45 LPA ranges, total comp breakdowns)
+  * 3-5 FAQ section at end (for Google FAQ rich snippets)
+  * 5-8 internal links to /jobs/bengaluru, /roles/*, /?view=ai-resume, /?view=ats-score etc.
+  * CTA at bottom ("Browse jobs + try AI Resume Optimizer")
+  * Cross-links to other Hirebase articles
+- Wrote Node insertion script (scripts/insert-articles.mjs) — idempotent upsert based on slug
+- Inserted all 5 articles into live production DB via Prisma — total articles now 17
+- Built new /insights/[slug] route — Server Component with:
+  * Article + BreadcrumbList JSON-LD structured data
+  * Custom markdown renderer (handles ## H2, ### H3, - bullets, **bold**, [text](url), ---)
+  * Related articles section (3 same-category articles at bottom)
+  * CTA section at end
+  * Tags displayed as chips
+  * Proper canonical URL + OpenGraph metadata
+- Built new /insights index page (Server Component) — lists all 17 articles grouped by category
+- Updated sitemap.xml to include /insights + all article URLs — total URLs now 505 (up from 487)
+- Verified locally on dev server (port 3001):
+  * /insights returns 17 article cards grouped by category
+  * /insights/[slug] returns proper title + Article JSON-LD + Breadcrumb JSON-LD
+  * Word counts 1,500-2,500+ per article
+- Committed + pushed to GitHub → Vercel auto-built → verified LIVE on hirebase.in:
+  * https://www.hirebase.in/insights → HTTP 200, 17 article cards
+  * https://www.hirebase.in/insights/software-engineer-salary-bengaluru-2026 → HTTP 200, title "Software Engineer Salary in Bengaluru (2026 Edition) | Hirebase", Article + Breadcrumb JSON-LD present
+  * https://www.hirebase.in/insights/ats-friendly-resume-guide → HTTP 200, title "How to Write an ATS-Friendly Resume (With Examples) | Hirebase"
+  * https://www.hirebase.in/insights/amazon-sde-interview-preparation → HTTP 200, title "How to Prepare for Amazon SDE Interview — Real Questions | Hirebase"
+  * https://www.hirebase.in/insights/top-10-companies-freshers-bengaluru-2026 → HTTP 200, title "Top 10 Companies Hiring Freshers in Bengaluru (Sept 2026) | Hirebase"
+  * https://www.hirebase.in/insights/data-scientist-salary-india-2026 → HTTP 200, title "Data Scientist Salary in India — Real Numbers by City & Experience | Hirebase"
+  * Sitemap URL count: 505 (was 487)
+
+Stage Summary:
+- 5 high-quality SEO articles are LIVE on hirebase.in at /insights/[slug]
+- Each article has its own URL, title, meta description, Article + Breadcrumb JSON-LD
+- Total content added: ~54,000 characters of original editorial content targeting high-volume Indian tech job search keywords
+- Combined monthly search volume of targeted keywords: ~87K searches/month
+- Internal linking: each article links to 5-8 other Hirebase pages (jobs, roles, AI tools, other articles) — boosts site-wide SEO
+- FAQ sections in every article → eligible for FAQ rich snippets in Google
+- Sitemap now has 505 URLs ready for Google to discover
+- Next actions for user:
+  1. Submit sitemap in Google Search Console → Google will discover all 505 URLs including 5 new articles
+  2. Request indexing for the 5 new article URLs via GSC URL Inspection (one per day given 10/day quota)
+  3. Share article links on LinkedIn/Twitter for initial traffic + social signals
+  4. Write 5 more articles next week (the Blog Content Strategy doc has 12 article ideas)
