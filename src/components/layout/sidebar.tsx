@@ -30,6 +30,7 @@ import {
   GitCompare,
   User,
   Shield,
+  Bell,
 } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { useNav, type ViewId } from '@/lib/nav-store'
@@ -91,6 +92,7 @@ const navGroups: Array<{
     items: [
       { id: 'saved', label: 'Saved Jobs', icon: Bookmark },
       { id: 'tracker', label: 'Application Tracker', icon: KanbanSquare },
+      { id: 'alerts', label: 'Job Alerts', icon: Bell },
       { id: 'profile', label: 'My Profile', icon: User },
     ],
   },
@@ -218,7 +220,7 @@ export function Sidebar() {
             Get jobs matching your profile in your inbox.
           </p>
           <button
-            onClick={() => go(user && !isDemo ? 'profile' : 'auth')}
+            onClick={() => go(user && !isDemo ? 'alerts' : 'auth')}
             className="w-full bg-primary text-primary-foreground text-xs font-bold py-2 rounded-xl hover:opacity-90 transition-opacity"
           >
             {user && !isDemo ? 'Manage Alerts' : 'Sign In to Enable'}

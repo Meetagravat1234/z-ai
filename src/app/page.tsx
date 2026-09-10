@@ -24,6 +24,7 @@ import { CompareJobsView } from '@/components/views/compare-jobs-view'
 import { ATSScoreView } from '@/components/views/ats-score-view'
 import { AuthView } from '@/components/views/auth-view'
 import { ProfileView } from '@/components/views/profile-view'
+import { AlertsView } from '@/components/views/alerts-view'
 import { AdminDashboardView } from '@/components/views/admin-dashboard-view'
 import { AIResumeOptimizer } from '@/components/views/ai-resume-view'
 import { AICoverLetter } from '@/components/views/ai-cover-letter-view'
@@ -113,7 +114,7 @@ function ViewRouter({ view }: { view: string }) {
     case 'profile':
       return <ProfileView />
     case 'alerts':
-      return <ProfileView />  // placeholder until alerts view is built
+      return <AlertsView />
     case 'admin':
       return <AdminDashboardView />
     default:

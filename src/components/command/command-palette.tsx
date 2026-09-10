@@ -57,6 +57,7 @@ const COMMANDS: Array<{
   { id: 'compare-jobs', label: 'Compare Jobs', hint: 'Compare 2-3 jobs side by side', icon: GitCompare, group: 'Insights & Tools' },
   { id: 'saved', label: 'Saved Jobs', hint: 'Your bookmarked jobs', icon: Bookmark, group: 'My Career' },
   { id: 'tracker', label: 'Application Tracker', hint: 'Kanban board for applications', icon: KanbanSquare, group: 'My Career' },
+  { id: 'alerts', label: 'Job Alerts', hint: 'Get matching jobs in your inbox', icon: Bell, group: 'My Career' },
   { id: 'profile', label: 'My Profile', hint: 'Update your name, skills, target role, preferences', icon: User, group: 'Account' },
   { id: 'auth', label: 'Sign in / Sign up', hint: 'Log in or create a free account', icon: User, group: 'Account' },
   { id: 'admin', label: 'Admin Dashboard', hint: 'Add jobs by URL, manage jobs/companies, view analytics', icon: Shield, group: 'Admin' },
