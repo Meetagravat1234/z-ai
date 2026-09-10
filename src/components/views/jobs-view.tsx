@@ -42,6 +42,14 @@ export function JobsView({ fixedCategory, fixedTitle, showFilters = true }: Prop
   const [indiaOnly, setIndiaOnly] = React.useState(true) // DEFAULT: India jobs only
   const [showFilterPanel, setShowFilterPanel] = React.useState(false)
 
+  // Reset state when fixedCategory changes (e.g. switching from Freshers to Internships)
+  React.useEffect(() => {
+    if (fixedCategory) {
+      setCategory(fixedCategory)
+      setQ('')
+    }
+  }, [fixedCategory])
+
   React.useEffect(() => {
     setLoading(true)
     const params = new URLSearchParams()
