@@ -55,7 +55,8 @@ export async function GET(req: NextRequest) {
     const offset = parseInt(searchParams.get('offset') || '0')
     const featured = searchParams.get('featured')
     const source = searchParams.get('source')
-    const indiaOnly = searchParams.get('indiaOnly') === 'true'
+    const country = searchParams.get('country') // 'india' or 'all' (replaces indiaOnly)
+    const indiaOnly = country === 'india' || searchParams.get('indiaOnly') === 'true'
 
     // Build the WHERE clause as an array of conditions (we'll AND them together)
     const conditions: any[] = []
@@ -63,22 +64,37 @@ export async function GET(req: NextRequest) {
     if (q) {
       conditions.push({
         OR: [
-          { title: { contains: q } },
-          { description: { contains: q } },
-          { skills: { contains: q } },
+          { title: { contains: q, mode: 'insensitive' } },
+          { skills: { contains: q, mode: 'insensitive' } },
+          { company: { name: { contains: q, mode: 'insensitive' } } },
         ],
       })
     }
 
-    // India-only filter: location must contain any Indian city, "India", or "Remote"
+    // India filter: single condition with startsWith for speed
+    // Matches locations containing Indian cities, "India", or "Remote"
     if (indiaOnly) {
-      const indiaCities = [
-        'Bengaluru', 'Bangalore', 'Hyderabad', 'Chennai', 'Mumbai', 'Pune',
-        'Noida', 'Gurugram', 'Gurgaon', 'Delhi', 'Kolkata', 'Kochi',
-        'Coimbatore', 'Ahmedabad', 'Jaipur', 'Chandigarh', 'India', 'Remote',
-      ]
       conditions.push({
-        OR: indiaCities.map((city) => ({ location: { contains: city } })),
+        OR: [
+          { location: { contains: 'India', mode: 'insensitive' } },
+          { location: { contains: 'Bengaluru', mode: 'insensitive' } },
+          { location: { contains: 'Bangalore', mode: 'insensitive' } },
+          { location: { contains: 'Hyderabad', mode: 'insensitive' } },
+          { location: { contains: 'Chennai', mode: 'insensitive' } },
+          { location: { contains: 'Mumbai', mode: 'insensitive' } },
+          { location: { contains: 'Pune', mode: 'insensitive' } },
+          { location: { contains: 'Noida', mode: 'insensitive' } },
+          { location: { contains: 'Gurugram', mode: 'insensitive' } },
+          { location: { contains: 'Gurgaon', mode: 'insensitive' } },
+          { location: { contains: 'Delhi', mode: 'insensitive' } },
+          { location: { contains: 'Kolkata', mode: 'insensitive' } },
+          { location: { contains: 'Remote', mode: 'insensitive' } },
+          { location: { contains: 'Kochi', mode: 'insensitive' } },
+          { location: { contains: 'Ahmedabad', mode: 'insensitive' } },
+          { location: { contains: 'Jaipur', mode: 'insensitive' } },
+          { location: { contains: 'Chandigarh', mode: 'insensitive' } },
+          { location: { contains: 'Coimbatore', mode: 'insensitive' } },
+        ],
       })
     }
 
@@ -86,8 +102,8 @@ export async function GET(req: NextRequest) {
     if (workMode && workMode !== 'all') conditions.push({ workMode })
     if (employmentType && employmentType !== 'all') conditions.push({ employmentType })
     if (experience && experience !== 'all') conditions.push({ experience: { contains: experience } })
-    if (location && location !== 'all') conditions.push({ location: { contains: location } })
-    if (skill && skill !== 'all') conditions.push({ skills: { contains: skill } })
+    if (location && location !== 'all') conditions.push({ location: { contains: location, mode: 'insensitive' } })
+    if (skill && skill !== 'all') conditions.push({ skills: { contains: skill, mode: 'insensitive' } })
     if (minSalary) conditions.push({ salaryMin: { gte: parseInt(minSalary) } })
     if (maxSalary) conditions.push({ salaryMax: { lte: parseInt(maxSalary) } })
     if (featured === 'true') conditions.push({ isFeatured: true })

@@ -39,7 +39,7 @@ export function JobsView({ fixedCategory, fixedTitle, showFilters = true }: Prop
   const [employmentType, setEmploymentType] = React.useState('All')
   const [sort, setSort] = React.useState('recent')
   const [company, setCompany] = React.useState(jobFilter.company || '')
-  const [indiaOnly, setIndiaOnly] = React.useState(true) // DEFAULT: India jobs only
+  const [country, setCountry] = React.useState('india') // 'india' or 'all'
   const [showFilterPanel, setShowFilterPanel] = React.useState(false)
 
   // Reset state when fixedCategory changes (e.g. switching from Freshers to Internships)
@@ -59,13 +59,13 @@ export function JobsView({ fixedCategory, fixedTitle, showFilters = true }: Prop
     if (employmentType && employmentType !== 'All') params.set('employmentType', employmentType)
     if (company) params.set('company', company)
     if (sort) params.set('sort', sort)
-    if (indiaOnly) params.set('indiaOnly', 'true')
+    if (country === 'india') params.set('indiaOnly', 'true')
     params.set('limit', '200')
     fetch(`/api/jobs?${params}`)
       .then((r) => r.json())
       .then((d) => setJobs(d.jobs || []))
       .finally(() => setLoading(false))
-  }, [q, category, workMode, employmentType, sort, company, indiaOnly])
+  }, [q, category, workMode, employmentType, sort, company, country])
 
   return (
     <div className="space-y-6 pb-8">
@@ -97,18 +97,14 @@ export function JobsView({ fixedCategory, fixedTitle, showFilters = true }: Prop
             className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary"
           />
         </div>
-        <button
-          onClick={() => setIndiaOnly((v) => !v)}
-          title="Toggle India-only filter"
-          className={cn(
-            'inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl border font-medium text-sm transition-colors whitespace-nowrap',
-            indiaOnly
-              ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/40'
-              : 'bg-card border-border hover:bg-muted text-muted-foreground'
-          )}
+        <select
+          value={country}
+          onChange={(e) => setCountry(e.target.value)}
+          className="px-3 py-2.5 rounded-xl border border-border bg-card text-sm font-medium"
         >
-          🇮🇳 India only
-        </button>
+          <option value="india">🇮🇳 India</option>
+          <option value="all">🌍 All countries</option>
+        </select>
         {showFilters && (
           <button
             onClick={() => setShowFilterPanel((v) => !v)}
