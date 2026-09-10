@@ -4,43 +4,31 @@ import * as React from 'react'
 
 interface AnimatedNumberProps {
   value: number
-  duration?: number // ms for the real animation once value arrives
+  duration?: number // ms
   className?: string
 }
 
-export function AnimatedNumber({ value, duration = 2000, className }: AnimatedNumberProps) {
-  const [displayValue, setDisplayValue] = React.useState(0)
-  const animationRef = React.useRef<number | null>(null)
-  const lastValueRef = React.useRef(0)
+export function AnimatedNumber({ value, duration = 1200, className }: AnimatedNumberProps) {
+  const [displayValue, setDisplayValue] = React.useState(value > 0 ? value : 0)
+  const prevValueRef = React.useRef(0)
+  const rafRef = React.useRef<number | null>(null)
 
   React.useEffect(() => {
-    // Cancel any ongoing animation
-    if (animationRef.current) {
-      cancelAnimationFrame(animationRef.current)
-    }
-
-    const startValue = lastValueRef.current // Start from wherever we left off
-    const endValue = value
-
-    // If value is 0 (not loaded yet), do a slow fake increment to show "life"
-    if (endValue === 0) {
-      let fakeValue = 0
-      const fakeAnimate = () => {
-        fakeValue += 1
-        // Don't go past ~80% of what we expect (so it never overshoots)
-        if (fakeValue <= 250) {
-          setDisplayValue(fakeValue)
-          animationRef.current = requestAnimationFrame(() => {
-            setTimeout(fakeAnimate, 80) // Slow increment: ~12/sec
-          })
-        }
-      }
-      fakeAnimate()
+    // If value is 0 (data not loaded), show a pulsing dots indicator
+    if (value <= 0) {
+      setDisplayValue(0)
       return
     }
 
-    // Real animation: smoothly animate from current to target
+    // Cancel any ongoing animation
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current)
+    }
+
+    const startValue = prevValueRef.current
+    const endValue = value
     const startTime = Date.now()
+
     const animate = () => {
       const elapsed = Date.now() - startTime
       const progress = Math.min(elapsed / duration, 1)
@@ -49,22 +37,25 @@ export function AnimatedNumber({ value, duration = 2000, className }: AnimatedNu
       const eased = 1 - Math.pow(1 - progress, 3)
       const current = Math.round(startValue + (endValue - startValue) * eased)
       setDisplayValue(current)
-      lastValueRef.current = current
+      prevValueRef.current = current
 
       if (progress < 1) {
-        animationRef.current = requestAnimationFrame(animate)
+        rafRef.current = requestAnimationFrame(animate)
+      } else {
+        prevValueRef.current = endValue
+        setDisplayValue(endValue)
       }
     }
-    animationRef.current = requestAnimationFrame(animate)
+    rafRef.current = requestAnimationFrame(animate)
 
     return () => {
-      if (animationRef.current) cancelAnimationFrame(animationRef.current)
+      if (rafRef.current) cancelAnimationFrame(rafRef.current)
     }
   }, [value, duration])
 
   return (
     <span className={className} style={{ fontVariantNumeric: 'tabular-nums' }}>
-      {displayValue}
+      {displayValue > 0 ? displayValue : '…'}
     </span>
   )
 }
