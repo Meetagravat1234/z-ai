@@ -886,3 +886,47 @@ Stage Summary:
 - Files generated client-side (instant, no server roundtrip)
 - PDF: A4, Helvetica, proper headings + bullets
 - DOCX: real Word document, Calibri, proper headings + bullets, editable
+
+---
+Task ID: 14
+Agent: main
+Task: Massive job source expansion — verified Greenhouse companies + new free APIs + Indian RSS feeds
+
+Work Log:
+- Investigated current job count: 251 verified jobs, 170 companies
+- Identified that many Greenhouse company slugs in the list were unverified (Adobe, Amazon, Google, Microsoft, etc. don't use standard Greenhouse boards URL)
+- Tested 100+ Greenhouse company slugs against the live API to find which ones actually return jobs
+- Found 43 verified companies with real India-relevant jobs:
+  * gitlab: 224 India jobs (biggest source)
+  * stripe: 626 total / 15 India
+  * twilio: 100 India jobs
+  * samsara: 84 India jobs
+  * reddit: 110 India jobs
+  * dropbox: 41 India jobs
+  * coinbase: 64 India jobs
+  * mercury: 57 India jobs
+  * zoominfo: 34 India jobs
+  * pinterest: 37 India jobs
+  * + 33 more verified companies
+- Replaced unverified company list with 43 verified companies
+- Added 5 new free job board adapters:
+  * fetchHimalayas() — free JSON API, no key needed
+  * fetchJooble() — free API, needs JOOBLE_API_KEY env var
+  * fetchJobicy() — free RSS feed, no key
+  * fetchWorkingNomads() — free RSS feed, no key
+  * fetchIndianRSS() — YuvaJobs, FreshersLive, JobAaj RSS feeds (India-specific)
+- Updated getParallelSources() to include all new sources
+- Updated getNextSource() round-robin queue
+- Updated SOURCE_QUEUE_LENGTH
+- Expanded Ashby company list from 5 → 60+ companies
+- Triggered 15 syncs — jobs went from 251 → 322 (+71 new)
+- Greenhouse companies adding jobs: gitlab, reddit, dropbox, yext, duolingo
+- Ashby companies adding jobs: ashby (15), deepgram (1)
+- Total: 322 jobs, 174 companies, 87 new today
+
+Stage Summary:
+- Job count increased from 251 → 322 (+28%) in a single session
+- 43 verified Greenhouse companies will continue pulling ~700+ India jobs over next 24 hours via Vercel cron
+- 5 new free job board adapters deployed (Himalayas, Jobicy, Working Nomads, Indian RSS, Jooble)
+- Expected final count within 24-48 hours: 1,000-2,000 jobs
+- All sources are legal (public APIs, RSS feeds, no scraping)
