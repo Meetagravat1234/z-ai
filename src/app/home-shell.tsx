@@ -1,6 +1,7 @@
 'use client'
 
 import * as React from 'react'
+import Link from 'next/link'
 import { useNav } from '@/lib/nav-store'
 import { Sidebar, TopNav, BottomNav } from '@/components/layout/sidebar'
 import { CommandPalette } from '@/components/command/command-palette'
@@ -159,7 +160,6 @@ function ViewRouter({ view, initialData }: { view: string; initialData?: HomeIni
 }
 
 function Footer() {
-  const { go } = useNav()
   return (
     <footer className="border-t border-border bg-card mt-auto">
       <div className="max-w-7xl mx-auto px-4 lg:px-6 py-8">
@@ -178,28 +178,28 @@ function Footer() {
           <div>
             <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">Find Jobs</h4>
             <ul className="space-y-2 text-sm">
-              <li><button onClick={() => go('all-jobs')} className="hover:text-primary text-muted-foreground">All Jobs</button></li>
-              <li><button onClick={() => go('freshers')} className="hover:text-primary text-muted-foreground">Freshers</button></li>
-              <li><button onClick={() => go('internships')} className="hover:text-primary text-muted-foreground">Internships</button></li>
-              <li><button onClick={() => go('hidden')} className="hover:text-primary text-muted-foreground">Hidden Jobs</button></li>
+              <li><Link href="/jobs" className="hover:text-primary text-muted-foreground">All Jobs</Link></li>
+              <li><Link href="/jobs/fresher" className="hover:text-primary text-muted-foreground">Freshers</Link></li>
+              <li><Link href="/jobs/internship" className="hover:text-primary text-muted-foreground">Internships</Link></li>
+              <li><Link href="/jobs/hidden" className="hover:text-primary text-muted-foreground">Hidden Jobs</Link></li>
             </ul>
           </div>
           <div>
             <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">AI Tools</h4>
             <ul className="space-y-2 text-sm">
-              <li><button onClick={() => go('ai-resume')} className="hover:text-primary text-muted-foreground">Resume Optimizer</button></li>
-              <li><button onClick={() => go('ai-cover-letter')} className="hover:text-primary text-muted-foreground">Cover Letter</button></li>
-              <li><button onClick={() => go('ai-mock-interview')} className="hover:text-primary text-muted-foreground">Mock Interview</button></li>
-              <li><button onClick={() => go('ai-salary')} className="hover:text-primary text-muted-foreground">Salary Predictor</button></li>
+              <li><Link href="/ai-tools/resume-optimizer" className="hover:text-primary text-muted-foreground">Resume Optimizer</Link></li>
+              <li><Link href="/ai-tools/cover-letter" className="hover:text-primary text-muted-foreground">Cover Letter</Link></li>
+              <li><Link href="/ai-tools/mock-interview" className="hover:text-primary text-muted-foreground">Mock Interview</Link></li>
+              <li><Link href="/ai-tools/salary-predictor" className="hover:text-primary text-muted-foreground">Salary Predictor</Link></li>
             </ul>
           </div>
           <div>
             <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">Company</h4>
             <ul className="space-y-2 text-sm">
-              <li><button onClick={() => go('about')} className="hover:text-primary text-muted-foreground">About</button></li>
-              <li><button onClick={() => go('ground-truth')} className="hover:text-primary text-muted-foreground">Ground Truth</button></li>
-              <li><button onClick={() => go('pricing')} className="hover:text-primary text-muted-foreground">Pricing</button></li>
-              <li><button onClick={() => go('tracker')} className="hover:text-primary text-muted-foreground">Tracker</button></li>
+              <li><Link href="/about" className="hover:text-primary text-muted-foreground">About</Link></li>
+              <li><Link href="/ground-truth" className="hover:text-primary text-muted-foreground">Ground Truth</Link></li>
+              <li><Link href="/pricing" className="hover:text-primary text-muted-foreground">Pricing</Link></li>
+              <li><Link href="/tracker" className="hover:text-primary text-muted-foreground">Tracker</Link></li>
             </ul>
           </div>
         </div>

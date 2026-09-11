@@ -11,12 +11,30 @@ export async function GET() {
       { loc: `${baseUrl}/jobs`, priority: '0.9', changefreq: 'daily' },
       { loc: `${baseUrl}/companies`, priority: '0.9', changefreq: 'daily' },
       { loc: `${baseUrl}/roles`, priority: '0.9', changefreq: 'weekly' },
+      { loc: `${baseUrl}/insights`, priority: '0.9', changefreq: 'weekly' },
+      { loc: `${baseUrl}/discover`, priority: '0.8', changefreq: 'daily' },
       // Category pages
       { loc: `${baseUrl}/jobs/fresher`, priority: '0.9', changefreq: 'daily' },
       { loc: `${baseUrl}/jobs/internship`, priority: '0.9', changefreq: 'daily' },
       { loc: `${baseUrl}/jobs/walk-in`, priority: '0.8', changefreq: 'daily' },
       { loc: `${baseUrl}/jobs/hidden`, priority: '0.7', changefreq: 'weekly' },
       { loc: `${baseUrl}/jobs/experienced`, priority: '0.7', changefreq: 'weekly' },
+      // AI Tools
+      { loc: `${baseUrl}/ai-tools/resume-optimizer`, priority: '0.8', changefreq: 'monthly' },
+      { loc: `${baseUrl}/ai-tools/ats-score`, priority: '0.8', changefreq: 'monthly' },
+      { loc: `${baseUrl}/ai-tools/cover-letter`, priority: '0.7', changefreq: 'monthly' },
+      { loc: `${baseUrl}/ai-tools/mock-interview`, priority: '0.7', changefreq: 'monthly' },
+      { loc: `${baseUrl}/ai-tools/skill-gap`, priority: '0.7', changefreq: 'monthly' },
+      { loc: `${baseUrl}/ai-tools/salary-predictor`, priority: '0.7', changefreq: 'monthly' },
+      // Other pages
+      { loc: `${baseUrl}/salary-dashboard`, priority: '0.7', changefreq: 'weekly' },
+      { loc: `${baseUrl}/question-bank`, priority: '0.7', changefreq: 'weekly' },
+      { loc: `${baseUrl}/compare-jobs`, priority: '0.6', changefreq: 'monthly' },
+      { loc: `${baseUrl}/about`, priority: '0.5', changefreq: 'monthly' },
+      { loc: `${baseUrl}/pricing`, priority: '0.5', changefreq: 'monthly' },
+      { loc: `${baseUrl}/ground-truth`, priority: '0.4', changefreq: 'monthly' },
+      { loc: `${baseUrl}/tracker`, priority: '0.4', changefreq: 'weekly' },
+      { loc: `${baseUrl}/alerts`, priority: '0.4', changefreq: 'weekly' },
     ]
 
     // City pages

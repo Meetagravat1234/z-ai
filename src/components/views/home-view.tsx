@@ -122,8 +122,8 @@ export function HomeView({ initialData }: { initialData?: HomeInitialData }) {
     <div className="space-y-8 sm:space-y-12 pb-8">
       {/* Live sync banner */}
       {(newToday > 0 || lastSync) && (
-        <button
-          onClick={() => go('sync-status')}
+        <Link
+          href="/sync-status"
           className="w-full rounded-2xl border border-emerald-500/30 bg-emerald-500/5 px-4 py-3 flex items-center justify-between gap-3 hover:bg-emerald-500/10 transition-colors text-left"
         >
           <div className="flex items-center gap-3">
@@ -147,7 +147,7 @@ export function HomeView({ initialData }: { initialData?: HomeInitialData }) {
           <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 hidden sm:inline">
             View sync status →
           </span>
-        </button>
+        </Link>
       )}
 
       {/* HERO */}
@@ -170,20 +170,20 @@ export function HomeView({ initialData }: { initialData?: HomeInitialData }) {
           </p>
 
           <div className="mt-5 sm:mt-7 flex flex-col sm:flex-row flex-wrap gap-3">
-            <button
-              onClick={() => go('all-jobs')}
+            <Link
+              href="/jobs"
               className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-primary text-primary-foreground font-semibold shadow-lg shadow-primary/30 hover:opacity-90 transition-opacity"
             >
               <Search className="w-4 h-4" />
               Browse {statsLoaded ? `${stats.jobs} jobs` : 'jobs'}
-            </button>
-            <button
-              onClick={() => go('ai-resume')}
+            </Link>
+            <Link
+              href="/ai-tools/resume-optimizer"
               className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl border border-border bg-background hover:bg-muted font-semibold transition-colors"
             >
               <Sparkles className="w-4 h-4 text-violet-500" />
               Try AI Resume Optimizer
-            </button>
+            </Link>
           </div>
 
           {/* Stats */}
@@ -258,6 +258,7 @@ export function HomeView({ initialData }: { initialData?: HomeInitialData }) {
           {[
             {
               id: 'ai-resume',
+              url: '/ai-tools/resume-optimizer',
               title: 'AI Resume Optimizer',
               desc: 'Tailor your resume to any job description in seconds. ATS-friendly output.',
               icon: FileText,
@@ -266,6 +267,7 @@ export function HomeView({ initialData }: { initialData?: HomeInitialData }) {
             },
             {
               id: 'ats-score',
+              url: '/ai-tools/ats-score',
               title: 'ATS Score Checker',
               desc: 'Get an ATS compatibility score (0-100) and specific fix recommendations.',
               icon: FileText,
@@ -274,6 +276,7 @@ export function HomeView({ initialData }: { initialData?: HomeInitialData }) {
             },
             {
               id: 'ai-cover-letter',
+              url: '/ai-tools/cover-letter',
               title: 'AI Cover Letter',
               desc: 'Generate a personalized, professional cover letter for any role.',
               icon: Sparkles,
@@ -282,6 +285,7 @@ export function HomeView({ initialData }: { initialData?: HomeInitialData }) {
             },
             {
               id: 'ai-mock-interview',
+              url: '/ai-tools/mock-interview',
               title: 'AI Mock Interview',
               desc: 'Practice real interview questions with an AI interviewer. Voice or text.',
               icon: Mic,
@@ -290,6 +294,7 @@ export function HomeView({ initialData }: { initialData?: HomeInitialData }) {
             },
             {
               id: 'skill-gap',
+              url: '/ai-tools/skill-gap',
               title: 'Skill Gap Analyzer',
               desc: 'Find skills missing for your target role + get a personalized learning path.',
               icon: Target,
@@ -298,6 +303,7 @@ export function HomeView({ initialData }: { initialData?: HomeInitialData }) {
             },
             {
               id: 'ai-salary',
+              url: '/ai-tools/salary-predictor',
               title: 'Salary Predictor',
               desc: 'Predict realistic salary ranges with negotiation tips.',
               icon: Wallet,
@@ -307,9 +313,9 @@ export function HomeView({ initialData }: { initialData?: HomeInitialData }) {
           ].map((tool) => {
             const Icon = tool.icon
             return (
-              <button
+              <Link
                 key={tool.id}
-                onClick={() => go(tool.id as any)}
+                href={tool.url}
                 className={cn(
                   'text-left rounded-2xl border p-5 bg-card card-lift relative overflow-hidden ai-glow',
                   tool.border
@@ -333,7 +339,7 @@ export function HomeView({ initialData }: { initialData?: HomeInitialData }) {
                     Open tool <ArrowRight className="w-3 h-3" />
                   </div>
                 </div>
-              </button>
+              </Link>
             )
           })}
         </div>
@@ -353,18 +359,21 @@ export function HomeView({ initialData }: { initialData?: HomeInitialData }) {
           {[
             {
               id: 'salary-dashboard',
+              url: '/salary-dashboard',
               title: 'Salary Dashboard',
               desc: 'Interactive charts showing salary trends by role, company, city, and experience level.',
               icon: BarChart3,
             },
             {
               id: 'question-bank',
+              url: '/question-bank',
               title: 'Interview Question Bank',
               desc: 'Searchable database of real interview questions with AI-generated model answers.',
               icon: BookOpen,
             },
             {
               id: 'compare-jobs',
+              url: '/compare-jobs',
               title: 'Compare Jobs',
               desc: 'Compare 2-3 jobs side by side to help decide which one to apply for.',
               icon: GitCompare,
@@ -372,9 +381,9 @@ export function HomeView({ initialData }: { initialData?: HomeInitialData }) {
           ].map((tool) => {
             const Icon = tool.icon
             return (
-              <button
+              <Link
                 key={tool.id}
-                onClick={() => go(tool.id as any)}
+                href={tool.url}
                 className="text-left rounded-2xl border border-border bg-card p-5 card-lift"
               >
                 <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mb-3">
@@ -382,7 +391,7 @@ export function HomeView({ initialData }: { initialData?: HomeInitialData }) {
                 </div>
                 <h3 className="font-bold">{tool.title}</h3>
                 <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">{tool.desc}</p>
-              </button>
+              </Link>
             )
           })}
         </div>
@@ -400,16 +409,16 @@ export function HomeView({ initialData }: { initialData?: HomeInitialData }) {
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           {[
-            { id: 'freshers', label: 'Freshers', desc: '0 years experience jobs', icon: GraduationCap, count: null },
-            { id: 'internships', label: 'Internships', desc: 'Student & college roles', icon: UserCheck, count: null },
-            { id: 'walk-in', label: 'Walk-in Jobs', desc: 'Direct interview drives', icon: Users, count: null },
-            { id: 'hidden', label: 'Hidden Jobs', desc: 'Referral-only opportunities', icon: EyeOff, count: null },
+            { id: 'freshers', url: '/jobs/fresher', label: 'Freshers', desc: '0 years experience jobs', icon: GraduationCap, count: null },
+            { id: 'internships', url: '/jobs/internship', label: 'Internships', desc: 'Student & college roles', icon: UserCheck, count: null },
+            { id: 'walk-in', url: '/jobs/walk-in', label: 'Walk-in Jobs', desc: 'Direct interview drives', icon: Users, count: null },
+            { id: 'hidden', url: '/jobs/hidden', label: 'Hidden Jobs', desc: 'Referral-only opportunities', icon: EyeOff, count: null },
           ].map((cat) => {
             const Icon = cat.icon
             return (
-              <button
+              <Link
                 key={cat.id}
-                onClick={() => go(cat.id as any)}
+                href={cat.url}
                 className="text-left rounded-2xl border border-border bg-card p-5 card-lift"
               >
                 <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mb-3">
@@ -417,7 +426,7 @@ export function HomeView({ initialData }: { initialData?: HomeInitialData }) {
                 </div>
                 <h3 className="font-bold text-foreground">{cat.label}</h3>
                 <p className="text-xs text-muted-foreground mt-1">{cat.desc}</p>
-              </button>
+              </Link>
             )
           })}
         </div>
@@ -432,12 +441,12 @@ export function HomeView({ initialData }: { initialData?: HomeInitialData }) {
               Hand-picked verified openings from top employers.
             </p>
           </div>
-          <button
-            onClick={() => go('all-jobs')}
+          <Link
+            href="/jobs"
             className="text-sm font-semibold text-primary hover:underline shrink-0"
           >
             View all →
-          </button>
+          </Link>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           {jobs.map((job) => (
@@ -450,12 +459,12 @@ export function HomeView({ initialData }: { initialData?: HomeInitialData }) {
             <p className="text-sm font-semibold text-foreground mb-2">
               ✨ Sign up free for AI tools (resume optimizer, ATS score, mock interview) + email job alerts
             </p>
-            <button
-              onClick={() => go('auth')}
+            <Link
+              href="/auth"
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:opacity-90"
             >
               Create free account →
-            </button>
+            </Link>
           </div>
         )}
       </section>
@@ -469,12 +478,12 @@ export function HomeView({ initialData }: { initialData?: HomeInitialData }) {
               Active openings, hiring velocity, and 7-day trends.
             </p>
           </div>
-          <button
-            onClick={() => go('companies')}
+          <Link
+            href="/companies"
             className="text-sm font-semibold text-primary hover:underline shrink-0"
           >
             View all →
-          </button>
+          </Link>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3">
           {companies.map((c) => {
@@ -529,18 +538,18 @@ export function HomeView({ initialData }: { initialData?: HomeInitialData }) {
                 Editorial guidance from hiring insiders.
               </p>
             </div>
-            <button
-              onClick={() => go('insights')}
+            <Link
+              href="/insights"
               className="text-sm font-semibold text-primary hover:underline shrink-0"
             >
               All articles →
-            </button>
+            </Link>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
             {articles.map((a) => (
-              <button
+              <Link
                 key={a.id}
-                onClick={() => go('insights')}
+                href={`/insights/${a.slug}`}
                 className="text-left rounded-2xl border border-border bg-card p-5 card-lift"
               >
                 <div className="text-3xl mb-3">{a.coverEmoji}</div>
@@ -555,7 +564,7 @@ export function HomeView({ initialData }: { initialData?: HomeInitialData }) {
                   <span>·</span>
                   <span>{a.readMinutes} min read</span>
                 </div>
-              </button>
+              </Link>
             ))}
           </div>
         </section>
@@ -574,18 +583,18 @@ export function HomeView({ initialData }: { initialData?: HomeInitialData }) {
           Join thousands of candidates using Hirebase to land verified roles at top employers across India.
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-3">
-          <button
-            onClick={() => go('all-jobs')}
+          <Link
+            href="/jobs"
             className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-primary text-primary-foreground font-semibold shadow-lg shadow-primary/30 hover:opacity-90 transition-opacity"
           >
             Browse jobs <ArrowRight className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => go('about')}
+          </Link>
+          <Link
+            href="/about"
             className="inline-flex items-center gap-2 px-5 py-3 rounded-xl border border-border bg-background hover:bg-muted font-semibold transition-colors"
           >
             Learn more
-          </button>
+          </Link>
         </div>
       </section>
 

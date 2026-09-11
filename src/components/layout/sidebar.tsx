@@ -1,6 +1,8 @@
 'use client'
 
 import * as React from 'react'
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard,
   Compass,
@@ -36,6 +38,39 @@ import { useTheme } from 'next-themes'
 import { useNav, type ViewId } from '@/lib/nav-store'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/lib/auth-context'
+
+// Maps each sidebar nav item to its real URL.
+// This is what makes the URL bar update when you click sidebar items.
+const VIEW_URLS: Record<string, string> = {
+  home: '/',
+  discover: '/discover',
+  'all-jobs': '/jobs',
+  companies: '/companies',
+  insights: '/insights',
+  'ground-truth': '/ground-truth',
+  freshers: '/jobs/fresher',
+  internships: '/jobs/internship',
+  'walk-in': '/jobs/walk-in',
+  hidden: '/jobs/hidden',
+  'ai-resume': '/ai-tools/resume-optimizer',
+  'ats-score': '/ai-tools/ats-score',
+  'ai-cover-letter': '/ai-tools/cover-letter',
+  'ai-mock-interview': '/ai-tools/mock-interview',
+  'skill-gap': '/ai-tools/skill-gap',
+  'ai-salary': '/ai-tools/salary-predictor',
+  'salary-dashboard': '/salary-dashboard',
+  'question-bank': '/question-bank',
+  'compare-jobs': '/compare-jobs',
+  saved: '/saved',
+  tracker: '/tracker',
+  alerts: '/alerts',
+  profile: '/profile',
+  admin: '/admin',
+  'sync-status': '/sync-status',
+  about: '/about',
+  pricing: '/pricing',
+  auth: '/auth',
+}
 
 const navGroups: Array<{
   label: string
@@ -100,6 +135,7 @@ const navGroups: Array<{
 export function Sidebar() {
   const { view, go, sidebarOpen, setSidebarOpen } = useNav()
   const { user, isDemo } = useAuth()
+  const pathname = usePathname()
   const isAdmin = user?.role === 'admin'
   const groups = isAdmin
     ? [...navGroups, {
@@ -129,8 +165,9 @@ export function Sidebar() {
         )}
       >
         <div className="h-16 flex items-center justify-between px-5 border-b border-sidebar-border shrink-0">
-          <button
-            onClick={() => go('home')}
+          <Link
+            href="/"
+            onClick={() => setSidebarOpen(false)}
             className="flex items-center gap-2.5 group"
           >
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg shadow-primary/30">
@@ -144,7 +181,7 @@ export function Sidebar() {
                 India's #1 AI Job Portal
               </div>
             </div>
-          </button>
+          </Link>
           <button
             className="lg:hidden p-1 rounded-md hover:bg-sidebar-accent"
             onClick={() => setSidebarOpen(false)}
@@ -161,12 +198,19 @@ export function Sidebar() {
               </p>
               <div className="space-y-0.5">
                 {group.items.map((item) => {
-                  const active = view === item.id
+                  const itemUrl = VIEW_URLS[item.id] || '/'
+                  // Determine active state based on the actual URL pathname, not Zustand view state.
+                  // This makes the sidebar highlight the right item on full page loads.
+                  const active = pathname === itemUrl
+                    || (itemUrl !== '/' && pathname?.startsWith(itemUrl))
+                    || (item.id === 'home' && pathname === '/')
                   const Icon = item.icon
                   return (
-                    <button
+                    <Link
                       key={item.id}
-                      onClick={() => go(item.id)}
+                      href={itemUrl}
+                      prefetch
+                      onClick={() => setSidebarOpen(false)}
                       className={cn(
                         'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium transition-all text-sm',
                         active
@@ -203,7 +247,7 @@ export function Sidebar() {
                           {item.badge}
                         </span>
                       )}
-                    </button>
+                    </Link>
                   )
                 })}
               </div>
@@ -221,12 +265,13 @@ export function Sidebar() {
           <p className="text-xs text-sidebar-foreground/70 mb-3">
             Get jobs matching your profile in your inbox.
           </p>
-          <button
-            onClick={() => go(user && !isDemo ? 'alerts' : 'auth')}
-            className="w-full bg-primary text-primary-foreground text-xs font-bold py-2 rounded-xl hover:opacity-90 transition-opacity"
+          <Link
+            href={user && !isDemo ? '/alerts' : '/auth'}
+            onClick={() => setSidebarOpen(false)}
+            className="w-full bg-primary text-primary-foreground text-xs font-bold py-2 rounded-xl hover:opacity-90 transition-opacity inline-block text-center"
           >
             {user && !isDemo ? 'Manage Alerts' : 'Sign In to Enable'}
-          </button>
+          </Link>
         </div>
       </aside>
     </>
@@ -234,7 +279,7 @@ export function Sidebar() {
 }
 
 export function TopNav() {
-  const { setSidebarOpen, setCommandOpen, go } = useNav()
+  const { setSidebarOpen, setCommandOpen } = useNav()
   const { theme, setTheme } = useTheme()
   const { user, loading, isDemo } = useAuth()
   const [mounted, setMounted] = React.useState(false)
@@ -275,19 +320,19 @@ export function TopNav() {
         )}
       </button>
 
-      <button
-        onClick={() => go('tracker')}
+      <Link
+        href="/tracker"
         className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium hover:bg-muted transition-colors"
       >
         <KanbanSquare className="w-4 h-4" />
         Tracker
-      </button>
+      </Link>
 
       {loading ? (
         <div className="w-20 h-9 rounded-lg bg-muted animate-pulse" />
       ) : user && !isDemo ? (
-        <button
-          onClick={() => go('profile')}
+        <Link
+          href="/profile"
           className="inline-flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-muted transition-colors"
           title={`${user.email} — view profile`}
         >
@@ -297,21 +342,21 @@ export function TopNav() {
           <span className="hidden sm:inline text-sm font-medium max-w-[100px] truncate">
             {user.name || 'Profile'}
           </span>
-        </button>
+        </Link>
       ) : (
-        <button
-          onClick={() => go('auth')}
+        <Link
+          href="/auth"
           className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
         >
           Sign in
-        </button>
+        </Link>
       )}
     </header>
   )
 }
 
 export function BottomNav() {
-  const { view, go } = useNav()
+  const pathname = usePathname()
   const items: Array<{ id: ViewId; label: string; icon: React.ComponentType<{ className?: string }> }> = [
     { id: 'home', label: 'Home', icon: LayoutDashboard },
     { id: 'all-jobs', label: 'Jobs', icon: Briefcase },
@@ -323,12 +368,15 @@ export function BottomNav() {
     <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-background/95 backdrop-blur border-t border-border">
       <div className="flex">
         {items.map((item) => {
-          const active = view === item.id
+          const itemUrl = VIEW_URLS[item.id] || '/'
+          const active = pathname === itemUrl
+            || (itemUrl !== '/' && pathname?.startsWith(itemUrl))
+            || (item.id === 'home' && pathname === '/')
           const Icon = item.icon
           return (
-            <button
+            <Link
               key={item.id}
-              onClick={() => go(item.id)}
+              href={itemUrl}
               className={cn(
                 'flex-1 flex flex-col items-center gap-1 py-2.5 text-[10px] font-medium transition-colors',
                 active ? 'text-primary' : 'text-muted-foreground'
@@ -336,7 +384,7 @@ export function BottomNav() {
             >
               <Icon className="w-5 h-5" />
               {item.label}
-            </button>
+            </Link>
           )
         })}
       </div>
