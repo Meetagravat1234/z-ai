@@ -27,12 +27,28 @@ model User {
   minSalary        Int?     // in LPA * 10 (so 8 LPA = 80)
   bio              String?
 
+  // Subscription + paywall (added Sep 2026 for Razorpay integration)
+  subscriptionTier     String    @default("free")  // free | pro | recruiter
+  subscriptionEndsAt   DateTime?                   // null = no active paid subscription
+  razorpayCustomerId   String?
+  razorpaySubscriptionId String?
+
+  // Monthly usage counters — reset when subscription renews or on first-of-month
+  resumeOptimizationsUsed  Int       @default(0)
+  coverLettersUsed         Int       @default(0)
+  mockInterviewsUsed       Int       @default(0)
+  atsChecksUsed            Int       @default(0)
+  skillGapAnalysesUsed     Int       @default(0)
+  salaryPredictionsUsed    Int       @default(0)
+  usageResetAt             DateTime  @default(now())
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   savedJobs     SavedJob[]
   applications  Application[]
   jobAlerts     JobAlert[]
+  payments      Payment[]
 }
 
 model Company {
@@ -211,4 +227,25 @@ model SalaryReport {
   experience  String
   isAnonymous Boolean  @default(true)
   createdAt   DateTime @default(now())
+}
+
+// Payment records — every Razorpay transaction creates one row here.
+// Used for refunds, dispute resolution, and accounting (GST compliance).
+model Payment {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  razorpayOrderId String   @unique
+  razorpayPaymentId String?
+  razorpaySignature String?
+  amount          Int      // in paise (so ₹299 = 29900)
+  currency        String   @default("INR")
+  status          String   @default("created") // created | paid | failed | refunded
+  plan            String   // pro_monthly | pro_annual | recruiter_monthly
+  receipt         String?
+  createdAt       DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
 }

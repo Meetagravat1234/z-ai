@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { chatComplete } from '@/lib/multi-ai'
+import { getCurrentUser } from '@/lib/auth-server'
+import { canUseAITool, incrementUsage } from '@/lib/subscription'
 
 // POST /api/ai/resume-optimize
 // Body: { resume: string, jobDescription: string }
@@ -9,6 +11,21 @@ export async function POST(req: NextRequest) {
     const { resume, jobDescription } = await req.json()
     if (!resume || !jobDescription) {
       return NextResponse.json({ error: 'Both resume and jobDescription are required' }, { status: 400 })
+    }
+
+    // Paywall: check user is authenticated + has remaining usage
+    const user = await getCurrentUser(req)
+    const usage = await canUseAITool('resumeOptimizations', user)
+    if (!usage.allowed) {
+      return NextResponse.json(
+        {
+          error: usage.message,
+          requiresUpgrade: !usage.isPro,
+          used: usage.used,
+          limit: usage.limit,
+        },
+        { status: 403 },
+      )
     }
 
     const raw = await chatComplete(
@@ -31,7 +48,21 @@ export async function POST(req: NextRequest) {
       ])
 
     const content = raw || ''
-    return NextResponse.json({ result: content })
+
+    // Increment usage counter AFTER successful AI call
+    if (user?.id) {
+      await incrementUsage('resumeOptimizations', user.id)
+    }
+
+    return NextResponse.json({
+      result: content,
+      usage: {
+        used: usage.used + 1,
+        limit: usage.limit,
+        remaining: Math.max(0, usage.limit - usage.used - 1),
+        isPro: usage.isPro,
+      },
+    })
   } catch (e: any) {
     console.error('AI resume optimize error:', e)
     return NextResponse.json({ error: e.message }, { status: 500 })

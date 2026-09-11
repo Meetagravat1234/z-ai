@@ -205,7 +205,12 @@ function Footer() {
         </div>
         <div className="mt-8 pt-6 border-t border-border flex flex-col sm:flex-row justify-between gap-3 text-xs text-muted-foreground">
           <p>© {new Date().getFullYear()} Hirebase. Built for Indian job seekers.</p>
-          <p>Contact: contact@hirebase.in</p>
+          <div className="flex flex-wrap gap-3">
+            <Link href="/contact" className="hover:text-primary">Contact</Link>
+            <Link href="/privacy" className="hover:text-primary">Privacy Policy</Link>
+            <Link href="/terms" className="hover:text-primary">Terms</Link>
+            <Link href="/disclaimer" className="hover:text-primary">Disclaimer</Link>
+          </div>
         </div>
       </div>
     </footer>

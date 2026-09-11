@@ -19,6 +19,17 @@ Disallow: /api/jobs/ingest
 Disallow: /api/jobs/cleanup
 Disallow: /api/jobs/compare
 Disallow: /api/alerts/send
+Disallow: /api/payment/
+
+# Block user-only pages from being indexed
+Disallow: /admin
+Disallow: /sync-status
+Disallow: /profile
+Disallow: /saved
+Disallow: /tracker
+Disallow: /alerts
+Disallow: /auth
+Disallow: /upgrade
 
 # Allow job and company API for indexing
 Allow: /api/jobs?

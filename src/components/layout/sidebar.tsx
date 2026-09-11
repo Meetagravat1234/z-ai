@@ -33,6 +33,7 @@ import {
   User,
   Shield,
   Bell,
+  Crown,
 } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { useNav, type ViewId } from '@/lib/nav-store'
@@ -254,6 +255,39 @@ export function Sidebar() {
             </div>
           ))}
         </nav>
+
+        {/* Pro upgrade CTA — only for non-Pro users */}
+        {(!user || isDemo || !((user as any).subscriptionTier === 'pro' || (user as any).subscriptionTier === 'recruiter') || !((user as any).subscriptionEndsAt && new Date((user as any).subscriptionEndsAt) > new Date())) && (
+          <div className="m-3 mt-0 p-4 rounded-2xl bg-gradient-to-br from-violet-500/15 to-primary/15 border border-violet-500/30">
+            <div className="flex items-center gap-2 mb-1">
+              <Crown className="w-4 h-4 text-violet-300" />
+              <span className="text-sm font-bold text-sidebar-foreground">Upgrade to Pro</span>
+            </div>
+            <p className="text-xs text-sidebar-foreground/70 mb-3">
+              Unlock 10× AI tool usage + priority alerts + PDF export.
+            </p>
+            <Link
+              href="/upgrade"
+              onClick={() => setSidebarOpen(false)}
+              className="w-full bg-gradient-to-r from-violet-500 to-primary text-white text-xs font-bold py-2 rounded-xl hover:opacity-90 transition-opacity inline-block text-center"
+            >
+              Get Pro from ₹299/mo →
+            </Link>
+          </div>
+        )}
+
+        {/* Pro badge — show this instead of upgrade CTA when user is Pro */}
+        {user && !isDemo && ((user as any).subscriptionTier === 'pro' || (user as any).subscriptionTier === 'recruiter') && ((user as any).subscriptionEndsAt && new Date((user as any).subscriptionEndsAt) > new Date()) && (
+          <div className="m-3 mt-0 p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-2">
+            <Crown className="w-4 h-4 text-emerald-400 shrink-0" />
+            <div className="min-w-0 flex-1">
+              <div className="text-xs font-bold text-emerald-300">Pro Active</div>
+              <div className="text-[10px] text-sidebar-foreground/60 truncate">
+                Until {new Date((user as any).subscriptionEndsAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="m-3 p-4 rounded-2xl bg-primary/15 border border-primary/30">
           <div className="flex items-center gap-2 mb-1">

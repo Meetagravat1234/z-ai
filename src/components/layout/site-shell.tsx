@@ -63,25 +63,30 @@ function Footer() {
           <div>
             <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">AI Tools</h4>
             <ul className="space-y-2 text-sm">
-              <li><button onClick={() => go('ai-resume')} className="hover:text-primary text-muted-foreground">Resume Optimizer</button></li>
-              <li><button onClick={() => go('ai-cover-letter')} className="hover:text-primary text-muted-foreground">Cover Letter</button></li>
-              <li><button onClick={() => go('ai-mock-interview')} className="hover:text-primary text-muted-foreground">Mock Interview</button></li>
-              <li><button onClick={() => go('ai-salary')} className="hover:text-primary text-muted-foreground">Salary Predictor</button></li>
+              <li><Link href="/ai-tools/resume-optimizer" className="hover:text-primary text-muted-foreground">Resume Optimizer</Link></li>
+              <li><Link href="/ai-tools/cover-letter" className="hover:text-primary text-muted-foreground">Cover Letter</Link></li>
+              <li><Link href="/ai-tools/mock-interview" className="hover:text-primary text-muted-foreground">Mock Interview</Link></li>
+              <li><Link href="/ai-tools/salary-predictor" className="hover:text-primary text-muted-foreground">Salary Predictor</Link></li>
             </ul>
           </div>
           <div>
             <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">Company</h4>
             <ul className="space-y-2 text-sm">
-              <li><button onClick={() => go('about')} className="hover:text-primary text-muted-foreground">About</button></li>
-              <li><button onClick={() => go('ground-truth')} className="hover:text-primary text-muted-foreground">Ground Truth</button></li>
-              <li><button onClick={() => go('pricing')} className="hover:text-primary text-muted-foreground">Pricing</button></li>
-              <li><button onClick={() => go('tracker')} className="hover:text-primary text-muted-foreground">Tracker</button></li>
+              <li><Link href="/about" className="hover:text-primary text-muted-foreground">About</Link></li>
+              <li><Link href="/ground-truth" className="hover:text-primary text-muted-foreground">Ground Truth</Link></li>
+              <li><Link href="/pricing" className="hover:text-primary text-muted-foreground">Pricing</Link></li>
+              <li><Link href="/upgrade" className="hover:text-primary text-muted-foreground">Upgrade to Pro</Link></li>
             </ul>
           </div>
         </div>
         <div className="mt-8 pt-6 border-t border-border flex flex-col sm:flex-row justify-between gap-3 text-xs text-muted-foreground">
           <p>© {new Date().getFullYear()} Hirebase. Built for Indian job seekers.</p>
-          <p>Contact: contact@hirebase.in</p>
+          <div className="flex flex-wrap gap-3">
+            <Link href="/contact" className="hover:text-primary">Contact</Link>
+            <Link href="/privacy" className="hover:text-primary">Privacy Policy</Link>
+            <Link href="/terms" className="hover:text-primary">Terms</Link>
+            <Link href="/disclaimer" className="hover:text-primary">Disclaimer</Link>
+          </div>
         </div>
       </div>
     </footer>

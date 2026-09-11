@@ -32,7 +32,12 @@ export async function GET() {
       { loc: `${baseUrl}/compare-jobs`, priority: '0.6', changefreq: 'monthly' },
       { loc: `${baseUrl}/about`, priority: '0.5', changefreq: 'monthly' },
       { loc: `${baseUrl}/pricing`, priority: '0.5', changefreq: 'monthly' },
+      { loc: `${baseUrl}/upgrade`, priority: '0.8', changefreq: 'monthly' },
+      { loc: `${baseUrl}/contact`, priority: '0.5', changefreq: 'monthly' },
       { loc: `${baseUrl}/ground-truth`, priority: '0.4', changefreq: 'monthly' },
+      { loc: `${baseUrl}/privacy`, priority: '0.4', changefreq: 'monthly' },
+      { loc: `${baseUrl}/terms`, priority: '0.4', changefreq: 'monthly' },
+      { loc: `${baseUrl}/disclaimer`, priority: '0.4', changefreq: 'monthly' },
       { loc: `${baseUrl}/tracker`, priority: '0.4', changefreq: 'weekly' },
       { loc: `${baseUrl}/alerts`, priority: '0.4', changefreq: 'weekly' },
     ]

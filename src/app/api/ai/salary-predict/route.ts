@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { chatComplete } from '@/lib/multi-ai'
+import { getCurrentUser } from '@/lib/auth-server'
+import { canUseAITool, incrementUsage } from '@/lib/subscription'
 
 // POST /api/ai/salary-predict
 // Body: { role, company?, location?, experienceYears, skills[] }
@@ -8,6 +10,16 @@ export async function POST(req: NextRequest) {
     const { role, company, location, experienceYears, skills } = await req.json()
     if (!role) {
       return NextResponse.json({ error: 'role is required' }, { status: 400 })
+    }
+
+    // Paywall
+    const user = await getCurrentUser(req)
+    const usage = await canUseAITool('salaryPredictions', user)
+    if (!usage.allowed) {
+      return NextResponse.json(
+        { error: usage.message, requiresUpgrade: !usage.isPro, used: usage.used, limit: usage.limit },
+        { status: 403 },
+      )
     }
 
     const raw = await chatComplete(
@@ -49,7 +61,20 @@ Predict the salary.`,
     } catch {
       parsed = { rawText: raw }
     }
-    return NextResponse.json({ result: parsed })
+
+    if (user?.id) {
+      await incrementUsage('salaryPredictions', user.id)
+    }
+
+    return NextResponse.json({
+      result: parsed,
+      usage: {
+        used: usage.used + 1,
+        limit: usage.limit,
+        remaining: Math.max(0, usage.limit - usage.used - 1),
+        isPro: usage.isPro,
+      },
+    })
   } catch (e: any) {
     console.error('AI salary predict error:', e)
     return NextResponse.json({ error: e.message }, { status: 500 })

@@ -27,6 +27,16 @@ export async function GET() {
         minSalary: true,
         bio: true,
         createdAt: true,
+        // Subscription + paywall fields (added for Razorpay integration)
+        subscriptionTier: true,
+        subscriptionEndsAt: true,
+        resumeOptimizationsUsed: true,
+        coverLettersUsed: true,
+        mockInterviewsUsed: true,
+        atsChecksUsed: true,
+        skillGapAnalysesUsed: true,
+        salaryPredictionsUsed: true,
+        usageResetAt: true,
       },
     })
 
@@ -34,7 +44,14 @@ export async function GET() {
       return NextResponse.json({ user: null }, { status: 200 })
     }
 
-    return NextResponse.json({ user })
+    // Serialize dates to ISO strings (NextResponse can't return Date objects)
+    return NextResponse.json({
+      user: {
+        ...user,
+        subscriptionEndsAt: user.subscriptionEndsAt?.toISOString() ?? null,
+        usageResetAt: user.usageResetAt.toISOString(),
+      },
+    })
   } catch (e: any) {
     console.error('Get current user error:', e)
     return NextResponse.json({ error: e.message }, { status: 500 })

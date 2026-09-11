@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { chatComplete } from '@/lib/multi-ai'
+import { getCurrentUser } from '@/lib/auth-server'
+import { canUseAITool, incrementUsage } from '@/lib/subscription'
 
 // POST /api/ai/ats-score
 // Body: { resume: string, jobDescription: string }
@@ -9,6 +11,16 @@ export async function POST(req: NextRequest) {
     const { resume, jobDescription } = await req.json()
     if (!resume || !jobDescription) {
       return NextResponse.json({ error: 'resume and jobDescription are required' }, { status: 400 })
+    }
+
+    // Paywall
+    const user = await getCurrentUser(req)
+    const usage = await canUseAITool('atsChecks', user)
+    if (!usage.allowed) {
+      return NextResponse.json(
+        { error: usage.message, requiresUpgrade: !usage.isPro, used: usage.used, limit: usage.limit },
+        { status: 403 },
+      )
     }
 
     const raw = await chatComplete(
@@ -58,7 +70,20 @@ Rules:
     } catch {
       parsed = { rawText: raw }
     }
-    return NextResponse.json({ result: parsed })
+
+    if (user?.id) {
+      await incrementUsage('atsChecks', user.id)
+    }
+
+    return NextResponse.json({
+      result: parsed,
+      usage: {
+        used: usage.used + 1,
+        limit: usage.limit,
+        remaining: Math.max(0, usage.limit - usage.used - 1),
+        isPro: usage.isPro,
+      },
+    })
   } catch (e: any) {
     console.error('AI ats-score error:', e)
     return NextResponse.json({ error: e.message }, { status: 500 })
