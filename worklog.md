@@ -824,3 +824,65 @@ Stage Summary:
      → see AdGate modal → watch 15s countdown → continue → AI runs
   2. When ready for real ads: apply for AdSense → swap AdContent component
   3. When ready for Pro: set up Razorpay (env vars on Vercel) → Pro users skip ads
+
+---
+Task ID: 13
+Agent: main
+Task: PDF + DOCX download buttons for Resume Optimizer + Cover Letter — 1 free/month, 50/month for Pro
+
+Work Log:
+- Installed jspdf + docx npm packages (both pure JS, no native deps)
+- Added 2 new fields to User model: pdfDownloadsUsed, docxDownloadsUsed
+- Pushed schema to live Supabase DB (added the 2 columns)
+- Updated /lib/subscription.ts:
+  * Added 'pdfDownloads' + 'docxDownloads' to ToolKey type
+  * Added to TOOL_CONFIG: pdfDownloads → pdfDownloadsUsed, docxDownloads → docxDownloadsUsed
+  * FREE_TIER_LIMITS.pdfDownloads = 1, docxDownloads = 1
+  * PRO_TIER_LIMITS.pdfDownloads = 50, docxDownloads = 50
+  * Updated canUseAITool select clause + monthly reset + activateSubscription to include new fields
+- Updated /api/auth/me to return pdfDownloadsUsed + docxDownloadsUsed
+- Created /lib/resume-export.ts:
+  * generatePdfFromMarkdown(markdown, fileName) — uses jsPDF
+    - A4 format, 50pt margins, Helvetica font
+    - Parses markdown headings (H1=18pt, H2=14pt, H3=12pt), bullets, paragraphs
+    - Auto-page-breaks when cursor near bottom
+    - Strips markdown formatting (**bold**, *italic*) for clean PDF text
+  * generateDocxFromMarkdown(markdown, fileName) — uses docx package
+    - Real .docx file (opens in MS Word, Google Docs, LibreOffice)
+    - Proper paragraph styles, headings (HeadingLevel.HEADING_1/2/3)
+    - Bullet points, inline formatting (bold, italic, code, links)
+    - Calibri 11pt body, 1.3x line spacing, 0.5 inch margins
+- Created /api/export/track endpoint:
+  * POST body: { format: 'pdf' | 'docx' }
+  * Calls canUseAIToolWithAdGate with the right tool name
+  * Returns { allowed: true, used, limit, remaining, isPro } OR 403 with requiresAd/requiresUpgrade
+  * Increments usage counter if allowed (skips if ad-watched)
+- Created /components/download-buttons.tsx:
+  * 2 buttons: Download PDF (rose) + Download Word (blue)
+  * Loading state per button (Generating PDF… / Generating Word…)
+  * Uses useAICallWithAdGate hook for ad-gate retry flow (same as AI tools)
+  * On success: shows toast with filename + remaining quota
+- Added DownloadButtons to AI Resume Optimizer view:
+  * Renders below the AI result, after a divider labeled "Download your resume"
+  * Only shows when result is present
+- Added DownloadButtons to AI Cover Letter view:
+  * Renders below the AI result, after a divider labeled "Download your cover letter"
+- Fixed bug: /api/ad-gate/issue-token had hardcoded VALID_TOOLS list that
+  didn't include 'pdfDownloads' + 'docxDownloads' → returned 'Invalid tool name'
+  → blocked the entire ad-gate flow for downloads. Fixed by adding both to list.
+
+Verified LIVE on hirebase.in:
+- /api/ad-gate/issue-token now issues tokens for 'pdfDownloads' ✓
+- /api/export/track with ad token: returns {allowed: true, adWatched: true} ✓
+- /api/export/track without token: returns {requiresAd: true} ✓
+- Build passes (57/57 static pages)
+- Schema pushed to live DB (2 new columns on users table)
+
+Stage Summary:
+- 2 new download buttons live on Resume Optimizer + Cover Letter pages
+- 1 free download per format per month for anonymous + free users
+- 50 downloads per format per month for Pro users
+- Ad-gate modal works for downloads (same as AI tools)
+- Files generated client-side (instant, no server roundtrip)
+- PDF: A4, Helvetica, proper headings + bullets
+- DOCX: real Word document, Calibri, proper headings + bullets, editable
