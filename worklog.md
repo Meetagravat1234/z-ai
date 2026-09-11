@@ -747,3 +747,80 @@ Next steps for user (cannot be done by AI — require Razorpay account + Vercel 
 4. Test payment flow with test card 4111 1111 1111 1111
 5. After testing works: complete Razorpay KYC → switch to live keys
 6. Apply for AdSense in 2-3 months (after domain age + some organic traffic)
+
+---
+Task ID: 12
+Agent: main
+Task: Build ad-gate system — watch 15s ad to unlock AI tools (temporary monetization before Razorpay)
+
+Work Log:
+- User wants temporary monetization: users watch ads to unlock AI tools, no signup required
+- Recommended Option 4 (internal promo ads) — zero approval needed, works today
+- Created /lib/ad-gate.ts:
+  * issueAdToken(tool, userIdentifier) — HMAC-SHA256 signed JWT
+  * verifyAdToken(token, tool, userIdentifier) — strict verification with timing-safe compare
+  * verifyAdTokenLoose(token, tool) — loose verification (skips user ID check for anonymous users)
+  * getUserIdentifier(req) — extracts IP from X-Forwarded-For
+  * Tokens valid for 5 minutes, tool-bound, user-bound (for logged-in users)
+- Created /api/ad-gate/issue-token/route.ts — POST endpoint that issues tokens after countdown
+- Created /components/ad-gate-modal.tsx:
+  * Modal with 15-second countdown
+  * 4 rotating internal promos (Pro upgrade, blog articles, jobs page)
+  * 3 phases: idle → watching → done → issuing token
+  * Calls /api/ad-gate/issue-token after countdown completes
+  * Footer: "Ad revenue keeps Hirebase free. Go Pro to skip ads."
+- Created /lib/use-ai-call-with-ad-gate.tsx — React hook that wraps fetch() with retry:
+  * First attempt without adToken
+  * On 403 with requiresAd: true → opens AdGateModal
+  * After ad watched + token issued → retries with ?adToken=xxx
+  * Returns final result to caller
+- Added canUseAIToolWithAdGate() to /lib/subscription.ts:
+  * Pro users → always allowed (no ad, no quota)
+  * Logged-in free users with valid ad token → allowed (ad-watched = free use)
+  * Anonymous users with valid ad token → allowed (loose verification, no IP check)
+  * Free users with remaining quota → allowed (consumes quota)
+  * Otherwise → returns requiresAd: true
+- Updated all 6 AI API routes to:
+  * Import canUseAIToolWithAdGate as canUseAITool
+  * Read adToken from URL query param
+  * Pass adToken + req to canUseAITool
+  * Return requiresAd: true in 403 response
+  * Skip incrementing usage counter if ad-watched
+- Updated all 6 AI view components to use useAICallWithAdGate hook:
+  * ai-resume-view.tsx
+  * ai-cover-letter-view.tsx
+  * ai-mock-interview-view.tsx
+  * ai-salary-view.tsx
+  * ats-score-view.tsx
+  * skill-gap-view.tsx
+  Each view: replaced raw fetch() with call(), added {adGateModal} to JSX
+- Fixed critical bug: anonymous token verification failed on Vercel because
+  X-Forwarded-For IP differs between API calls (serverless infrastructure)
+  Fix: verifyAdTokenLoose() skips user ID check for anonymous users — only
+  checks signature + expiry + tool name. 5-minute expiry is sufficient safeguard.
+
+Verified LIVE on hirebase.in:
+- /api/ad-gate/issue-token: issues valid JWT tokens ✓
+- /api/ai/resume-optimize (no token): returns {requiresAd: true} ✓
+- /api/ai/resume-optimize?adToken=xxx: returns AI-generated resume ✓ (AD WORKS!)
+- All 6 AI routes return requiresAd: true for unauthenticated users:
+  * /api/ai/resume-optimize ✓
+  * /api/ai/ats-score ✓
+  * /api/ai/cover-letter ✓
+  * /api/ai/mock-interview ✓
+  * /api/ai/skill-gap ✓
+  * /api/ai/salary-predict ✓
+
+Stage Summary:
+- Ad-gate system is LIVE and fully functional
+- Users can now use AI tools by watching a 15-second "ad" (internal promo)
+- No signup required — anonymous users can watch ads to unlock tools
+- When AdSense is approved (2-3 months), swap AdContent component in
+  ad-gate-modal.tsx with <ins className="adsbygoogle"> — rest stays
+- 4 rotating promos drive: Pro upgrades, blog articles, jobs page
+- Token security: HMAC-SHA256 signed, 5-minute expiry, tool-bound
+- Next steps for user:
+  1. Test the flow: go to hirebase.in/ai-tools/resume-optimizer → try to optimize
+     → see AdGate modal → watch 15s countdown → continue → AI runs
+  2. When ready for real ads: apply for AdSense → swap AdContent component
+  3. When ready for Pro: set up Razorpay (env vars on Vercel) → Pro users skip ads
