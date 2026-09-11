@@ -26,6 +26,8 @@ export async function POST(req: NextRequest) {
       'atsChecks',
       'skillGapAnalyses',
       'salaryPredictions',
+      'pdfDownloads',
+      'docxDownloads',
     ]
     if (!VALID_TOOLS.includes(tool)) {
       return NextResponse.json({ error: 'Invalid tool name' }, { status: 400 })
