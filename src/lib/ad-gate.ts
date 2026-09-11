@@ -95,3 +95,37 @@ export function getUserIdentifier(req: Request): string {
   // Fallback (local dev)
   return 'anonymous-' + (req.headers.get('user-agent') || 'unknown').slice(0, 50)
 }
+
+/**
+ * Loose verification — checks signature + expiry + tool name only.
+ * Skips the user identifier check (used for anonymous users where IP may
+ * differ between API calls on Vercel's serverless infrastructure).
+ *
+ * The 5-minute token expiry is the safeguard against abuse.
+ */
+export function verifyAdTokenLoose(token: string | undefined | null, tool: string): boolean {
+  if (!token) return false
+  try {
+    const [payloadStr, signature] = token.split('.')
+    if (!payloadStr || !signature) return false
+
+    // Verify signature with timing-safe compare
+    const expectedSig = crypto
+      .createHmac('sha256', AD_GATE_SECRET)
+      .update(payloadStr)
+      .digest('base64url')
+    const a = Buffer.from(expectedSig)
+    const b = Buffer.from(signature)
+    if (a.length !== b.length) return false
+    if (!crypto.timingSafeEqual(a, b)) return false
+
+    // Verify payload (tool + expiry only — skip user ID check)
+    const payload = JSON.parse(Buffer.from(payloadStr, 'base64url').toString())
+    if (payload.tool !== tool) return false
+    if (payload.exp < Math.floor(Date.now() / 1000)) return false
+
+    return true
+  } catch {
+    return false
+  }
+}

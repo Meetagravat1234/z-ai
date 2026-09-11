@@ -20,7 +20,7 @@
  */
 
 import { db } from '@/lib/db'
-import { verifyAdToken, getUserIdentifier } from '@/lib/ad-gate'
+import { verifyAdToken, verifyAdTokenLoose, getUserIdentifier } from '@/lib/ad-gate'
 import type { NextRequest } from 'next/server'
 
 export type Tier = 'free' | 'pro' | 'recruiter'
@@ -290,17 +290,34 @@ export async function canUseAIToolWithAdGate(
 
   // Check if ad token is valid
   if (adToken && req) {
-    const userIdentifier = user?.id || getUserIdentifier(req)
-    if (verifyAdToken(adToken, tool, userIdentifier)) {
-      // Valid ad token — allow this use without consuming quota
-      return {
-        allowed: true,
-        used: 0,
-        limit: 999,
-        remaining: 999,
-        isPro: false,
-        tool,
-        adWatched: true,
+    // For logged-in users: verify user ID matches (prevents token sharing between users)
+    // For anonymous users: skip user ID check (IP may differ between API calls on Vercel)
+    // The 5-minute token expiry is the safeguard against abuse for anonymous users
+    if (user?.id) {
+      // Logged-in user — strict verification
+      if (verifyAdToken(adToken, tool, user.id)) {
+        return {
+          allowed: true,
+          used: 0,
+          limit: 999,
+          remaining: 999,
+          isPro: false,
+          tool,
+          adWatched: true,
+        }
+      }
+    } else {
+      // Anonymous user — verify signature + expiry + tool only (skip user ID check)
+      if (verifyAdTokenLoose(adToken, tool)) {
+        return {
+          allowed: true,
+          used: 0,
+          limit: 999,
+          remaining: 999,
+          isPro: false,
+          tool,
+          adWatched: true,
+        }
       }
     }
   }
