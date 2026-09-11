@@ -303,34 +303,20 @@ export async function canUseAIToolWithAdGate(
 
   // Check if ad token is valid
   if (adToken && req) {
-    // For logged-in users: verify user ID matches (prevents token sharing between users)
-    // For anonymous users: skip user ID check (IP may differ between API calls on Vercel)
-    // The 5-minute token expiry is the safeguard against abuse for anonymous users
-    if (user?.id) {
-      // Logged-in user — strict verification
-      if (verifyAdToken(adToken, tool, user.id)) {
-        return {
-          allowed: true,
-          used: 0,
-          limit: 999,
-          remaining: 999,
-          isPro: false,
-          tool,
-          adWatched: true,
-        }
-      }
-    } else {
-      // Anonymous user — verify signature + expiry + tool only (skip user ID check)
-      if (verifyAdTokenLoose(adToken, tool)) {
-        return {
-          allowed: true,
-          used: 0,
-          limit: 999,
-          remaining: 999,
-          isPro: false,
-          tool,
-          adWatched: true,
-        }
+    // Use LOOSE verification for everyone (logged-in AND anonymous).
+    // The token was issued with IP as identifier (from getUserIdentifier),
+    // but on Vercel serverless, the IP can differ between API calls.
+    // Strict verification (checking user.id) fails because the token
+    // contains IP, not user.id. The 5-minute expiry is sufficient safeguard.
+    if (verifyAdTokenLoose(adToken, tool)) {
+      return {
+        allowed: true,
+        used: 0,
+        limit: 999,
+        remaining: 999,
+        isPro: false,
+        tool,
+        adWatched: true,
       }
     }
   }
