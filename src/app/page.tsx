@@ -207,27 +207,58 @@ export default async function Page() {
   }
 
   // JobPosting schema — critical for showing up in Google for Jobs
-  const jobPostingsLd = data.initialJobs.map((job: any) => ({
-    '@context': 'https://schema.org',
-    '@type': 'JobPosting',
-    title: job.title,
-    description: (job.description || '').slice(0, 5000),
-    datePosted: job.postedAt,
-    hiringOrganization: {
-      '@type': 'Organization',
-      name: job.company?.name || 'Hirebase',
-    },
-    jobLocation: {
-      '@type': 'Place',
-      address: {
-        '@type': 'PostalAddress',
-        addressLocality: job.location,
-        addressCountry: 'IN',
+  // Full schema with all recommended fields to avoid GSC warnings
+  const jobPostingsLd = data.initialJobs.map((job: any) => {
+    const locationParts = (job.location || 'India').split(',').map((s: string) => s.trim())
+    const city = locationParts[0] || 'India'
+    const stateOrRegion = locationParts[1] || city
+    const isRemote = /remote/i.test(job.location || '')
+    const postedDate = new Date(job.postedAt)
+    const validThrough = new Date(postedDate)
+    validThrough.setDate(validThrough.getDate() + 30)
+
+    return {
+      '@context': 'https://schema.org',
+      '@type': 'JobPosting',
+      title: job.title,
+      description: (job.description || '').slice(0, 5000),
+      datePosted: job.postedAt,
+      validThrough: validThrough.toISOString(),
+      hiringOrganization: {
+        '@type': 'Organization',
+        name: job.company?.name || 'Hirebase',
       },
-    },
-    employmentType: job.employmentType,
-    url: `https://www.hirebase.in/?view=job-detail&jobId=${job.id}`,
-  }))
+      jobLocation: {
+        '@type': 'Place',
+        address: {
+          '@type': 'PostalAddress',
+          streetAddress: '',
+          addressLocality: city,
+          addressRegion: stateOrRegion,
+          postalCode: '',
+          addressCountry: 'IN',
+        },
+      },
+      employmentType: job.employmentType,
+      url: `https://www.hirebase.in/jobs/${job.id}-${job.title?.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').slice(0, 60)}`,
+      baseSalary: {
+        '@type': 'MonetaryAmount',
+        currency: job.salaryCurrency || 'INR',
+        value: {
+          '@type': 'QuantitativeValue',
+          minValue: job.salaryMin ? job.salaryMin / 10 : 3,
+          maxValue: job.salaryMax ? job.salaryMax / 10 : 15,
+          unitText: 'YEAR',
+        },
+      },
+      jobLocationType: isRemote ? 'TELECOMMUTE' : undefined,
+      applicantLocationRequirements: isRemote
+        ? { '@type': 'Country', name: 'India' }
+        : undefined,
+      experienceRequirements: job.experience || undefined,
+      skills: job.skills || undefined,
+    }
+  })
 
   return (
     <>

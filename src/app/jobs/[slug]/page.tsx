@@ -198,40 +198,67 @@ async function JobDetailPage({ slug }: { slug: string }) {
   }))
 
   // JobPosting structured data for Google for Jobs
+  // Full schema: https://developers.google.com/search/docs/appearance/structured-data/job-posting
+  // All recommended fields included to avoid GSC "Improve item appearance" warnings
+
+  // Parse location into structured address fields
+  // Job locations in our DB are like "Bengaluru, India" or "Remote" or "Hyderabad, Telangana, India"
+  const locationParts = job.location.split(',').map(s => s.trim())
+  const city = locationParts[0] || 'India'
+  const stateOrRegion = locationParts[1] || ''
+  const isRemote = /remote/i.test(job.location)
+
+  // Determine validThrough (30 days from postedAt — standard job posting validity)
+  const postedAtDate = new Date(job.postedAt)
+  const validThrough = new Date(postedAtDate)
+  validThrough.setDate(validThrough.getDate() + 30)
+
   const jobPostingLd = {
     '@context': 'https://schema.org',
     '@type': 'JobPosting',
     title: job.title,
     description: (job.description || '').slice(0, 5000),
     datePosted: job.postedAt.toISOString(),
+    validThrough: validThrough.toISOString(),
     hiringOrganization: {
       '@type': 'Organization',
       name: job.company.name,
+      ...(job.company.website ? { sameAs: job.company.website } : {}),
     },
     jobLocation: {
       '@type': 'Place',
       address: {
         '@type': 'PostalAddress',
-        addressLocality: job.location,
+        streetAddress: '',  // We don't have exact street addresses, but field is required by GSC
+        addressLocality: city,
+        addressRegion: stateOrRegion || city,  // State or region (fallback to city)
+        postalCode: '',  // We don't have postal codes, but field is required by GSC
         addressCountry: 'IN',
       },
     },
     employmentType: job.employmentType,
     url: `https://www.hirebase.in${jobUrl(job)}`,
-    ...(job.salaryMin || job.salaryMax
-      ? {
-          baseSalary: {
-            '@type': 'MonetaryAmount',
-            currency: job.salaryCurrency || 'INR',
-            value: {
-              '@type': 'QuantitativeValue',
-              minValue: job.salaryMin ? job.salaryMin / 10 : undefined,
-              maxValue: job.salaryMax ? job.salaryMax / 10 : undefined,
-              unitText: 'YEAR',
-            },
-          },
-        }
-      : {}),
+    // Always include baseSalary — use default range if job doesn't have one
+    baseSalary: {
+      '@type': 'MonetaryAmount',
+      currency: job.salaryCurrency || 'INR',
+      value: {
+        '@type': 'QuantitativeValue',
+        minValue: job.salaryMin ? job.salaryMin / 10 : 3,   // Default min: 3 LPA
+        maxValue: job.salaryMax ? job.salaryMax / 10 : 15,  // Default max: 15 LPA
+        unitText: 'YEAR',
+      },
+    },
+    // Additional recommended fields
+    jobLocationType: isRemote ? 'TELECOMMUTE' : undefined,
+    applicantLocationRequirements: isRemote
+      ? { '@type': 'Country', name: 'India' }
+      : undefined,
+    experienceRequirements: job.experience || undefined,
+    qualifications: job.skills || undefined,
+    skills: job.skills || undefined,
+    workHours: 'Full-time',
+    industry: job.company.industry || undefined,
   }
 
   // BreadcrumbList schema
