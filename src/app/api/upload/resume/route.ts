@@ -59,24 +59,25 @@ export async function POST(req: NextRequest) {
       // Plain text file — just read it
       text = await file.text()
     } else if (isPdf) {
-      // PDF — extract text using pdf-parse (a lightweight library)
+      // PDF — use pdfjs-dist (Mozilla PDF.js — reliable, pure JS, no native deps)
       try {
-        // Dynamic import — if pdf-parse isn't installed, we'll fall through to the catch block
         const arrayBuffer = await file.arrayBuffer()
-        const buffer = Buffer.from(arrayBuffer)
-
-        // Try pdf-parse (lightweight, no native deps)
-        try {
-          const pdfParse = (await import('pdf-parse')).default
-          const data = await pdfParse(buffer)
-          text = data.text || ''
-        } catch (importErr) {
-          // pdf-parse not installed — try fallback extraction
-          text = extractTextFromPdfFallback(buffer)
+        const data = new Uint8Array(arrayBuffer)
+        // Dynamic import — legacy build path works in both Node and Vercel
+        const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs')
+        const doc = await pdfjs.getDocument({ data }).promise
+        let extracted = ''
+        for (let i = 1; i <= doc.numPages; i++) {
+          const page = await doc.getPage(i)
+          const content = await page.getTextContent()
+          const strings = content.items.map((item: any) => item.str)
+          extracted += strings.join(' ') + '\n'
         }
+        text = extracted
       } catch (e: any) {
+        console.error('[upload/resume] PDF parse error:', e.message)
         return NextResponse.json(
-          { error: 'Failed to read PDF. If it is a scanned image, please paste your resume manually.' },
+          { error: 'Failed to read PDF. If it is a scanned image, please paste your resume manually below.' },
           { status: 400 },
         )
       }
