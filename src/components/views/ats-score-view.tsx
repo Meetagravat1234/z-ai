@@ -6,16 +6,11 @@ import { toast } from 'sonner'
 import { useAICallWithAdGate } from '@/lib/use-ai-call-with-ad-gate'
 import { cn } from '@/lib/utils'
 import { ResumeUpload } from '@/components/resume-upload'
+import { AdGateModal } from '@/components/ad-gate-modal'
 
 interface ATSResult {
   overallScore?: number
-  scoreBreakdown?: {
-    keywordMatch: number
-    formatCompliance: number
-    experienceRelevance: number
-    skillsAlignment: number
-    quantification: number
-  }
+  scoreBreakdown?: { keywordMatch?: number; formatCompliance?: number; experienceRelevance?: number; skillsAlignment?: number; quantification?: number }
   matchedKeywords?: string[]
   missingKeywords?: string[]
   issues?: Array<{ severity: string; category: string; issue: string; fix: string }>
@@ -30,9 +25,9 @@ export function ATSScoreView() {
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState('')
   const [result, setResult] = React.useState<ATSResult | null>(null)
-  const { call, adGateModal } = useAICallWithAdGate()
+  const [showAdGate, setShowAdGate] = React.useState(false)
 
-  async function check() {
+  async function check(adToken?: string) {
     if (!resume.trim() || !jd.trim()) {
       setError('Both your resume and the target job description are required.')
       return
@@ -41,13 +36,20 @@ export function ATSScoreView() {
     setLoading(true)
     setResult(null)
     try {
-      const r = await call('/api/ai/ats-score', {
-        tool: 'atsChecks',
-        toolLabel: 'ATS Score Checker',
-        body: { resume, jobDescription: jd },
+      const url = adToken
+        ? `/api/ai/ats-score?adToken=${encodeURIComponent(adToken)}`
+        : '/api/ai/ats-score'
+      const r = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ resume, jobDescription: jd }),
       })
-      if (!r.ok) throw new Error(r.error || 'Failed')
-      setResult(r.data.result)
+      const d = await r.json().catch(() => ({}))
+      if (!r.ok) {
+        if (d.requiresAd && !adToken) { setShowAdGate(true); setLoading(false); return }
+        throw new Error(d.error || 'Failed')
+      }
+      setResult(d.result)
       toast.success('ATS analysis complete!')
     } catch (e: any) {
       setError(e.message)
@@ -56,6 +58,9 @@ export function ATSScoreView() {
       setLoading(false)
     }
   }
+
+  async function handleAdWatched(token: string) { setShowAdGate(false); await check(token) }
+  function handleAdGateClose() { setShowAdGate(false); setLoading(false) }
 
   function getScoreColor(score: number) {
     if (score >= 85) return 'text-emerald-600'
@@ -78,9 +83,9 @@ export function ATSScoreView() {
           <FileText className="w-3 h-3" />
           AI TOOL
         </div>
-        <h1 className="text-3xl font-extrabold tracking-tight">Resume ATS Score Checker</h1>
+        <h1 className="text-3xl font-extrabold tracking-tight">ATS Score Checker</h1>
         <p className="text-muted-foreground mt-2 max-w-2xl">
-          Find out if your resume will pass through Applicant Tracking Systems. Get an ATS compatibility score (0–100) and specific, actionable recommendations to fix issues.
+          Get an ATS compatibility score (0-100) for your resume against any job description, plus specific fix recommendations.
         </p>
       </header>
 
@@ -92,193 +97,98 @@ export function ATSScoreView() {
             <textarea
               value={resume}
               onChange={(e) => setResume(e.target.value)}
-              placeholder="Paste your resume text here, or upload a PDF/Word file above."
-              className="w-full min-h-[240px] p-4 rounded-xl border border-border bg-card text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/40"
+              placeholder="Paste your resume here, or upload a file above."
+              className="w-full min-h-[180px] p-4 rounded-xl border border-border bg-card text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/40"
             />
-            <div className="text-xs text-muted-foreground mt-1">{resume.length} chars</div>
           </div>
           <div>
             <label className="text-sm font-bold mb-1.5 block">Target job description</label>
             <textarea
               value={jd}
               onChange={(e) => setJd(e.target.value)}
-              placeholder="Paste the job description you're applying for."
-              className="w-full min-h-[160px] p-4 rounded-xl border border-border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+              placeholder="Paste the job description here."
+              className="w-full min-h-[120px] p-4 rounded-xl border border-border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
             />
           </div>
           {error && (
-            <div className="flex items-start gap-2 p-3 rounded-lg bg-rose-500/10 text-rose-700 dark:text-rose-400 text-sm">
+            <div className="flex items-start gap-2 p-3 rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 text-sm">
               <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
               <span>{error}</span>
             </div>
           )}
           <button
-            onClick={check}
+            onClick={() => check()}
             disabled={loading}
-            className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-primary text-primary-foreground font-semibold hover:opacity-90 disabled:opacity-60"
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-primary text-primary-foreground font-semibold shadow-lg shadow-primary/30 hover:opacity-90 disabled:opacity-60"
           >
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-            {loading ? 'Analyzing…' : 'Check my ATS score'}
+            {loading ? 'Analyzing…' : 'Check ATS Score'}
           </button>
         </div>
 
-        {/* Result preview */}
         <div className="rounded-2xl border border-border bg-card p-5 min-h-[400px]">
-          {!result && !loading && (
-            <div className="text-center text-muted-foreground py-20">
-              <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" />
-              <p className="text-sm">Your ATS score will appear here.</p>
+          {loading ? (
+            <div className="flex items-center justify-center h-32 text-muted-foreground">
+              <Loader2 className="w-5 h-5 animate-spin mr-2" />
+              Analyzing your resume…
             </div>
-          )}
-          {loading && (
-            <div className="flex items-center justify-center h-32">
-              <Loader2 className="w-6 h-6 animate-spin text-primary mr-2" />
-              <span className="text-muted-foreground text-sm">Analyzing your resume…</span>
-            </div>
-          )}
-          {result && !result.rawText && result.overallScore != null && (
+          ) : result ? (
             <div className="space-y-4">
-              {/* Big score */}
-              <div className="text-center py-4">
-                <div className={cn('text-7xl font-extrabold', getScoreColor(result.overallScore))}>
-                  {result.overallScore}
+              {result.overallScore !== undefined && (
+                <div className="text-center py-4">
+                  <div className={cn('text-5xl font-extrabold tabular-nums', getScoreColor(result.overallScore))}>
+                    {result.overallScore}
+                  </div>
+                  <div className="text-sm text-muted-foreground mt-1">{getScoreLabel(result.overallScore)}</div>
                 </div>
-                <div className="text-xs text-muted-foreground mt-2">out of 100</div>
-                <div className={cn('text-sm font-semibold mt-1', getScoreColor(result.overallScore))}>
-                  {getScoreLabel(result.overallScore)}
-                </div>
-              </div>
-              {/* Score breakdown */}
+              )}
               {result.scoreBreakdown && (
                 <div className="space-y-2">
+                  <h4 className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Score Breakdown</h4>
                   {Object.entries(result.scoreBreakdown).map(([key, val]) => (
-                    <div key={key}>
-                      <div className="flex items-center justify-between text-xs mb-1">
-                        <span className="font-medium capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</span>
-                        <span className="font-bold tabular-nums">{val}/100</span>
+                    <div key={key} className="flex items-center gap-2 text-sm">
+                      <span className="text-muted-foreground w-40 capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</span>
+                      <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+                        <div className="h-full bg-primary" style={{ width: `${val as number}%` }} />
                       </div>
-                      <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                        <div
-                          className={cn(
-                            'h-full transition-all',
-                            val >= 70 ? 'bg-emerald-500' : val >= 50 ? 'bg-amber-500' : 'bg-rose-500'
-                          )}
-                          style={{ width: `${val}%` }}
-                        />
-                      </div>
+                      <span className="text-xs font-semibold tabular-nums w-8 text-right">{val as number}</span>
                     </div>
                   ))}
                 </div>
               )}
-              <p className="text-xs text-muted-foreground">
-                Scroll down for keyword match analysis, issues found, and specific fix recommendations.
-              </p>
+              {result.topRecommendations && result.topRecommendations.length > 0 && (
+                <div>
+                  <h4 className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2">Top Recommendations</h4>
+                  <ol className="space-y-2 text-sm">
+                    {result.topRecommendations.map((rec, i) => (
+                      <li key={i} className="flex items-start gap-2">
+                        <span className="text-primary font-bold shrink-0">{i + 1}.</span>
+                        <span>{rec}</span>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              )}
+              {result.rawText && (
+                <div className="rounded-xl bg-muted p-4 text-sm whitespace-pre-wrap">{result.rawText}</div>
+              )}
+            </div>
+          ) : (
+            <div className="text-center text-muted-foreground py-20">
+              <FileText className="w-10 h-10 mx-auto mb-3 opacity-50" />
+              <p className="text-sm">Your ATS score will appear here.</p>
             </div>
           )}
-          {result?.rawText && <pre className="text-xs whitespace-pre-wrap">{result.rawText}</pre>}
         </div>
       </div>
 
-      {/* Full results */}
-      {result && !result.rawText && !loading && (
-        <div className="space-y-6">
-          {/* Keywords */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {result.matchedKeywords && result.matchedKeywords.length > 0 && (
-              <section className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-5">
-                <h3 className="font-bold text-sm mb-3 flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                  Matched keywords ({result.matchedKeywords.length})
-                </h3>
-                <div className="flex flex-wrap gap-1.5">
-                  {result.matchedKeywords.map((k) => (
-                    <span key={k} className="text-xs px-2 py-1 rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-medium">{k}</span>
-                  ))}
-                </div>
-              </section>
-            )}
-            {result.missingKeywords && result.missingKeywords.length > 0 && (
-              <section className="rounded-2xl border border-rose-500/30 bg-rose-500/5 p-5">
-                <h3 className="font-bold text-sm mb-3 flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 text-rose-600" />
-                  Missing keywords ({result.missingKeywords.length})
-                </h3>
-                <div className="flex flex-wrap gap-1.5">
-                  {result.missingKeywords.map((k) => (
-                    <span key={k} className="text-xs px-2 py-1 rounded-md bg-rose-500/10 text-rose-700 dark:text-rose-400 font-medium">{k}</span>
-                  ))}
-                </div>
-              </section>
-            )}
-          </div>
-
-          {/* Issues */}
-          {result.issues && result.issues.length > 0 && (
-            <section className="rounded-2xl border border-border bg-card p-5">
-              <h3 className="font-bold text-lg mb-4">Issues found ({result.issues.length})</h3>
-              <div className="space-y-3">
-                {result.issues.map((issue, i) => (
-                  <div key={i} className="border-l-2 pl-4 pb-1" style={{
-                    borderColor: issue.severity === 'critical' ? 'oklch(0.58 0.24 25)' :
-                                 issue.severity === 'warning' ? 'oklch(0.72 0.18 65)' : 'oklch(0.55 0.15 165)'
-                  }}>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className={cn(
-                        'text-[10px] font-bold px-1.5 py-0.5 rounded-full uppercase',
-                        issue.severity === 'critical' && 'bg-rose-500/10 text-rose-600',
-                        issue.severity === 'warning' && 'bg-amber-500/10 text-amber-600',
-                        issue.severity === 'info' && 'bg-primary/10 text-primary'
-                      )}>
-                        {issue.severity}
-                      </span>
-                      <span className="text-[10px] font-medium text-muted-foreground uppercase">{issue.category}</span>
-                    </div>
-                    <div className="text-sm font-medium">{issue.issue}</div>
-                    <div className="text-xs text-muted-foreground mt-1">→ {issue.fix}</div>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {/* Strengths */}
-          {result.strengths && result.strengths.length > 0 && (
-            <section className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-5">
-              <h3 className="font-bold text-sm mb-3 flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                What's working well
-              </h3>
-              <ul className="space-y-1.5">
-                {result.strengths.map((s, i) => (
-                  <li key={i} className="text-sm flex items-start gap-2">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 mt-0.5 shrink-0" />
-                    <span>{s}</span>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
-
-          {/* Top recommendations */}
-          {result.topRecommendations && result.topRecommendations.length > 0 && (
-            <section className="rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/10 to-violet-500/5 p-5">
-              <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-primary" />
-                Top 5 recommendations (in order of impact)
-              </h3>
-              <ol className="space-y-2.5">
-                {result.topRecommendations.map((rec, i) => (
-                  <li key={i} className="flex items-start gap-3">
-                    <span className="font-bold text-primary shrink-0 w-6 text-center">{i + 1}.</span>
-                    <span className="text-sm text-foreground/90">{rec}</span>
-                  </li>
-                ))}
-              </ol>
-            </section>
-          )}
-        </div>
-      )}
-      {adGateModal}
+      <AdGateModal
+        open={showAdGate}
+        tool="atsChecks"
+        toolLabel="ATS Score Checker"
+        onClose={handleAdGateClose}
+        onAdWatched={handleAdWatched}
+      />
     </div>
   )
 }

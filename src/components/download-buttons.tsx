@@ -4,7 +4,7 @@ import * as React from 'react'
 import { Download, FileText, FileType, Loader2, Lock } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
-import { useAICallWithAdGate } from '@/lib/use-ai-call-with-ad-gate'
+import { AdGateModal } from '@/components/ad-gate-modal'
 import { generatePdfFromMarkdown, generateDocxFromMarkdown } from '@/lib/resume-export'
 
 interface DownloadButtonsProps {
@@ -16,36 +16,36 @@ interface DownloadButtonsProps {
   className?: string
 }
 
-/**
- * Two download buttons: PDF + Word (.docx).
- *
- * Both are client-side (no server round-trip for the file itself).
- * Before downloading, calls /api/export/track to:
- *   1. Check user has quota (1 free/month, 50/month for Pro)
- *   2. If not, show AdGate modal (same as AI tools)
- *   3. Increment usage counter
- *
- * The useAICallWithAdGate hook handles the 403 → modal → retry flow.
- * We just call the track endpoint with the same pattern.
- */
 export function DownloadButtons({ markdown, baseFileName = 'resume', className }: DownloadButtonsProps) {
   const [downloading, setDownloading] = React.useState<'pdf' | 'docx' | null>(null)
-  const { call, adGateModal } = useAICallWithAdGate()
+  const [showAdGate, setShowAdGate] = React.useState(false)
+  const [pendingFormat, setPendingFormat] = React.useState<'pdf' | 'docx' | null>(null)
 
   if (!markdown.trim()) return null
 
-  async function handleDownload(format: 'pdf' | 'docx') {
+  async function handleDownload(format: 'pdf' | 'docx', adToken?: string) {
     setDownloading(format)
     try {
-      // Step 1: Check quota + increment (with ad-gate retry built in)
-      const trackRes = await call('/api/export/track', {
-        tool: format === 'pdf' ? 'pdfDownloads' : 'docxDownloads',
-        toolLabel: format === 'pdf' ? 'PDF Download' : 'Word Document Download',
-        body: { format },
+      // Step 1: Check quota + increment via track endpoint
+      const url = adToken
+        ? `/api/export/track?adToken=${encodeURIComponent(adToken)}`
+        : '/api/export/track'
+      const r = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ format }),
       })
+      const d = await r.json().catch(() => ({}))
 
-      if (!trackRes.ok) {
-        throw new Error(trackRes.error || 'Cannot download right now')
+      if (!r.ok) {
+        // If the API says "watch an ad", show the modal — don't throw
+        if (d.requiresAd && !adToken) {
+          setPendingFormat(format)
+          setShowAdGate(true)
+          setDownloading(null)
+          return
+        }
+        throw new Error(d.error || 'Cannot download right now')
       }
 
       // Step 2: Generate the file client-side
@@ -57,7 +57,7 @@ export function DownloadButtons({ markdown, baseFileName = 'resume', className }
       }
 
       // Step 3: Show success toast with remaining quota
-      const usage = trackRes.data
+      const usage = d
       if (usage?.remaining !== undefined) {
         toast.success(
           `Downloaded ${fileName} · ${usage.remaining} ${format === 'pdf' ? 'PDF' : 'DOCX'} downloads left this month`,
@@ -71,6 +71,21 @@ export function DownloadButtons({ markdown, baseFileName = 'resume', className }
     } finally {
       setDownloading(null)
     }
+  }
+
+  async function handleAdWatched(token: string) {
+    setShowAdGate(false)
+    if (pendingFormat) {
+      const fmt = pendingFormat
+      setPendingFormat(null)
+      await handleDownload(fmt, token)
+    }
+  }
+
+  function handleAdGateClose() {
+    setShowAdGate(false)
+    setPendingFormat(null)
+    setDownloading(null)
   }
 
   return (
@@ -101,7 +116,13 @@ export function DownloadButtons({ markdown, baseFileName = 'resume', className }
           {downloading === 'docx' ? 'Generating Word…' : 'Download Word'}
         </button>
       </div>
-      {adGateModal}
+      <AdGateModal
+        open={showAdGate}
+        tool={pendingFormat === 'pdf' ? 'pdfDownloads' : 'docxDownloads'}
+        toolLabel={pendingFormat === 'pdf' ? 'PDF Download' : 'Word Document Download'}
+        onClose={handleAdGateClose}
+        onAdWatched={handleAdWatched}
+      />
     </>
   )
 }

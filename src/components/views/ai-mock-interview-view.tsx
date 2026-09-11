@@ -3,7 +3,7 @@
 import * as React from 'react'
 import { Loader2, Mic, Send, AlertCircle, User, Bot } from 'lucide-react'
 import { toast } from 'sonner'
-import { useAICallWithAdGate } from '@/lib/use-ai-call-with-ad-gate'
+import { AdGateModal } from '@/components/ad-gate-modal'
 
 interface Msg {
   role: 'user' | 'assistant'
@@ -18,8 +18,8 @@ export function AIMockInterview() {
   const [input, setInput] = React.useState('')
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState('')
+  const [showAdGate, setShowAdGate] = React.useState(false)
   const scrollRef = React.useRef<HTMLDivElement>(null)
-  const { call, adGateModal } = useAICallWithAdGate()
 
   React.useEffect(() => {
     if (scrollRef.current) {
@@ -27,23 +27,42 @@ export function AIMockInterview() {
     }
   }, [messages])
 
-  async function start() {
+  async function callAPI(msgs: Msg[], adToken?: string) {
+    const url = adToken
+      ? `/api/ai/mock-interview?adToken=${encodeURIComponent(adToken)}`
+      : '/api/ai/mock-interview'
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        role: role || undefined,
+        company: company || undefined,
+        messages: msgs,
+      }),
+    })
+    const d = await r.json().catch(() => ({}))
+    if (!r.ok) {
+      if (d.requiresAd && !adToken) {
+        setShowAdGate(true)
+        setLoading(false)
+        return null
+      }
+      throw new Error(d.error || 'Failed')
+    }
+    return d.result
+  }
+
+  async function start(adToken?: string) {
     setError('')
     setLoading(true)
     setStarted(true)
-    setMessages([{ role: 'user', content: 'Hi, I am ready to begin.' }])
+    const initMsgs: Msg[] = [{ role: 'user', content: 'Hi, I am ready to begin.' }]
+    setMessages(initMsgs)
     try {
-      const r = await call('/api/ai/mock-interview', {
-        tool: 'mockInterviews',
-        toolLabel: 'AI Mock Interview',
-        body: {
-          role: role || undefined,
-          company: company || undefined,
-          messages: [{ role: 'user', content: 'Hi, I am ready to begin.' }],
-        },
-      })
-      if (!r.ok) throw new Error(r.error || 'Failed to start')
-      setMessages((m) => [...m, { role: 'assistant', content: r.data.result }])
+      const result = await callAPI(initMsgs, adToken)
+      if (result) {
+        setMessages((m) => [...m, { role: 'assistant', content: result }])
+      }
     } catch (e: any) {
       setError(e.message)
       setStarted(false)
@@ -59,23 +78,27 @@ export function AIMockInterview() {
     setInput('')
     setLoading(true)
     try {
-      const r = await call('/api/ai/mock-interview', {
-        tool: 'mockInterviews',
-        toolLabel: 'AI Mock Interview',
-        body: {
-          role: role || undefined,
-          company: company || undefined,
-          messages: next,
-        },
-      })
-      if (!r.ok) throw new Error(r.error || 'Failed')
-      setMessages((m) => [...m, { role: 'assistant', content: r.data.result }])
+      const result = await callAPI(next)
+      if (result) {
+        setMessages((m) => [...m, { role: 'assistant', content: result }])
+      }
     } catch (e: any) {
       setError(e.message)
       toast.error('Connection error')
     } finally {
       setLoading(false)
     }
+  }
+
+  async function handleAdWatched(token: string) {
+    setShowAdGate(false)
+    await start(token)
+  }
+
+  function handleAdGateClose() {
+    setShowAdGate(false)
+    setLoading(false)
+    setStarted(false)
   }
 
   function reset() {
@@ -93,19 +116,19 @@ export function AIMockInterview() {
         </div>
         <h1 className="text-3xl font-extrabold tracking-tight">AI Mock Interview</h1>
         <p className="text-muted-foreground mt-2 max-w-2xl">
-          Practice with a realistic AI interviewer. One question at a time. Cover behavioral, technical depth, problem-solving, and culture-fit questions.
+          Practice real interview questions with an AI interviewer. Type your answers and get instant follow-ups.
         </p>
       </header>
 
       {!started ? (
-        <div className="max-w-lg rounded-2xl border border-border bg-card p-6 space-y-4">
+        <div className="rounded-2xl border border-border bg-card p-6 space-y-4 max-w-xl">
           <div>
             <label className="text-sm font-bold mb-1.5 block">Role you're interviewing for</label>
             <input
               value={role}
               onChange={(e) => setRole(e.target.value)}
-              placeholder="e.g. Software Engineer, Product Manager, Data Analyst"
-              className="w-full p-2.5 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+              placeholder="e.g. Software Engineer at Google"
+              className="w-full px-3 py-2.5 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
             />
           </div>
           <div>
@@ -113,93 +136,58 @@ export function AIMockInterview() {
             <input
               value={company}
               onChange={(e) => setCompany(e.target.value)}
-              placeholder="e.g. Google, Amazon, Microsoft"
-              className="w-full p-2.5 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+              placeholder="e.g. Google, Amazon, Flipkart"
+              className="w-full px-3 py-2.5 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
             />
           </div>
           {error && (
-            <div className="flex items-start gap-2 p-3 rounded-lg bg-rose-500/10 text-rose-700 dark:text-rose-400 text-sm">
+            <div className="flex items-start gap-2 p-3 rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 text-sm">
               <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
               <span>{error}</span>
             </div>
           )}
           <button
-            onClick={start}
+            onClick={() => start()}
             disabled={loading}
-            className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-primary text-primary-foreground font-semibold hover:opacity-90 disabled:opacity-60"
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-primary text-primary-foreground font-semibold shadow-lg shadow-primary/30 hover:opacity-90 disabled:opacity-60"
           >
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mic className="w-4 h-4" />}
-            {loading ? 'Starting…' : 'Start mock interview'}
+            {loading ? 'Starting…' : 'Start Interview'}
           </button>
-          <p className="text-xs text-muted-foreground">
-            Tip: Answer aloud or type your response. The interviewer will keep it conversational and ask follow-ups.
-          </p>
         </div>
       ) : (
-        <div className="rounded-2xl border border-border bg-card overflow-hidden flex flex-col" style={{ height: '600px' }}>
-          <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/40">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center text-white">
-                <Bot className="w-4 h-4" />
-              </div>
-              <div>
-                <div className="font-bold text-sm">
-                  {company || 'Tech'} Interviewer
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  {role || 'General role'} · Mock interview
-                </div>
-              </div>
-            </div>
-            <button
-              onClick={reset}
-              className="text-xs font-medium text-muted-foreground hover:text-foreground"
-            >
-              End & restart
-            </button>
+        <div className="rounded-2xl border border-border bg-card p-5 flex flex-col" style={{ minHeight: '500px' }}>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-bold">Interview Session</h3>
+            <button onClick={reset} className="text-xs text-muted-foreground hover:text-foreground">End session</button>
           </div>
-          <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3">
+          <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-3 mb-4">
             {messages.map((m, i) => (
-              <div
-                key={i}
-                className={`flex gap-3 ${m.role === 'user' ? 'flex-row-reverse' : ''}`}
-              >
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
-                  m.role === 'user'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-gradient-to-br from-emerald-500 to-cyan-500 text-white'
-                }`}>
-                  {m.role === 'user' ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
+              <div key={i} className={cn('flex gap-2', m.role === 'user' ? 'justify-end' : 'justify-start')}>
+                {m.role === 'assistant' && <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0"><Bot className="w-4 h-4 text-primary" /></div>}
+                <div className={cn('rounded-2xl px-4 py-2 max-w-[80%] text-sm', m.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted')}>
+                  {m.content}
                 </div>
-                <div className={`max-w-[80%] rounded-2xl p-3 text-sm ${
-                  m.role === 'user'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted text-foreground'
-                }`}>
-                  <div className="whitespace-pre-wrap leading-relaxed">{m.content}</div>
-                </div>
+                {m.role === 'user' && <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center shrink-0"><User className="w-4 h-4 text-muted-foreground" /></div>}
               </div>
             ))}
-            {loading && messages.length > 0 && (
-              <div className="flex gap-3">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center text-white">
-                  <Bot className="w-4 h-4" />
-                </div>
-                <div className="bg-muted rounded-2xl p-3 flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                  thinking…
+            {loading && (
+              <div className="flex gap-2 justify-start">
+                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0"><Bot className="w-4 h-4 text-primary" /></div>
+                <div className="rounded-2xl px-4 py-2 bg-muted text-sm flex items-center gap-2">
+                  <Loader2 className="w-3 h-3 animate-spin" /> Thinking…
                 </div>
               </div>
             )}
           </div>
-          <div className="border-t border-border p-3 flex gap-2 bg-background">
+          <div className="flex gap-2">
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && send()}
-              placeholder="Type your response…"
-              className="flex-1 px-3 py-2 rounded-lg border border-border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+              onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), send())}
+              placeholder="Type your answer…"
               disabled={loading}
+              className="flex-1 px-4 py-2.5 rounded-xl border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-60"
             />
             <button
               onClick={send}
@@ -211,7 +199,18 @@ export function AIMockInterview() {
           </div>
         </div>
       )}
-      {adGateModal}
+
+      <AdGateModal
+        open={showAdGate}
+        tool="mockInterviews"
+        toolLabel="AI Mock Interview"
+        onClose={handleAdGateClose}
+        onAdWatched={handleAdWatched}
+      />
     </div>
   )
+}
+
+function cn(...args: any[]) {
+  return args.filter(Boolean).join(' ')
 }

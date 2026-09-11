@@ -5,7 +5,7 @@ import { Loader2, FileText, Sparkles, Copy, Check, AlertCircle } from 'lucide-re
 import { toast } from 'sonner'
 import { ResumeUpload } from '@/components/resume-upload'
 import { DownloadButtons } from '@/components/download-buttons'
-import { useAICallWithAdGate } from '@/lib/use-ai-call-with-ad-gate'
+import { AdGateModal } from '@/components/ad-gate-modal'
 
 export function AIResumeOptimizer() {
   const [resume, setResume] = React.useState('')
@@ -14,9 +14,12 @@ export function AIResumeOptimizer() {
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState('')
   const [copied, setCopied] = React.useState(false)
-  const { call, adGateModal } = useAICallWithAdGate()
+  const [showAdGate, setShowAdGate] = React.useState(false)
 
-  async function optimize() {
+  // Direct API call — no hook, no Promise indirection.
+  // If the API returns requiresAd, we show the AdGate modal.
+  // When the ad is watched, we retry with the token.
+  async function optimize(adToken?: string) {
     if (!resume.trim() || !jd.trim()) {
       setError('Both your resume and the target job description are required.')
       return
@@ -25,19 +28,55 @@ export function AIResumeOptimizer() {
     setLoading(true)
     setResult('')
     try {
-      const r = await call('/api/ai/resume-optimize', {
-        tool: 'resumeOptimizations',
-        toolLabel: 'AI Resume Optimizer',
-        body: { resume, jobDescription: jd },
+      const url = adToken
+        ? `/api/ai/resume-optimize?adToken=${encodeURIComponent(adToken)}`
+        : '/api/ai/resume-optimize'
+      const r = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ resume, jobDescription: jd }),
       })
-      if (!r.ok) throw new Error(r.error || 'Request failed')
-      setResult(r.data.result)
+      const d = await r.json().catch(() => ({}))
+      if (!r.ok) {
+        // If the API says "watch an ad", show the modal — don't throw
+        if (d.requiresAd && !adToken) {
+          setShowAdGate(true)
+          setLoading(false)
+          return
+        }
+        throw new Error(d.error || 'Request failed')
+      }
+      setResult(d.result)
       toast.success('Tailored resume ready!')
     } catch (e: any) {
       setError(e.message)
       toast.error('Failed to optimize resume')
     } finally {
       setLoading(false)
+    }
+  }
+
+  // Called when the user finishes watching the ad
+  async function handleAdWatched(token: string) {
+    setShowAdGate(false)
+    // Retry the API call with the ad token
+    await optimize(token)
+  }
+
+  // Called when the user closes the ad gate without watching
+  function handleAdGateClose() {
+    setShowAdGate(false)
+    setLoading(false)
+  }
+
+  async function copyResult() {
+    try {
+      await navigator.clipboard.writeText(result)
+      setCopied(true)
+      toast.success('Copied to clipboard')
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      toast.error('Failed to copy')
     }
   }
 
@@ -77,65 +116,68 @@ export function AIResumeOptimizer() {
             />
           </div>
           {error && (
-            <div className="flex items-start gap-2 p-3 rounded-lg bg-rose-500/10 text-rose-700 dark:text-rose-400 text-sm">
+            <div className="flex items-start gap-2 p-3 rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 text-sm">
               <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
               <span>{error}</span>
             </div>
           )}
           <button
-            onClick={optimize}
+            onClick={() => optimize()}
             disabled={loading}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold hover:opacity-90 disabled:opacity-60"
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-primary text-primary-foreground font-semibold shadow-lg shadow-primary/30 hover:opacity-90 disabled:opacity-60"
           >
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-            {loading ? 'Tailoring…' : 'Tailor my resume'}
+            {loading ? 'Optimizing…' : 'Optimize Resume'}
           </button>
         </div>
 
-        <div>
-          <div className="flex items-center justify-between mb-1.5">
-            <label className="text-sm font-bold">Tailored resume (Markdown)</label>
+        <div className="rounded-2xl border border-border bg-card p-5 min-h-[400px]">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-bold">Optimized Resume</h3>
             {result && (
               <button
-                onClick={() => {
-                  navigator.clipboard.writeText(result)
-                  setCopied(true)
-                  setTimeout(() => setCopied(false), 1500)
-                  toast.success('Copied to clipboard')
-                }}
-                className="text-xs font-medium inline-flex items-center gap-1 text-primary hover:underline"
+                onClick={copyResult}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-muted hover:bg-muted/70"
               >
-                {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
                 {copied ? 'Copied' : 'Copy'}
               </button>
             )}
           </div>
-          <div className="min-h-[440px] p-4 rounded-xl border border-border bg-card overflow-y-auto max-h-[640px]">
-            {loading ? (
-              <div className="flex items-center justify-center h-32 text-muted-foreground">
-                <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                Tailoring your resume…
-              </div>
-            ) : result ? (
-              <>
+          {loading ? (
+            <div className="flex items-center justify-center h-32 text-muted-foreground">
+              <Loader2 className="w-5 h-5 animate-spin mr-2" />
+              Tailoring your resume…
+            </div>
+          ) : result ? (
+            <>
+              <div className="prose prose-sm dark:prose-invert max-w-none">
                 <MarkdownView text={result} />
-                <div className="mt-4 pt-4 border-t border-border">
-                  <p className="text-[10px] text-muted-foreground mb-2 uppercase tracking-wide font-semibold">
-                    Download your resume
-                  </p>
-                  <DownloadButtons markdown={result} baseFileName="hirebase-resume" />
-                </div>
-              </>
-            ) : (
-              <div className="text-center text-muted-foreground py-20">
-                <FileText className="w-10 h-10 mx-auto mb-3 opacity-50" />
-                <p className="text-sm">Your tailored resume will appear here.</p>
               </div>
-            )}
-          </div>
+              <div className="mt-4 pt-4 border-t border-border">
+                <p className="text-[10px] text-muted-foreground mb-2 uppercase tracking-wide font-semibold">
+                  Download your resume
+                </p>
+                <DownloadButtons markdown={result} baseFileName="hirebase-resume" />
+              </div>
+            </>
+          ) : (
+            <div className="text-center text-muted-foreground py-20">
+              <FileText className="w-10 h-10 mx-auto mb-3 opacity-50" />
+              <p className="text-sm">Your tailored resume will appear here.</p>
+            </div>
+          )}
         </div>
       </div>
-      {adGateModal}
+
+      {/* Ad Gate Modal — shown when free quota is used up */}
+      <AdGateModal
+        open={showAdGate}
+        tool="resumeOptimizations"
+        toolLabel="AI Resume Optimizer"
+        onClose={handleAdGateClose}
+        onAdWatched={handleAdWatched}
+      />
     </div>
   )
 }
@@ -144,7 +186,7 @@ export function AIResumeOptimizer() {
 function MarkdownView({ text }: { text: string }) {
   const lines = text.split('\n')
   return (
-    <div className="prose prose-sm dark:prose-invert max-w-none text-foreground/90">
+    <div className="text-sm">
       {lines.map((line, i) => {
         if (line.startsWith('### ')) return <h3 key={i} className="font-bold text-base mt-3">{line.slice(4)}</h3>
         if (line.startsWith('## ')) return <h2 key={i} className="font-bold text-lg mt-4 mb-1">{line.slice(3)}</h2>
