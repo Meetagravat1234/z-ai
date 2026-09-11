@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { chatComplete } from '@/lib/multi-ai'
 import { getCurrentUser } from '@/lib/auth-server'
-import { canUseAITool, incrementUsage } from '@/lib/subscription'
+import { canUseAIToolWithAdGate as canUseAITool, incrementUsage } from '@/lib/subscription'
 
 // POST /api/ai/skill-gap
 // Body: { currentSkills: string[], targetRole: string, experienceYears?: number }
@@ -15,10 +15,17 @@ export async function POST(req: NextRequest) {
 
     // Paywall
     const user = await getCurrentUser(req)
-    const usage = await canUseAITool('skillGapAnalyses', user)
+    const adToken = new URL(req.url).searchParams.get('adToken')
+    const usage = await canUseAITool('skillGapAnalyses', user, adToken, req)
     if (!usage.allowed) {
       return NextResponse.json(
-        { error: usage.message, requiresUpgrade: !usage.isPro, used: usage.used, limit: usage.limit },
+        {
+          error: usage.message,
+          requiresUpgrade: !usage.isPro && !usage.requiresAd,
+          requiresAd: usage.requiresAd,
+          used: usage.used,
+          limit: usage.limit,
+        },
         { status: 403 },
       )
     }
@@ -68,7 +75,8 @@ Perform the skill gap analysis.`,
       parsed = { rawText: raw }
     }
 
-    if (user?.id) {
+    // Skip incrementing usage if ad-watched
+    if (!usage.adWatched && user?.id) {
       await incrementUsage('skillGapAnalyses', user.id)
     }
 

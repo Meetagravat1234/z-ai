@@ -3,6 +3,7 @@
 import * as React from 'react'
 import { Loader2, Sparkles, AlertCircle, CheckCircle2, FileText, TrendingUp, Copy, Check } from 'lucide-react'
 import { toast } from 'sonner'
+import { useAICallWithAdGate } from '@/lib/use-ai-call-with-ad-gate'
 import { cn } from '@/lib/utils'
 import { ResumeUpload } from '@/components/resume-upload'
 
@@ -29,6 +30,7 @@ export function ATSScoreView() {
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState('')
   const [result, setResult] = React.useState<ATSResult | null>(null)
+  const { call, adGateModal } = useAICallWithAdGate()
 
   async function check() {
     if (!resume.trim() || !jd.trim()) {
@@ -39,14 +41,13 @@ export function ATSScoreView() {
     setLoading(true)
     setResult(null)
     try {
-      const r = await fetch('/api/ai/ats-score', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ resume, jobDescription: jd }),
+      const r = await call('/api/ai/ats-score', {
+        tool: 'atsChecks',
+        toolLabel: 'ATS Score Checker',
+        body: { resume, jobDescription: jd },
       })
-      const d = await r.json()
-      if (!r.ok) throw new Error(d.error || 'Failed')
-      setResult(d.result)
+      if (!r.ok) throw new Error(r.error || 'Failed')
+      setResult(r.data.result)
       toast.success('ATS analysis complete!')
     } catch (e: any) {
       setError(e.message)
@@ -277,6 +278,7 @@ export function ATSScoreView() {
           )}
         </div>
       )}
+      {adGateModal}
     </div>
   )
 }

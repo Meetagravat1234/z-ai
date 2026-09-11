@@ -4,6 +4,7 @@ import * as React from 'react'
 import { Loader2, Sparkles, Copy, Check, AlertCircle, FileText } from 'lucide-react'
 import { toast } from 'sonner'
 import { ResumeUpload } from '@/components/resume-upload'
+import { useAICallWithAdGate } from '@/lib/use-ai-call-with-ad-gate'
 
 export function AICoverLetter() {
   const [resume, setResume] = React.useState('')
@@ -14,6 +15,7 @@ export function AICoverLetter() {
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState('')
   const [copied, setCopied] = React.useState(false)
+  const { call, adGateModal } = useAICallWithAdGate()
 
   async function generate() {
     if (!resume.trim() || !jd.trim()) {
@@ -24,14 +26,13 @@ export function AICoverLetter() {
     setLoading(true)
     setResult('')
     try {
-      const r = await fetch('/api/ai/cover-letter', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ resume, jobDescription: jd, companyName: company, role }),
+      const r = await call('/api/ai/cover-letter', {
+        tool: 'coverLetters',
+        toolLabel: 'AI Cover Letter',
+        body: { resume, jobDescription: jd, companyName: company, role },
       })
-      const d = await r.json()
-      if (!r.ok) throw new Error(d.error || 'Request failed')
-      setResult(d.result)
+      if (!r.ok) throw new Error(r.error || 'Request failed')
+      setResult(r.data.result)
       toast.success('Cover letter generated!')
     } catch (e: any) {
       setError(e.message)
@@ -146,6 +147,7 @@ export function AICoverLetter() {
           </div>
         </div>
       </div>
+      {adGateModal}
     </div>
   )
 }

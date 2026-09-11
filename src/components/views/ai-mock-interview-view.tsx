@@ -3,6 +3,7 @@
 import * as React from 'react'
 import { Loader2, Mic, Send, AlertCircle, User, Bot } from 'lucide-react'
 import { toast } from 'sonner'
+import { useAICallWithAdGate } from '@/lib/use-ai-call-with-ad-gate'
 
 interface Msg {
   role: 'user' | 'assistant'
@@ -18,6 +19,7 @@ export function AIMockInterview() {
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState('')
   const scrollRef = React.useRef<HTMLDivElement>(null)
+  const { call, adGateModal } = useAICallWithAdGate()
 
   React.useEffect(() => {
     if (scrollRef.current) {
@@ -31,18 +33,17 @@ export function AIMockInterview() {
     setStarted(true)
     setMessages([{ role: 'user', content: 'Hi, I am ready to begin.' }])
     try {
-      const r = await fetch('/api/ai/mock-interview', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const r = await call('/api/ai/mock-interview', {
+        tool: 'mockInterviews',
+        toolLabel: 'AI Mock Interview',
+        body: {
           role: role || undefined,
           company: company || undefined,
           messages: [{ role: 'user', content: 'Hi, I am ready to begin.' }],
-        }),
+        },
       })
-      const d = await r.json()
-      if (!r.ok) throw new Error(d.error || 'Failed to start')
-      setMessages((m) => [...m, { role: 'assistant', content: d.result }])
+      if (!r.ok) throw new Error(r.error || 'Failed to start')
+      setMessages((m) => [...m, { role: 'assistant', content: r.data.result }])
     } catch (e: any) {
       setError(e.message)
       setStarted(false)
@@ -58,18 +59,17 @@ export function AIMockInterview() {
     setInput('')
     setLoading(true)
     try {
-      const r = await fetch('/api/ai/mock-interview', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const r = await call('/api/ai/mock-interview', {
+        tool: 'mockInterviews',
+        toolLabel: 'AI Mock Interview',
+        body: {
           role: role || undefined,
           company: company || undefined,
           messages: next,
-        }),
+        },
       })
-      const d = await r.json()
-      if (!r.ok) throw new Error(d.error || 'Failed')
-      setMessages((m) => [...m, { role: 'assistant', content: d.result }])
+      if (!r.ok) throw new Error(r.error || 'Failed')
+      setMessages((m) => [...m, { role: 'assistant', content: r.data.result }])
     } catch (e: any) {
       setError(e.message)
       toast.error('Connection error')
@@ -211,6 +211,7 @@ export function AIMockInterview() {
           </div>
         </div>
       )}
+      {adGateModal}
     </div>
   )
 }

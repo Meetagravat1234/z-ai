@@ -5,6 +5,7 @@ import { Loader2, Sparkles, AlertCircle, CheckCircle2, Target, BookOpen, Rocket,
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { ResumeUpload } from '@/components/resume-upload'
+import { useAICallWithAdGate } from '@/lib/use-ai-call-with-ad-gate'
 
 interface GapResult {
   targetRoleSummary?: string
@@ -37,6 +38,7 @@ export function SkillGapView() {
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState('')
   const [result, setResult] = React.useState<GapResult | null>(null)
+  const { call, adGateModal } = useAICallWithAdGate()
 
   async function analyze() {
     if (!skills.trim() || !targetRole.trim()) {
@@ -47,18 +49,17 @@ export function SkillGapView() {
     setLoading(true)
     setResult(null)
     try {
-      const r = await fetch('/api/ai/skill-gap', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const r = await call('/api/ai/skill-gap', {
+        tool: 'skillGapAnalyses',
+        toolLabel: 'Skill Gap Analyzer',
+        body: {
           currentSkills: skills.split(',').map((s) => s.trim()).filter(Boolean),
           targetRole,
           experienceYears: parseFloat(experience) || 0,
-        }),
+        },
       })
-      const d = await r.json()
-      if (!r.ok) throw new Error(d.error || 'Failed')
-      setResult(d.result)
+      if (!r.ok) throw new Error(r.error || 'Failed')
+      setResult(r.data.result)
       toast.success('Skill gap analysis complete!')
     } catch (e: any) {
       setError(e.message)
@@ -343,6 +344,7 @@ function ResultView({ result }: { result: GapResult }) {
       <p className="text-xs text-muted-foreground">
         Scroll down for the full breakdown — skills you have, missing skills, learning path, and recommended projects.
       </p>
+      {adGateModal}
     </div>
   )
 }

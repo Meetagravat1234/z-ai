@@ -4,6 +4,7 @@ import * as React from 'react'
 import { Loader2, FileText, Sparkles, Copy, Check, AlertCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { ResumeUpload } from '@/components/resume-upload'
+import { useAICallWithAdGate } from '@/lib/use-ai-call-with-ad-gate'
 
 export function AIResumeOptimizer() {
   const [resume, setResume] = React.useState('')
@@ -12,6 +13,7 @@ export function AIResumeOptimizer() {
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState('')
   const [copied, setCopied] = React.useState(false)
+  const { call, adGateModal } = useAICallWithAdGate()
 
   async function optimize() {
     if (!resume.trim() || !jd.trim()) {
@@ -22,14 +24,13 @@ export function AIResumeOptimizer() {
     setLoading(true)
     setResult('')
     try {
-      const r = await fetch('/api/ai/resume-optimize', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ resume, jobDescription: jd }),
+      const r = await call('/api/ai/resume-optimize', {
+        tool: 'resumeOptimizations',
+        toolLabel: 'AI Resume Optimizer',
+        body: { resume, jobDescription: jd },
       })
-      const d = await r.json()
-      if (!r.ok) throw new Error(d.error || 'Request failed')
-      setResult(d.result)
+      if (!r.ok) throw new Error(r.error || 'Request failed')
+      setResult(r.data.result)
       toast.success('Tailored resume ready!')
     } catch (e: any) {
       setError(e.message)
@@ -125,6 +126,7 @@ export function AIResumeOptimizer() {
           </div>
         </div>
       </div>
+      {adGateModal}
     </div>
   )
 }

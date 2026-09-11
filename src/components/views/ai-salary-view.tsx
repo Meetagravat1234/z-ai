@@ -3,6 +3,7 @@
 import * as React from 'react'
 import { Loader2, Wallet, AlertCircle, TrendingUp, TrendingDown, Sparkles, Lightbulb } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useAICallWithAdGate } from '@/lib/use-ai-call-with-ad-gate'
 
 interface SalaryResult {
   predictedRange?: { min: number; max: number; currency: string; unit: string }
@@ -25,6 +26,7 @@ export function AISalaryPredictor() {
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState('')
   const [result, setResult] = React.useState<SalaryResult | null>(null)
+  const { call, adGateModal } = useAICallWithAdGate()
 
   async function predict() {
     if (!role.trim()) {
@@ -35,20 +37,19 @@ export function AISalaryPredictor() {
     setLoading(true)
     setResult(null)
     try {
-      const r = await fetch('/api/ai/salary-predict', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const r = await call('/api/ai/salary-predict', {
+        tool: 'salaryPredictions',
+        toolLabel: 'Salary Predictor',
+        body: {
           role,
           company: company || undefined,
           location: location || undefined,
           experienceYears: parseFloat(experience) || 0,
           skills: skillsStr.split(',').map((s) => s.trim()).filter(Boolean),
-        }),
+        },
       })
-      const d = await r.json()
-      if (!r.ok) throw new Error(d.error || 'Failed')
-      setResult(d.result)
+      if (!r.ok) throw new Error(r.error || 'Failed')
+      setResult(r.data.result)
     } catch (e: any) {
       setError(e.message)
     } finally {
@@ -249,6 +250,7 @@ export function AISalaryPredictor() {
           )}
         </div>
       </div>
+      {adGateModal}
     </div>
   )
 }

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { chatComplete } from '@/lib/multi-ai'
 import { getCurrentUser } from '@/lib/auth-server'
-import { canUseAITool, incrementUsage } from '@/lib/subscription'
+import { canUseAIToolWithAdGate as canUseAITool, incrementUsage } from '@/lib/subscription'
 
 // POST /api/ai/cover-letter
 // Body: { resume: string, jobDescription: string, companyName?: string, role?: string }
@@ -12,14 +12,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'resume and jobDescription are required' }, { status: 400 })
     }
 
-    // Paywall: check user is authenticated + has remaining usage
+    // Paywall: check user is authenticated + has remaining usage (or valid ad token)
     const user = await getCurrentUser(req)
-    const usage = await canUseAITool('coverLetters', user)
+    const adToken = new URL(req.url).searchParams.get('adToken')
+    const usage = await canUseAITool('coverLetters', user, adToken, req)
     if (!usage.allowed) {
       return NextResponse.json(
         {
           error: usage.message,
-          requiresUpgrade: !usage.isPro,
+          requiresUpgrade: !usage.isPro && !usage.requiresAd,
+          requiresAd: usage.requiresAd,
           used: usage.used,
           limit: usage.limit,
         },
@@ -45,7 +47,8 @@ Tone: warm, confident, specific. Avoid corporate buzzwords.`,
         },
       ])
 
-    if (user?.id) {
+    // Skip incrementing usage if ad-watched
+    if (!usage.adWatched && user?.id) {
       await incrementUsage('coverLetters', user.id)
     }
 

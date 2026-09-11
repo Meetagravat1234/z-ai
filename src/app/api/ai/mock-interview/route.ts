@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { chatComplete } from '@/lib/multi-ai'
 import { getCurrentUser } from '@/lib/auth-server'
-import { canUseAITool, incrementUsage } from '@/lib/subscription'
+import { canUseAIToolWithAdGate as canUseAITool, incrementUsage } from '@/lib/subscription'
 
 // POST /api/ai/mock-interview
 // Body: { messages: [{role, content}], role?: string, company?: string }
@@ -16,12 +16,19 @@ export async function POST(req: NextRequest) {
     // Paywall — but only count a NEW session (when messages array length is 1, this is a fresh start)
     const isNewSession = messages.length <= 1
     const user = await getCurrentUser(req)
-    let usage: any = { allowed: true, used: 0, limit: 999, isPro: false }
+    const adToken = new URL(req.url).searchParams.get('adToken')
+    let usage: any = { allowed: true, used: 0, limit: 999, isPro: false, adWatched: false }
     if (isNewSession) {
-      usage = await canUseAITool('mockInterviews', user)
+      usage = await canUseAITool('mockInterviews', user, adToken, req)
       if (!usage.allowed) {
         return NextResponse.json(
-          { error: usage.message, requiresUpgrade: !usage.isPro, used: usage.used, limit: usage.limit },
+          {
+            error: usage.message,
+            requiresUpgrade: !usage.isPro && !usage.requiresAd,
+            requiresAd: usage.requiresAd,
+            used: usage.used,
+            limit: usage.limit,
+          },
           { status: 403 },
         )
       }
@@ -47,7 +54,8 @@ The candidate's first message will be a greeting or "ready". Begin with your int
       ])
 
     // Only increment usage counter on first message (one increment per interview session)
-    if (isNewSession && user?.id) {
+    // Skip if ad-watched
+    if (isNewSession && !usage.adWatched && user?.id) {
       await incrementUsage('mockInterviews', user.id)
     }
 

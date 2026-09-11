@@ -20,6 +20,8 @@
  */
 
 import { db } from '@/lib/db'
+import { verifyAdToken, getUserIdentifier } from '@/lib/ad-gate'
+import type { NextRequest } from 'next/server'
 
 export type Tier = 'free' | 'pro' | 'recruiter'
 
@@ -245,6 +247,78 @@ export async function canUseAITool(
     remaining,
     isPro: pro,
     tool,
+  }
+}
+
+/**
+ * Check whether the user can use a given AI tool — with ad-gate fallback.
+ *
+ * Logic (in order):
+ *   1. Pro/Recruiter users → always allowed (no ad, no quota)
+ *   2. Free users with remaining monthly quota → allowed (consumes quota)
+ *   3. Free users with exhausted quota + valid ad token → allowed (ad-watched = free use, doesn't consume quota)
+ *   4. Otherwise → not allowed, returns `requiresAd: true` so frontend can show AdGate modal
+ *
+ * Usage in API routes:
+ *   const user = await getCurrentUser(req)
+ *   const adToken = new URL(req.url).searchParams.get('adToken') || undefined
+ *   const usage = await canUseAIToolWithAdGate('resumeOptimizations', user, adToken, req)
+ *   if (!usage.allowed) {
+ *     return res.status(403).json({ error: usage.message, requiresAd: usage.requiresAd })
+ *   }
+ *   // ... do the AI work ...
+ *   // Only increment usage if NOT ad-gated (ad-watched uses don't consume quota)
+ *   if (!usage.adWatched && user?.id) {
+ *     await incrementUsage('resumeOptimizations', user.id)
+ *   }
+ */
+export async function canUseAIToolWithAdGate(
+  tool: ToolKey,
+  user: any,
+  adToken?: string | null,
+  req?: Request,
+): Promise<UsageCheckResult & { requiresAd?: boolean; adWatched?: boolean }> {
+  // Pro users skip everything
+  if (isProUser(user)) {
+    const baseCheck = await canUseAITool(tool, user)
+    return { ...baseCheck, adWatched: false }
+  }
+
+  // Demo users (not signed in via real NextAuth) — must watch ad
+  // They don't have a user.id, so we use IP as identifier
+  // (Real anonymous users also fall here — they can use ad-gate without signup)
+
+  // Check if ad token is valid
+  if (adToken && req) {
+    const userIdentifier = user?.id || getUserIdentifier(req)
+    if (verifyAdToken(adToken, tool, userIdentifier)) {
+      // Valid ad token — allow this use without consuming quota
+      return {
+        allowed: true,
+        used: 0,
+        limit: 999,
+        remaining: 999,
+        isPro: false,
+        tool,
+        adWatched: true,
+      }
+    }
+  }
+
+  // Fall back to normal usage check
+  const baseCheck = await canUseAITool(tool, user)
+
+  // If usage check allows (e.g., user has remaining free quota) → allow without ad
+  if (baseCheck.allowed) {
+    return { ...baseCheck, requiresAd: false, adWatched: false }
+  }
+
+  // Otherwise, the user needs to watch an ad
+  return {
+    ...baseCheck,
+    requiresAd: true,
+    adWatched: false,
+    message: 'Watch a 15-second ad to use this tool, or upgrade to Pro to skip ads.',
   }
 }
 
