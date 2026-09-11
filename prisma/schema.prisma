@@ -40,6 +40,9 @@ model User {
   atsChecksUsed            Int       @default(0)
   skillGapAnalysesUsed     Int       @default(0)
   salaryPredictionsUsed    Int       @default(0)
+  // Resume / cover letter download exports (added Sep 2026 — 1 free/month, 50/month for Pro)
+  pdfDownloadsUsed         Int       @default(0)
+  docxDownloadsUsed        Int       @default(0)
   usageResetAt             DateTime  @default(now())
 
   createdAt DateTime @default(now())

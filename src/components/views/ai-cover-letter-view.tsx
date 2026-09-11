@@ -4,6 +4,7 @@ import * as React from 'react'
 import { Loader2, Sparkles, Copy, Check, AlertCircle, FileText } from 'lucide-react'
 import { toast } from 'sonner'
 import { ResumeUpload } from '@/components/resume-upload'
+import { DownloadButtons } from '@/components/download-buttons'
 import { useAICallWithAdGate } from '@/lib/use-ai-call-with-ad-gate'
 
 export function AICoverLetter() {
@@ -137,7 +138,15 @@ export function AICoverLetter() {
                 Writing your cover letter…
               </div>
             ) : result ? (
-              <div className="whitespace-pre-wrap text-foreground/90 leading-relaxed text-sm">{result}</div>
+              <>
+                <div className="whitespace-pre-wrap text-foreground/90 leading-relaxed text-sm">{result}</div>
+                <div className="mt-4 pt-4 border-t border-border">
+                  <p className="text-[10px] text-muted-foreground mb-2 uppercase tracking-wide font-semibold">
+                    Download your cover letter
+                  </p>
+                  <DownloadButtons markdown={result} baseFileName="hirebase-cover-letter" />
+                </div>
+              </>
             ) : (
               <div className="text-center text-muted-foreground py-20">
                 <FileText className="w-10 h-10 mx-auto mb-3 opacity-50" />

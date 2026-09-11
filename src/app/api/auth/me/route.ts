@@ -36,6 +36,8 @@ export async function GET() {
         atsChecksUsed: true,
         skillGapAnalysesUsed: true,
         salaryPredictionsUsed: true,
+        pdfDownloadsUsed: true,
+        docxDownloadsUsed: true,
         usageResetAt: true,
       },
     })

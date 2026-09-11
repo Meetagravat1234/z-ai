@@ -59,6 +59,9 @@ export const FREE_TIER_LIMITS = {
   atsChecks: 1,
   skillGapAnalyses: 1,
   salaryPredictions: 1,
+  // Resume/cover-letter download exports (1 free per month, then ad-gate OR upgrade)
+  pdfDownloads: 1,
+  docxDownloads: 1,
 }
 
 // Pro tier monthly limits per AI tool
@@ -69,6 +72,8 @@ export const PRO_TIER_LIMITS = {
   atsChecks: 50, // ATS check is quick — give more
   skillGapAnalyses: 10,
   salaryPredictions: 50,
+  pdfDownloads: 50, // 50 PDF downloads per month for Pro
+  docxDownloads: 50, // 50 DOCX downloads per month for Pro
 }
 
 // ============================================================
@@ -107,6 +112,8 @@ type ToolKey =
   | 'atsChecks'
   | 'skillGapAnalyses'
   | 'salaryPredictions'
+  | 'pdfDownloads'
+  | 'docxDownloads'
 
 // Map tool name → DB field name + free/pro limits
 const TOOL_CONFIG: Record<ToolKey, { field: string; label: string }> = {
@@ -116,6 +123,8 @@ const TOOL_CONFIG: Record<ToolKey, { field: string; label: string }> = {
   atsChecks: { field: 'atsChecksUsed', label: 'ATS Score Checker' },
   skillGapAnalyses: { field: 'skillGapAnalysesUsed', label: 'Skill Gap Analyzer' },
   salaryPredictions: { field: 'salaryPredictionsUsed', label: 'Salary Predictor' },
+  pdfDownloads: { field: 'pdfDownloadsUsed', label: 'PDF Download' },
+  docxDownloads: { field: 'docxDownloadsUsed', label: 'Word Document Download' },
 }
 
 export interface UsageCheckResult {
@@ -188,6 +197,8 @@ export async function canUseAITool(
         atsChecksUsed: true,
         skillGapAnalysesUsed: true,
         salaryPredictionsUsed: true,
+        pdfDownloadsUsed: true,
+        docxDownloadsUsed: true,
         usageResetAt: true,
         subscriptionTier: true,
         subscriptionEndsAt: true,
@@ -218,6 +229,8 @@ export async function canUseAITool(
           atsChecksUsed: 0,
           skillGapAnalysesUsed: 0,
           salaryPredictionsUsed: 0,
+          pdfDownloadsUsed: 0,
+          docxDownloadsUsed: 0,
           usageResetAt: now,
         },
       })
@@ -402,6 +415,8 @@ export async function activateSubscription(
       atsChecksUsed: 0,
       skillGapAnalysesUsed: 0,
       salaryPredictionsUsed: 0,
+      pdfDownloadsUsed: 0,
+      docxDownloadsUsed: 0,
       usageResetAt: new Date(),
     },
   })

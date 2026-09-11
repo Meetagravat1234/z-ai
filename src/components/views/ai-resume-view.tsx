@@ -4,6 +4,7 @@ import * as React from 'react'
 import { Loader2, FileText, Sparkles, Copy, Check, AlertCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { ResumeUpload } from '@/components/resume-upload'
+import { DownloadButtons } from '@/components/download-buttons'
 import { useAICallWithAdGate } from '@/lib/use-ai-call-with-ad-gate'
 
 export function AIResumeOptimizer() {
@@ -116,7 +117,15 @@ export function AIResumeOptimizer() {
                 Tailoring your resume…
               </div>
             ) : result ? (
-              <MarkdownView text={result} />
+              <>
+                <MarkdownView text={result} />
+                <div className="mt-4 pt-4 border-t border-border">
+                  <p className="text-[10px] text-muted-foreground mb-2 uppercase tracking-wide font-semibold">
+                    Download your resume
+                  </p>
+                  <DownloadButtons markdown={result} baseFileName="hirebase-resume" />
+                </div>
+              </>
             ) : (
               <div className="text-center text-muted-foreground py-20">
                 <FileText className="w-10 h-10 mx-auto mb-3 opacity-50" />
