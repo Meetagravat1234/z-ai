@@ -570,3 +570,79 @@ Stage Summary:
 - Search works for both single-word ('embedded', 'java') and multi-word ('embedded engineer', 'java developer') queries — was previously broken for multi-word
 - Clicking 'All Jobs' / 'Freshers' / 'Internships' / 'Walk-in' / 'Hidden' in the sidebar now shows 60 jobs INSTANTLY (no 2-3s loading spinner)
 - Signup is required only for AI tools + saved jobs + alerts (not for browsing)
+
+---
+Task ID: 10
+Agent: main
+Task: Fix URL routing — every sidebar item should update the URL bar (was stuck at '/')
+
+Work Log:
+- Root cause: Site used Zustand useNav().go() for navigation which only toggled view state internally — URL bar never changed
+- Designed URL mapping for all 26 sidebar views:
+  * AI Tools: /ai-tools/resume-optimizer, /ai-tools/ats-score, /ai-tools/cover-letter, /ai-tools/mock-interview, /ai-tools/skill-gap, /ai-tools/salary-predictor
+  * Account: /tracker, /alerts, /profile, /saved, /auth
+  * Info: /about, /pricing, /discover, /ground-truth, /sync-status, /salary-dashboard, /question-bank, /compare-jobs, /admin
+- Created VIEW_URLS map at top of sidebar.tsx mapping each ViewId to its URL
+- Created 19 new Server Component route wrappers — each is a thin page.tsx that:
+  * Has its own <title>, meta description, canonical URL, OpenGraph tags
+  * Renders the existing client view inside <SiteShell>
+  * Includes BreadcrumbList JSON-LD for SEO
+  * admin/sync-status/auth routes have robots: noindex (don't want them indexed)
+- Updated Sidebar component to use Next.js Link with href=VIEW_URLS[item.id]:
+  * Active state now based on usePathname() (real URL) instead of Zustand view state
+  * Added prefetch={true} so routes are prefetched on hover/visible
+  * Logo click → Link href="/" (was button onClick go('home'))
+  * Each nav item is now a Link, not a button
+  * Job Alerts CTA at bottom is now a Link to /alerts or /auth based on auth state
+- Updated TopNav:
+  * Tracker button → Link href="/tracker"
+  * Profile avatar → Link href="/profile"
+  * Sign in button → Link href="/auth"
+- Updated BottomNav (mobile): all 5 items (Home/Jobs/Companies/Saved/Tracker) now use Link
+- Updated Footer: all 12 links now use Link with real URLs (was buttons with go())
+- Updated HomeView.tsx — 14 buttons that used go() are now Link components:
+  * Hero "Browse X jobs" button → Link href="/jobs"
+  * Hero "Try AI Resume Optimizer" → Link href="/ai-tools/resume-optimizer"
+  * AI Tools cards (6) → Link href="/ai-tools/{slug}" (added url field to each tool object)
+  * Insights & Tools cards (3) → Link href for /salary-dashboard, /question-bank, /compare-jobs
+  * Browse by category cards (4) → Link href for /jobs/fresher, /jobs/internship, /jobs/walk-in, /jobs/hidden
+  * Featured jobs "View all" → Link href="/jobs"
+  * Top companies "View all" → Link href="/companies"
+  * Career insights "All articles" → Link href="/insights"
+  * Article cards (3) → Link href="/insights/[slug]" (each article now links to its detail page)
+  * Signup CTA "Create free account" → Link href="/auth"
+  * Sync banner → Link href="/sync-status"
+  * Bottom CTA "Browse jobs" → Link href="/jobs"
+  * Bottom CTA "Learn more" → Link href="/about"
+- Updated home-shell.tsx Footer to use Link components (was using go() buttons)
+- Updated sitemap.xml to include all 19 new routes + 6 AI tools + 8 others
+- Sitemap now has 551 URLs (was 505)
+
+Zustand nav-store still used internally for:
+- selectedJobId (in-app nav when clicking JobCard — but URL still updates via Link wrapper)
+- selectedCompanySlug (same pattern)
+- sidebarOpen (mobile drawer state)
+- commandOpen (Cmd+K palette state)
+These are intentional — they don't affect URL routing.
+
+Verified LIVE on hirebase.in:
+- /ai-tools/resume-optimizer → HTTP 200, title "AI Resume Optimizer India — Free ATS-Friendly | Hirebase"
+- /ai-tools/ats-score → HTTP 200, title "ATS Score Checker — Free Resume Score (0-100) | Hirebase"
+- /ai-tools/cover-letter → HTTP 200, title "AI Cover Letter Generator — Free Personalized | Hirebase"
+- /ai-tools/mock-interview → HTTP 200, title "AI Mock Interview — Practice Interviews Free | Hirebase"
+- /ai-tools/skill-gap → HTTP 200, title "Skill Gap Analyzer — Personalised Learning Path | Hirebase"
+- /ai-tools/salary-predictor → HTTP 200, title "Salary Predictor — AI Salary Estimator India | Hirebase"
+- /tracker, /alerts, /profile, /saved, /auth → all HTTP 200
+- /about, /pricing, /discover, /ground-truth, /sync-status → all HTTP 200
+- /salary-dashboard, /question-bank, /compare-jobs, /admin → all HTTP 200
+- Sidebar items use <a href>: 34 unique internal links in home page HTML (was 0 before — all were buttons with onClick)
+- Sitemap: 551 URLs (was 505)
+
+Stage Summary:
+- URL bar now updates when you click any sidebar item — same as other modern websites
+- 19 new SEO-friendly URLs live (6 AI tools + 5 account + 8 info)
+- Each AI tool has its own title, meta description, canonical URL — ready for Google indexing
+- Each route includes BreadcrumbList JSON-LD for rich search results
+- Admin/sync-status/auth routes marked noindex (don't waste Google's crawl budget)
+- Sitemap expanded to 551 URLs
+- Next.js Link prefetching enabled — sidebar items prefetch their target route on hover for instant navigation
