@@ -1,14 +1,15 @@
 'use client'
 
 import * as React from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Loader2, Mail, Lock, User as UserIcon, Sparkles, CheckCircle2, AlertCircle, TrendingUp, Target, Shield } from 'lucide-react'
-import { useNav } from '@/lib/nav-store'
 import { useAuth } from '@/lib/auth-context'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
 export function AuthView() {
-  const { go } = useNav()
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const { refresh } = useAuth()
   const [mode, setMode] = React.useState<'login' | 'signup'>('signup')
   const [email, setEmail] = React.useState('')
@@ -47,7 +48,6 @@ export function AuthView() {
       }
 
       // 2. Sign in via NextAuth credentials flow (gets the JWT cookie)
-      // NextAuth expects form-encoded POST with csrfToken
       const csrfRes = await fetch('/api/auth/csrf')
       const { csrfToken } = await csrfRes.json()
 
@@ -73,8 +73,19 @@ export function AuthView() {
       await refresh()
       toast.success(mode === 'signup' ? 'Welcome to Hirebase! 🎉' : 'Welcome back! 👋')
 
-      // Take them to the profile page to finish setup (or home)
-      go(mode === 'signup' ? 'profile' : 'home')
+      // Redirect to the page the user was trying to access, or home page
+      // Use full-page navigation (not SPA go()) because the URL must change
+      const nextUrl = searchParams.get('next')
+      if (nextUrl && nextUrl.startsWith('/') && !nextUrl.startsWith('/auth')) {
+        // User was redirected to login from a specific page — send them back
+        router.push(nextUrl)
+      } else if (mode === 'signup') {
+        // New users go to profile to complete setup
+        router.push('/profile')
+      } else {
+        // Returning users go to home
+        router.push('/')
+      }
     } catch (e: any) {
       setError(e.message || 'Something went wrong. Please try again.')
       toast.error('Authentication failed')
