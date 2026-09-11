@@ -63,9 +63,22 @@ export async function POST(req: NextRequest) {
       try {
         const arrayBuffer = await file.arrayBuffer()
         const data = new Uint8Array(arrayBuffer)
-        // Dynamic import — legacy build path works in both Node and Vercel
         const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs')
-        const doc = await pdfjs.getDocument({ data }).promise
+        // pdfjs-dist needs the worker source — set it to the bundled worker file.
+        // Without this, it tries to find "pdf.worker.mjs" relative to the Next.js
+        // chunk directory and fails with "Cannot find module".
+        const path = await import('path')
+        pdfjs.GlobalWorkerOptions.workerSrc = path.resolve(
+          process.cwd(),
+          'node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs',
+        )
+        const loadingTask = pdfjs.getDocument({
+          data,
+          useWorkerFetch: false,
+          isEvalSupported: false,
+          useSystemFonts: false,
+        })
+        const doc = await loadingTask.promise
         let extracted = ''
         for (let i = 1; i <= doc.numPages; i++) {
           const page = await doc.getPage(i)
