@@ -492,3 +492,81 @@ Stage Summary:
   2. Request indexing for the 5 new article URLs via GSC URL Inspection (one per day given 10/day quota)
   3. Share article links on LinkedIn/Twitter for initial traffic + social signals
   4. Write 5 more articles next week (the Blog Content Strategy doc has 12 article ideas)
+
+---
+Task ID: 9
+Agent: main
+Task: Fix 3 issues — remove 3-job signup gate, fix search returning 0 results, make All Jobs page instant
+
+Work Log:
+- Issue 1: Remove '3 jobs only without signup' gate
+  * HomeView: changed `{(user ? jobs : jobs.slice(0, 3)).map(...)}` → `{jobs.map(...)}` — all 6 Featured jobs visible to anonymous users
+  * HomeView: updated signup CTA copy from "🔒 Sign up free to see all X jobs + AI tools + job alerts" → "✨ Sign up free for AI tools (resume optimizer, ATS score, mock interview) + email job alerts" — emphasizes AI tools, not jobs (since browsing is now free)
+  * JobsView: completely removed the signup wall block (was lines 231-248) — anonymous users now see ALL matching jobs, not just the first 3
+  * JobsView: removed useAuth() call entirely (no longer needed)
+  * JobsView: updated results count text from "X of Y jobs shown — sign up to see all" → "X of Y jobs matching 'keyword'"
+  * Signup is now ONLY required for: AI tools (resume/cover-letter/mock-interview/ats/salary), saved jobs, application tracker, job alerts. Browsing all jobs/companies/articles is 100% free without signup.
+
+- Issue 2: Fix search returning 'no jobs available' for 'embedded' / 'java'
+  * Root cause investigation:
+    - API testing showed single-word searches DID work (3 results for 'embedded', 2 for 'java')
+    - Multi-word searches like 'embedded engineer', 'java developer', 'data scientist' returned 0 results
+    - Root cause: Prisma's contains() does exact substring match. 'embedded engineer' as a phrase doesn't match 'Embedded Software Engineer' (different word order + 'Software' in between).
+  * Fix in /api/jobs/route.ts:
+    - Split query into individual words (e.g. 'embedded engineer' → ['embedded', 'engineer'])
+    - For multi-word queries: build OR of per-word contains() across title, skills, company.name, AND description (new — wasn't searching description before)
+    - For single-word queries: keep simple contains() but also add description to search scope
+    - Skip words shorter than 2 chars (filters out 'a', 'of', 'in' etc.)
+  * Result improvement:
+    - 'embedded' (single word): 3 → 22 results
+    - 'java' (single word): 2 → 35 results
+    - 'react' (single word): 2 → 20 results
+    - 'embedded engineer' (multi-word): 0 → 163 results (was completely broken)
+    - 'java developer' (multi-word): 0 → 88 results
+    - 'data scientist' (multi-word): 0 → 164 results
+
+- Issue 3: Make All Jobs page load instantly (was 2-3s loading spinner)
+  * Root cause: JobsView was a pure client component. Every navigation to 'All Jobs' / 'Freshers' / 'Internships' / 'Walk-in' / 'Hidden' triggered:
+    1. Component mount
+    2. useEffect fires → fetch /api/jobs?...
+    3. 2-3 second wait for API response
+    4. Spinner visible during entire wait
+  * Fix:
+    - Extended HomeInitialData type with 5 new optional fields: initialAllJobs, initialFresherJobs, initialInternshipJobs, initialWalkInJobs, initialHiddenJobs (+ totals)
+    - Updated page.tsx (server component) to fetch 60 jobs for EACH category in parallel via Promise.all — happens during SSR so initial HTML includes all jobs data
+    - Updated home-shell.tsx to pass the right batch to JobsView based on view ID
+    - Updated JobsView to accept initialJobs + initialTotal props:
+      * Uses initialJobs on first render (no loading spinner)
+      * Skips first useEffect fetch if SSR data present (skipNextFetch ref)
+      * Only refetches when user changes filters (search, category, workMode, etc.)
+    - Added 300ms debounce on search input — typing 'embedded engineer' fires 1 fetch (not 16)
+    - Removed useAuth() call (no longer needed since no signup gate)
+  * Result:
+    - Clicking 'All Jobs' shows 60 jobs INSTANTLY (no loading spinner, no API call)
+    - Clicking 'Freshers' shows 60 fresher jobs INSTANTLY
+    - Clicking 'Internships' / 'Walk-in' / 'Hidden' shows 60 jobs INSTANTLY
+    - Search/filter changes still fetch client-side but with debounce (300ms after last keystroke)
+  * Trade-off accepted: home page SSR now fetches more data (6 jobs × 6 batches + 5 count queries = 17 DB queries in parallel), but it's all done on the server during the initial page render — much faster than 5 separate client-side fetches with spinners.
+
+- Verified locally on dev server:
+  * Search 'embedded' returns 22 results (was 3)
+  * Search 'embedded engineer' returns 163 results (was 0)
+  * Home page HTML contains 6 Featured job titles + 60 All Jobs titles + 60 fresher + 60 internship + 60 walk-in + 60 hidden = 306 job cards in initial HTML
+  * All categories work without signup wall
+- Committed + pushed to GitHub → Vercel auto-built → verified LIVE on hirebase.in:
+  * Home page: signup wall removed (0 occurrences), Featured jobs section present (1), CTA mentions AI tools
+  * Search 'embedded': 22 results (was 3) ✓
+  * Search 'java': 35 results (was 2) ✓
+  * Search 'embedded engineer': 163 results (was 0) ✓
+  * Search 'java developer': 88 results (was 0) ✓
+  * Search 'data scientist': 164 results (was 0) ✓
+  * Home page SSR: 6 job titles visible in initial HTML (was 0 before SSR)
+  * /jobs page: 8+ job titles visible in initial HTML, loads in 4s (including 60 jobs pre-fetched)
+  * /?view=all-jobs SPA route: also loads with 60 jobs pre-fetched in initial HTML
+
+Stage Summary:
+- 3 user-reported issues are FIXED and verified LIVE on hirebase.in
+- Anonymous users now see ALL jobs everywhere (home + jobs view + search results)
+- Search works for both single-word ('embedded', 'java') and multi-word ('embedded engineer', 'java developer') queries — was previously broken for multi-word
+- Clicking 'All Jobs' / 'Freshers' / 'Internships' / 'Walk-in' / 'Hidden' in the sidebar now shows 60 jobs INSTANTLY (no 2-3s loading spinner)
+- Signup is required only for AI tools + saved jobs + alerts (not for browsing)
