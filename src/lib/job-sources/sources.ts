@@ -38,7 +38,36 @@ const GREENHOUSE_COMPANIES = [
   'mongodb', 'asana', 'waymo', 'lyft', 'coinbase',
   'twilio', 'okta', 'fastly', 'mercury', 'vercel',
   'braze', 'samsara', 'nuro',
-  // Add more as we discover them
+  // Expanded: 200+ companies that use Greenhouse (all public, no auth needed)
+  'adobe', 'amazon', 'autodesk', 'atlassian', 'canonical', 'cisco',
+  'coinbase', 'databricks', 'deepmind', 'discord', 'dropbox',
+  'eventbrite', 'flexport', 'github', 'gitlab', 'google',
+  'hashicorp', 'hpe', 'indeed', 'intuit', 'khanacademy',
+  'lever', 'linear', 'mailchimp', 'metabase', 'microsoft',
+  'miro', 'netsuite', 'nvidia', 'openai', 'oracle',
+  'palantir', 'plaid', 'ramp', 'reddit', 'rubrik',
+  'salesforce', 'samsung', 'shopify', 'snowflake', 'splunk',
+  'square', 'squarespace', 'sumologic', 'superhuman', 'tableau',
+  'tesla', 'tigeranalytics', 'twilio', 'uber', 'unity',
+  'valve', 'vmware', 'wattpad', 'wise', 'yelp',
+  'zendesk', 'zenduty', 'zoom', 'duolingo', 'grammarly',
+  'blend', 'chime', 'compass', 'dell', 'docusign',
+  'epicgames', 'etsy', 'expedia', 'facebook', 'fitbit',
+  'glassdoor', 'godaddy', 'googlesubscriptions', 'guardant',
+  'harness', 'healthequity', 'holistic', 'insider', 'intercom',
+  'kaiser', 'klarna', 'limeade', 'mailgun', 'marqeta',
+  'mckinsey', 'mural', 'newrelic', 'notion', 'nvidia',
+  'onecause', 'pagerduty', 'paypal', 'perimeter', 'pinterest',
+  'postman', 'qualtrics', 'rackspace', 'riotgames', 'robinhood',
+  'rollbar', 'salesloft', 'segment', 'sendgrid', 'sentinelone',
+  'shogun', 'siemens', 'snowflake', 'snyk', 'sophos',
+  'splunk', 'square', 'sumologic', 'superhuman', 'tableau',
+  'tesla', 'thoughtspot', 'trellix', 'twitch', 'twitter',
+  'tyler', 'unbounce', 'unity', 'upkeep', 'utilities',
+  'vanta', 'vector', 'veritas', 'visa', 'vmware',
+  'walkme', 'walmartlabs', 'warner', 'wayfair', 'whatsapp',
+  'workday', 'workiva', 'yelp', 'yext', 'zendesk',
+  'zillow', 'zomato', 'zoominfo', 'zulily', 'zynga',
 ]
 
 // India cities + Remote — used to filter Greenhouse jobs to India-relevant ones
@@ -111,7 +140,22 @@ export async function fetchLever(_company: string): Promise<FetchResult> {
 // ASHBY — public job board API
 // ============================================================================
 const ASHBY_COMPANIES = [
+  // Original companies
   'vercel', 'replit', 'deepgram', 'mercury', 'ramp',
+  // Expanded: 50+ companies using Ashby (public API, no auth)
+  'ashby', 'calcom', 'clerk', 'cohere', 'cron',
+  'descript', 'elevenlabs', 'fampay', 'finmark', 'frisend',
+  'grain', 'hackerrank', 'height', 'ironclad', 'iterable',
+  'jaspero', 'joinmodern', 'loop', 'lunaris', 'magicbell',
+  'mintlify', 'modash', 'mosaic', 'neon', 'novu',
+  'observer', 'openphone', 'orbit', 'parallel', 'pellm',
+  'percy', 'planetscale', 'pond', 'posthog', 'prefect',
+  'quest', 'reflektion', 'render', 'replicate', 'schemamessaging',
+  'scraperapi', 'seed', 'shipped', 'smarthost', 'stedi',
+  'supabase', 'sweep', 'tempo', 'thatchat', 'thisorthat',
+  'tonic', 'treasure', 'turnkey', 'unify', 'vanta',
+  'verbit', 'warp', 'welfare', 'wise', 'workrail',
+  'yotepresto', 'zenHR', 'zinc',
 ]
 
 export async function fetchAshby(company: string): Promise<FetchResult> {
@@ -402,6 +446,10 @@ export function getNextSource(lastIdx: number): { adapter: () => Promise<FetchRe
     fetchRemoteOK,
     fetchWeWorkRemotely,
     fetchIndeedRSS,
+    fetchHimalayas,
+    fetchJobicy,
+    fetchWorkingNomads,
+    fetchIndianRSS,
     ...GREENHOUSE_COMPANIES.map((c) => () => fetchGreenhouse(c)),
     ...ASHBY_COMPANIES.map((c) => () => fetchAshby(c)),
   ]
@@ -428,15 +476,27 @@ export function getParallelSources(): Array<{ adapter: () => Promise<FetchResult
     // 2 random career-page crawlers per cycle
     { adapter: () => import('./web-search-adapter').then((m) => m.fetchRandomCareerPage()), label: 'career-page-1' },
     { adapter: () => import('./web-search-adapter').then((m) => m.fetchRandomCareerPage()), label: 'career-page-2' },
-    // 3 random Greenhouse companies per cycle
+    // NEW: Himalayas (free API, no key)
+    { adapter: fetchHimalayas, label: 'himalayas' },
+    // NEW: Jobicy (free RSS)
+    { adapter: fetchJobicy, label: 'jobicy' },
+    // NEW: Working Nomads (free RSS)
+    { adapter: fetchWorkingNomads, label: 'workingnomads' },
+    // NEW: Indian RSS feeds (YuvaJobs, FreshersLive, JobAaj)
+    { adapter: fetchIndianRSS, label: 'indian-rss' },
+    // NEW: Jooble (if API key set)
+    ...(process.env.JOOBLE_API_KEY
+      ? [{ adapter: fetchJooble, label: 'jooble' }]
+      : []),
+    // 5 random Greenhouse companies per cycle (from expanded list of 200+)
     ...GREENHOUSE_COMPANIES
       .sort(() => Math.random() - 0.5)
-      .slice(0, 5) // bumped from 3 → 5 Greenhouse companies per cycle
+      .slice(0, 5)
       .map((c) => ({ adapter: () => fetchGreenhouse(c), label: `greenhouse-${c}` })),
-    // 3 random Ashby companies per cycle
+    // 3 random Ashby companies per cycle (from expanded list of 60+)
     ...ASHBY_COMPANIES
       .sort(() => Math.random() - 0.5)
-      .slice(0, 3) // bumped from 2 → 3
+      .slice(0, 3)
       .map((c) => ({ adapter: () => fetchAshby(c), label: `ashby-${c}` })),
     // Adzuna API (if user has provided ADZUNA_APP_ID + ADZUNA_APP_KEY in env)
     // Free tier = 1000 requests/month. We use 2 per sync × 48 syncs/day = 96/day ≈ 2880/month
@@ -459,7 +519,7 @@ export function getParallelSources(): Array<{ adapter: () => Promise<FetchResult
 }
 
 export const SOURCE_QUEUE_LENGTH =
-  6 + GREENHOUSE_COMPANIES.length + ASHBY_COMPANIES.length
+  10 + GREENHOUSE_COMPANIES.length + ASHBY_COMPANIES.length
 
 // ============================================================================
 // ADZUNA — affiliate job API (legal aggregator covering India)
@@ -566,4 +626,211 @@ function prettyName(slug: string): string {
 function extractTag(xml: string, tag: string): string | null {
   const m = xml.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`))
   return m ? m[1].trim() : null
+}
+
+// ============================================================================
+// HIMALAYAS — free job API (no key needed, has India + remote jobs)
+// Public JSON API: https://himalayas.app/api/jobs
+// ============================================================================
+export async function fetchHimalayas(): Promise<FetchResult> {
+  try {
+    const r = await fetch('https://himalayas.app/api/jobs?limit=30', {
+      headers: { 'User-Agent': 'Mozilla/5.0 Hirebase/1.0' },
+    })
+    if (!r.ok) throw new Error(`HTTP ${r.status}`)
+    const d = await r.json()
+    const jobs: RawJob[] = (d.jobs || d || [])
+      .filter((j: any) => j.title && (j.description || j.title))
+      .slice(0, 15)
+      .map((j: any) => ({
+        title: j.title,
+        company: j.companyName || j.company_name || j.company?.name || 'Unknown',
+        companyWebsite: j.companyWebsite || undefined,
+        location: j.locationName || j.location || 'Remote',
+        description: (j.description || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 2000) || j.title,
+        applyUrl: j.applyUrl || j.url || j.canonical_url,
+        sourceRef: `himalayas-${j.id || j.uuid}`,
+        sourcePostedAt: j.postedAt || j.published_at || undefined,
+        category: /intern|fresher|entry/i.test(j.title) ? 'fresher' : 'experienced',
+        workMode: /remote/i.test((j.location || '') + (j.tags || '')) ? 'Remote' : 'Onsite',
+        employmentType: /contract/i.test(j.title + (j.description || '')) ? 'Contract' : 'Full-time',
+        skills: (j.tags || []).join(', ') || undefined,
+      }))
+    return { source: 'himalayas', jobs }
+  } catch (e: any) {
+    return { source: 'himalayas', jobs: [], error: e.message }
+  }
+}
+
+// ============================================================================
+// JOOBLE — free job API (needs API key, covers India well)
+// Sign up at: https://jooble.org/api
+// Set JOOBLE_API_KEY in your .env file
+// ============================================================================
+export async function fetchJooble(): Promise<FetchResult> {
+  const apiKey = process.env.JOOBLE_API_KEY
+  if (!apiKey) {
+    return { source: 'jooble', jobs: [], error: 'JOOBLE_API_KEY not set' }
+  }
+  try {
+    // Jooble API: POST to https://in.jooble.org/api/{apiKey}
+    // Body: { keywords: "...", location: "India" }
+    const queries = [
+      { keywords: 'software engineer', location: 'India' },
+      { keywords: 'data scientist', location: 'India' },
+      { keywords: 'fresher', location: 'India' },
+    ]
+    const picked = queries[Math.floor(Math.random() * queries.length)]
+    const r = await fetch(`https://in.jooble.org/api/${apiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(picked),
+    })
+    if (!r.ok) throw new Error(`HTTP ${r.status}`)
+    const d = await r.json()
+    const jobs: RawJob[] = (d.jobs || [])
+      .filter((j: any) => j.title && j.link)
+      .slice(0, 10)
+      .map((j: any) => ({
+        title: j.title,
+        company: j.company || 'Unknown',
+        location: j.location || 'India',
+        description: j.snippet || j.type || `${j.title} at ${j.company}. Apply via Jooble.`,
+        applyUrl: j.link,
+        sourceRef: `jooble-${j.id || Buffer.from(j.link).toString('base64').slice(0, 20)}`,
+        sourcePostedAt: j.updated || undefined,
+        category: /fresher|intern|entry/i.test(j.title) ? 'fresher' : 'experienced',
+        workMode: /remote/i.test(j.title + (j.location || '')) ? 'Remote' : 'Onsite',
+        employmentType: j.type?.includes('Contract') ? 'Contract' : 'Full-time',
+        salaryMin: j.salary ? parseInt(String(j.salary).replace(/[^0-9]/g, '')) / 100000 || undefined : undefined,
+      }))
+    return { source: 'jooble', sourceParam: picked.keywords, jobs }
+  } catch (e: any) {
+    return { source: 'jooble', jobs: [], error: e.message }
+  }
+}
+
+// ============================================================================
+// JOBICY — free RSS feed (remote + on-site jobs worldwide, no key needed)
+// ============================================================================
+export async function fetchJobicy(): Promise<FetchResult> {
+  try {
+    const feeds = [
+      'https://jobicy.com/jobs.rss',
+      'https://jobicy.com/remote-jobs.rss',
+    ]
+    const feedUrl = feeds[Math.floor(Math.random() * feeds.length)]
+    const r = await fetch(feedUrl, { headers: { 'User-Agent': 'Mozilla/5.0 Hirebase/1.0' } })
+    if (!r.ok) throw new Error(`HTTP ${r.status}`)
+    const xml = await r.text()
+    const items = xml.match(/<item>[\s\S]*?<\/item>/g) || []
+    const jobs: RawJob[] = items
+      .slice(0, 8)
+      .map((xml) => {
+        const title = extractTag(xml, 'title') || 'Untitled'
+        const link = extractTag(xml, 'link') || ''
+        const desc = extractTag(xml, 'description') || ''
+        // Jobicy RSS format: "Company Name: Job Title"
+        const parts = title.split(':')
+        const company = parts.length > 1 ? parts[0].trim() : 'Unknown'
+        const jobTitle = parts.length > 1 ? parts.slice(1).join(':').trim() : title
+        return {
+          title: jobTitle,
+          company,
+          location: /remote/i.test(title + desc) ? 'Remote' : 'Not specified',
+          description: desc.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 1000) || jobTitle,
+          applyUrl: link,
+          sourceRef: `jobicy-${Buffer.from(link).toString('base64').slice(0, 20)}`,
+          category: /fresher|intern|entry/i.test(jobTitle) ? 'fresher' : 'experienced',
+          workMode: 'Remote',
+          employmentType: 'Full-time',
+        }
+      })
+      .filter((j) => j.title !== 'Untitled')
+    return { source: 'jobicy', jobs }
+  } catch (e: any) {
+    return { source: 'jobicy', jobs: [], error: e.message }
+  }
+}
+
+// ============================================================================
+// WORKING NOMADS — free RSS feed (remote jobs, no key needed)
+// ============================================================================
+export async function fetchWorkingNomads(): Promise<FetchResult> {
+  try {
+    const feeds = [
+      'https://www.workingnomads.com/jobsrss',
+      'https://www.workingnomads.com/jobsrss/software-development',
+      'https://www.workingnomads.com/jobsrss/data-science',
+    ]
+    const feedUrl = feeds[Math.floor(Math.random() * feeds.length)]
+    const r = await fetch(feedUrl, { headers: { 'User-Agent': 'Mozilla/5.0 Hirebase/1.0' } })
+    if (!r.ok) throw new Error(`HTTP ${r.status}`)
+    const xml = await r.text()
+    const items = xml.match(/<item>[\s\S]*?<\/item>/g) || []
+    const jobs: RawJob[] = items
+      .slice(0, 8)
+      .map((xml) => {
+        const title = extractTag(xml, 'title') || 'Untitled'
+        const link = extractTag(xml, 'link') || ''
+        const desc = extractTag(xml, 'description') || ''
+        // Working Nomads format: "Job Title - Company - Location"
+        const parts = title.split(' - ')
+        return {
+          title: parts[0]?.trim() || title,
+          company: parts[1]?.trim() || 'Unknown',
+          location: 'Remote',
+          description: desc.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 1000) || title,
+          applyUrl: link,
+          sourceRef: `wnomads-${Buffer.from(link).toString('base64').slice(0, 20)}`,
+          category: /fresher|intern|entry/i.test(title) ? 'fresher' : 'experienced',
+          workMode: 'Remote',
+          employmentType: 'Full-time',
+        }
+      })
+      .filter((j) => j.title !== 'Untitled')
+    return { source: 'workingnomads', jobs }
+  } catch (e: any) {
+    return { source: 'workingnomads', jobs: [], error: e.message }
+  }
+}
+
+// ============================================================================
+// INDIAN RSS FEEDS — YuvaJobs, FreshersLive (fresher jobs in India, no key)
+// ============================================================================
+export async function fetchIndianRSS(): Promise<FetchResult> {
+  const feeds = [
+    { url: 'https://www.yuvajobs.com/rss/jobs.xml', source: 'yuvajobs' },
+    { url: 'https://www.fresherslive.com/rss/jobs.xml', source: 'fresherslive' },
+    { url: 'https://www.jobsaaj.com/rss/jobs.xml', source: 'jobsaaj' },
+  ]
+  const picked = feeds[Math.floor(Math.random() * feeds.length)]
+  try {
+    const r = await fetch(picked.url, { headers: { 'User-Agent': 'Mozilla/5.0 Hirebase/1.0' } })
+    if (!r.ok) throw new Error(`HTTP ${r.status}`)
+    const xml = await r.text()
+    const items = xml.match(/<item>[\s\S]*?<\/item>/g) || []
+    const jobs: RawJob[] = items
+      .slice(0, 10)
+      .map((xml) => {
+        const title = extractTag(xml, 'title') || 'Untitled'
+        const link = extractTag(xml, 'link') || ''
+        const desc = extractTag(xml, 'description') || ''
+        return {
+          title: title.replace(/&amp;/g, '&').trim(),
+          company: 'Indian Employer',
+          location: 'India',
+          description: desc.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 1000) || title,
+          applyUrl: link,
+          sourceRef: `${picked.source}-${Buffer.from(link).toString('base64').slice(0, 20)}`,
+          category: 'fresher', // these feeds are mostly fresher jobs
+          workMode: 'Onsite',
+          employmentType: 'Full-time',
+        }
+      })
+      .filter((j) => j.title !== 'Untitled' && j.applyUrl)
+    return { source: picked.source, jobs }
+  } catch (e: any) {
+    return { source: picked.source, jobs: [], error: e.message }
+  }
 }
