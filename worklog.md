@@ -646,3 +646,104 @@ Stage Summary:
 - Admin/sync-status/auth routes marked noindex (don't waste Google's crawl budget)
 - Sitemap expanded to 551 URLs
 - Next.js Link prefetching enabled — sidebar items prefetch their target route on hover for instant navigation
+
+---
+Task ID: 11
+Agent: main
+Task: AdSense-ready legal pages + Razorpay Pro subscription + paywall integration
+
+Work Log:
+- Created 4 AdSense-required legal pages:
+  * /privacy — 12-section Privacy Policy (GDPR + IT Act compliant, includes AdSense advertising cookie disclosure)
+  * /terms — 16-section Terms of Service (covers AI tools, payments, refunds, IP, termination)
+  * /disclaimer — 11-section Disclaimer (job accuracy, AI outputs, ads, external links)
+  * /contact — Contact page with working form (subject dropdown + mailto fallback)
+- Updated both footers (HomeShell + SiteShell) with 4 legal links: Contact, Privacy, Terms, Disclaimer
+- Updated sitemap.xml with all new pages (now 562 URLs)
+- Updated robots.txt to disallow user-only pages (/admin, /auth, /upgrade, /profile, /saved, /tracker, /alerts, /sync-status)
+- Added subscription fields to User model:
+  * subscriptionTier (free | pro | recruiter)
+  * subscriptionEndsAt (DateTime)
+  * razorpayCustomerId, razorpaySubscriptionId
+  * 6 usage counters (resumeOptimizationsUsed, coverLettersUsed, mockInterviewsUsed, atsChecksUsed, skillGapAnalysesUsed, salaryPredictionsUsed)
+  * usageResetAt (DateTime)
+- Added Payment model for transaction records (id, userId, razorpayOrderId, razorpayPaymentId, razorpaySignature, amount, currency, status, plan, receipt)
+- Pushed schema to production Supabase DB
+- Installed razorpay npm package
+- Created /lib/razorpay.ts: getRazorpay() client + verifyRazorpaySignature() with timing-safe compare
+- Created /lib/subscription.ts: complete paywall logic
+  * PRICING constant: pro_monthly ₹299, pro_annual ₹2,499, recruiter ₹4,999
+  * FREE_TIER_LIMITS: 1 use per AI tool per month
+  * PRO_TIER_LIMITS: 10-50 uses per AI tool per month
+  * isProUser(), tierLabel(), daysUntilExpiry() — read helpers
+  * canUseAITool() — checks auth + tier + usage + auto-resets monthly counters
+  * incrementUsage() — atomic counter increment after AI call
+  * activateSubscription() — sets tier + extends subscriptionEndsAt + resets counters
+- Created /lib/auth-server.ts: getCurrentUser() helper for AI routes
+- Updated /api/auth/me to return subscriptionTier, subscriptionEndsAt, all 6 usage counters, usageResetAt (with date serialization)
+- Created 3 payment API routes:
+  * /api/payment/create-order — creates Razorpay order + Payment record
+  * /api/payment/verify — verifies signature + activates subscription
+  * /api/payment/webhook — accepts Razorpay webhooks (idempotent)
+- Added paywall to all 6 user-facing AI routes:
+  * /api/ai/resume-optimize
+  * /api/ai/ats-score
+  * /api/ai/cover-letter
+  * /api/ai/mock-interview (smart — only counts new sessions, not follow-up messages)
+  * /api/ai/skill-gap
+  * /api/ai/salary-predict
+  Each route returns { result, usage: { used, limit, remaining, isPro } } so the UI can show remaining quota + Upgrade CTA. On 403, response includes requiresUpgrade: true.
+- Created /upgrade page:
+  * 3 pricing tiers: Pro Monthly ₹299, Pro Annual ₹2,499 (BEST VALUE — saves 30%), Recruiter ₹4,999
+  * Razorpay Checkout integration — loads checkout.razorpay.com/v1/checkout.js, opens modal with prefill (name, email), custom emerald branding
+  * Success modal after payment with 'Try AI Resume Optimizer' CTA
+  * Feature comparison table (17 features × Free vs Pro)
+  * FAQ section (6 questions)
+  * Trust signals (7-day money-back, cancel anytime, 100% secure)
+  * 'Already Pro' banner if user has active subscription
+- Redesigned /pricing page:
+  * Hero with 'Free forever' badge
+  * 2-column Free vs Pro comparison cards
+  * 8 highlighted Pro features with icons
+  * FAQ section with FAQ schema (eligible for Google rich snippets)
+  * BreadcrumbList JSON-LD
+  * CTA section with 'Browse jobs' + 'Upgrade to Pro' buttons
+- Updated Sidebar:
+  * Added 'Upgrade to Pro' CTA card (gradient violet-to-primary) — only for non-Pro users, links to /upgrade
+  * Added 'Pro Active' badge — only for Pro users, shows subscription expiry date
+- Created deployment guide: Hirebase_Razorpay_Setup_Guide.md + .pdf (saved to /download/)
+
+Verified LIVE on hirebase.in:
+- /privacy → HTTP 200, 12 sections, includes 'Google AdSense' + 'GDPR' + 'Information Technology Act' mentions
+- /terms → HTTP 200, 16 sections
+- /disclaimer → HTTP 200, 11 sections
+- /contact → HTTP 200, working form with subject dropdown
+- /upgrade → HTTP 200, Pro Monthly ₹299 visible, BEST VALUE badge, FAQ section
+- /pricing → HTTP 200, 'Free forever' badge, FAQ schema + Breadcrumb schema present
+- Footer legal links: Privacy (1), Terms (1), Disclaimer (1), Contact (1) — all visible on home page
+- Sidebar Upgrade CTA visible on home page
+- All 6 AI routes return 403 with requiresUpgrade: true for unauthenticated users:
+  * /api/ai/resume-optimize ✓
+  * /api/ai/ats-score ✓
+  * /api/ai/cover-letter ✓
+  * /api/ai/mock-interview ✓
+  * /api/ai/skill-gap ✓
+  * /api/ai/salary-predict ✓
+- Sitemap URL count: 562 (up from 551)
+
+Stage Summary:
+- All AdSense requirements met (4 legal pages + contact + about + original content + navigation)
+- Razorpay integration complete — user just needs to add API keys to Vercel env vars to enable payments
+- Pro tier paywall active on all 6 AI tools
+- /upgrade page ready with 3 pricing tiers + Razorpay Checkout
+- Sidebar shows Upgrade CTA for free users + Pro badge for paid users
+- Pricing strategy: Free ₹0, Pro ₹299/month, Pro Annual ₹2,499/year (save 30%), Recruiter ₹4,999/month
+- Deployment guide saved at /download/Hirebase_Razorpay_Setup_Guide.md + .pdf
+
+Next steps for user (cannot be done by AI — require Razorpay account + Vercel access):
+1. Sign up at razorpay.com (5 min)
+2. Get test API keys (rzp_test_...) from dashboard
+3. Set RAZORPAY_KEY_ID + RAZORPAY_KEY_SECRET env vars on Vercel
+4. Test payment flow with test card 4111 1111 1111 1111
+5. After testing works: complete Razorpay KYC → switch to live keys
+6. Apply for AdSense in 2-3 months (after domain age + some organic traffic)
