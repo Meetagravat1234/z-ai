@@ -49,7 +49,10 @@ export function DownloadButtons({ markdown, baseFileName = 'resume', className }
       }
 
       // Step 2: Generate the file client-side
-      const fileName = `${baseFileName}-${new Date().toISOString().split('T')[0]}.${format === 'pdf' ? 'pdf' : 'docx'}`
+      // Use simple filename without date/time (user requested no metadata)
+      const fileName = format === 'pdf'
+        ? `${baseFileName}.pdf`
+        : `${baseFileName}.docx`
       if (format === 'pdf') {
         await generatePdfFromMarkdown(markdown, fileName)
         toast.info('Print dialog opened — select "Save as PDF" to download your resume.')
