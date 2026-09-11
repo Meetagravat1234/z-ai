@@ -1,25 +1,18 @@
 import { NextResponse } from 'next/server'
 
 // GET /robots.txt — tells search engines what to crawl
+// SECURITY: Don't list specific API paths — that reveals the attack surface to attackers.
+// Instead, use generic patterns.
 export async function GET() {
   const baseUrl = 'https://www.hirebase.in'
   const body = `User-agent: *
 Allow: /
 
-# Sitemaps
+# Sitemap
 Sitemap: ${baseUrl}/sitemap.xml
 
-# Block admin and API routes
-Disallow: /api/admin/
-Disallow: /api/auth/
-Disallow: /api/sync/
-Disallow: /api/upload/
-Disallow: /api/debug/
-Disallow: /api/jobs/ingest
-Disallow: /api/jobs/cleanup
-Disallow: /api/jobs/compare
-Disallow: /api/alerts/send
-Disallow: /api/payment/
+# Block all API routes (generic — don't reveal specific endpoint names)
+Disallow: /api/
 
 # Block user-only pages from being indexed
 Disallow: /admin
@@ -30,14 +23,6 @@ Disallow: /tracker
 Disallow: /alerts
 Disallow: /auth
 Disallow: /upgrade
-
-# Allow job and company API for indexing
-Allow: /api/jobs?
-Allow: /api/companies
-Allow: /api/articles
-Allow: /api/reviews
-Allow: /api/salary-reports
-Allow: /api/analytics/salary
 
 # Crawl rate
 Crawl-delay: 1

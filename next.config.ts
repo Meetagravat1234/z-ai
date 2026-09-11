@@ -6,27 +6,63 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   reactStrictMode: false,
-  // Force browsers to always fetch fresh HTML (prevents stale JS issues)
-  // Static assets (JS/CSS chunks) are still cached normally via their hashed filenames
+  // Remove x-powered-by header (security — don't disclose tech stack)
+  poweredByHeader: false,
   async headers() {
+    const securityHeaders = [
+      {
+        key: 'X-Content-Type-Options',
+        value: 'nosniff',
+      },
+      {
+        key: 'X-Frame-Options',
+        value: 'DENY',
+      },
+      {
+        key: 'Referrer-Policy',
+        value: 'strict-origin-when-cross-origin',
+      },
+      {
+        key: 'Permissions-Policy',
+        value: 'camera=(), microphone=(), geolocation=(), browsing-topics=()',
+      },
+      {
+        key: 'X-DNS-Prefetch-Control',
+        value: 'on',
+      },
+      {
+        key: 'Strict-Transport-Security',
+        value: 'max-age=63072000; includeSubDomains; preload',
+      },
+      {
+        key: 'Content-Security-Policy',
+        value: [
+          "default-src 'self'",
+          "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://checkout.razorpay.com",
+          "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+          "font-src 'self' data:",
+          "img-src 'self' data: https: blob:",
+          "connect-src 'self' https://www.hirebase.in https://checkout.razorpay.com https://api.razorpay.com",
+          "frame-src 'self' https://api.razorpay.com https://checkout.razorpay.com",
+          "object-src 'none'",
+          "base-uri 'self'",
+          "form-action 'self'",
+        ].join('; '),
+      },
+    ]
+
     return [
       {
         source: '/(.*)',
         headers: [
-          {
-            key: 'Cache-Control',
-            value: 'no-cache, must-revalidate',
-          },
+          { key: 'Cache-Control', value: 'no-cache, must-revalidate' },
+          ...securityHeaders,
         ],
       },
       {
-        // Static JS/CSS chunks have hashed filenames — safe to cache long-term
         source: '/_next/static/(.*)',
         headers: [
-          {
-            key: 'Cache-Control',
-            value: 'public, max-age=31536000, immutable',
-          },
+          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
         ],
       },
     ];

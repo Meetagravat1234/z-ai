@@ -1,10 +1,21 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { sendJobAlertEmail } from '@/lib/email/send-alerts'
+import { getAdminUser } from '@/lib/admin-auth'
 
 // GET /api/alerts/send — triggered by cron-job.org daily
-// Finds all active alerts → matches new jobs → sends email digests
-export async function GET() {
+// CRITICAL: Now requires either admin auth OR a CRON_SECRET header.
+// Previously was open to anyone — attackers could trigger mass email spam.
+export async function GET(req: Request) {
+  // Auth check — allow admin OR a secret cron token
+  const admin = await getAdminUser()
+  const cronSecret = req.headers.get('x-cron-secret')
+  const validCronSecret = process.env.CRON_SECRET
+
+  if (!admin && !(cronSecret && validCronSecret && cronSecret === validCronSecret)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   try {
     // Get all active alerts that haven't been sent in the last 20 hours
     const twentyHoursAgo = new Date(Date.now() - 20 * 60 * 60 * 1000)

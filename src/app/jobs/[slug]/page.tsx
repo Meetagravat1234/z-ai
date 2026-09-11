@@ -168,19 +168,9 @@ async function JobDetailPage({ slug }: { slug: string }) {
   }
 
   if (!job) {
-    return (
-      <SiteShell>
-        <div className="text-center py-16 rounded-2xl border border-dashed border-border">
-          <p className="text-muted-foreground mb-4">This job may have been removed or is no longer available.</p>
-          <Link
-            href="/jobs"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground font-semibold"
-          >
-            Browse all jobs
-          </Link>
-        </div>
-      </SiteShell>
-    )
+    // Return actual HTTP 404 status — prevents soft-404 SEO issues
+    // (Google was indexing junk pages like /jobs/anything-nonexistent as 200 OK)
+    notFound()
   }
 
   // Serialize dates for client component

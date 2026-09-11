@@ -87,6 +87,11 @@ export const metadata: Metadata = {
     },
   },
   category: "jobs",
+  icons: {
+    icon: '/favicon.svg',
+    shortcut: '/favicon.svg',
+    apple: '/favicon.svg',
+  },
 };
 
 export const viewport = {

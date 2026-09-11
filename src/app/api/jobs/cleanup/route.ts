@@ -1,8 +1,16 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { getAdminUser } from '@/lib/admin-auth'
 
 // GET /api/jobs/cleanup — deletes jobs older than 60 days
-export async function GET() {
+// CRITICAL: Now requires admin authentication. Previously was open to anyone.
+export async function GET(req: Request) {
+  // Auth check — only admins can trigger cleanup
+  const admin = await getAdminUser()
+  if (!admin) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   try {
     const sixtyDaysAgo = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000)
     const oldJobs = await db.job.count({ where: { postedAt: { lt: sixtyDaysAgo } } })
