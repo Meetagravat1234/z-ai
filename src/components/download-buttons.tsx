@@ -52,18 +52,15 @@ export function DownloadButtons({ markdown, baseFileName = 'resume', className }
       const fileName = `${baseFileName}-${new Date().toISOString().split('T')[0]}.${format === 'pdf' ? 'pdf' : 'docx'}`
       if (format === 'pdf') {
         await generatePdfFromMarkdown(markdown, fileName)
+        toast.info('Print dialog opened — select "Save as PDF" to download your resume.')
       } else {
         await generateDocxFromMarkdown(markdown, fileName)
+        toast.success(`Downloaded ${fileName}`)
       }
 
-      // Step 3: Show success toast with remaining quota
-      const usage = d
-      if (usage?.remaining !== undefined) {
-        toast.success(
-          `Downloaded ${fileName} · ${usage.remaining} ${format === 'pdf' ? 'PDF' : 'DOCX'} downloads left this month`,
-        )
-      } else {
-        toast.success(`Downloaded ${fileName}`)
+      // Show remaining quota
+      if (d?.remaining !== undefined && format === 'docx') {
+        toast.success(`Downloaded ${fileName} · ${d.remaining} DOCX downloads left this month`)
       }
     } catch (e: any) {
       console.error('Download error:', e)

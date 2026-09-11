@@ -1,118 +1,137 @@
 /**
  * Resume / cover-letter export utilities.
  *
- * Two formats supported:
- *   - PDF  (using jsPDF — client-side, no server)
- *   - DOCX (using docx package — client-side, no server)
+ * PDF: Uses browser's native print engine (window.print) via a hidden iframe.
+ *      This produces REAL text-based PDFs (not images) — ATS-friendly + good looking.
+ *      The user clicks "Download PDF" → print dialog opens → they save as PDF.
  *
- * Both take markdown text from the AI output and produce a properly formatted
- * document with headings, bullet points, and proper typography.
- *
- * Why client-side:
- *   - No Vercel function timeout issues
- *   - No server CPU cost
- *   - Works offline after page load
- *   - Instant download (no waiting for server)
- *
- * Both functions return a Blob that the caller can trigger as a download.
+ * DOCX: Uses the docx npm package to generate a real .docx file client-side.
+ *       Opens in MS Word / Google Docs / LibreOffice. Editable.
  */
 
 // ============================================================
-// Markdown → PDF (using jsPDF)
+// Markdown → PDF (via browser print engine)
 // ============================================================
 export async function generatePdfFromMarkdown(markdown: string, fileName: string): Promise<void> {
-  const { jsPDF } = await import('jspdf')
+  // Convert markdown to clean HTML
+  const html = markdownToHtml(markdown)
 
-  const doc = new jsPDF({
-    unit: 'pt',
-    format: 'a4',
-    compress: true,
-  })
+  // Create a hidden iframe for printing
+  const iframe = document.createElement('iframe')
+  iframe.style.position = 'fixed'
+  iframe.style.right = '0'
+  iframe.style.bottom = '0'
+  iframe.style.width = '0'
+  iframe.style.height = '0'
+  iframe.style.border = '0'
+  document.body.appendChild(iframe)
 
-  // Page dimensions + margins (in points; 1pt = 1/72 inch)
-  const pageWidth = doc.internal.pageSize.getWidth()
-  const pageHeight = doc.internal.pageSize.getHeight()
-  const margin = 50 // ~0.7 inch margins
-  const maxWidth = pageWidth - margin * 2
-  let cursorY = margin
-
-  // Helper: add a new page if cursor is near bottom
-  const ensureSpace = (needed: number) => {
-    if (cursorY + needed > pageHeight - margin) {
-      doc.addPage()
-      cursorY = margin
-    }
+  // Write the resume HTML + print CSS into the iframe
+  const printDoc = iframe.contentWindow?.document
+  if (!printDoc) {
+    document.body.removeChild(iframe)
+    throw new Error('Could not create print window')
   }
 
-  // Helper: wrap text to fit page width
-  const wrapText = (text: string, fontSize: number): string[] => {
-    doc.setFontSize(fontSize)
-    return doc.splitTextToSize(text, maxWidth) as string[]
+  printDoc.open()
+  printDoc.write(`
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>${fileName.replace(/\.pdf$/, '')}</title>
+<style>
+  @page {
+    size: A4;
+    margin: 0.6in 0.7in;
   }
-
-  // Parse markdown line by line
-  const lines = markdown.split('\n')
-  for (const line of lines) {
-    const trimmed = line.trim()
-
-    if (!trimmed) {
-      // Blank line — small vertical spacing
-      cursorY += 8
-      continue
-    }
-
-    // Headings
-    if (trimmed.startsWith('### ')) {
-      ensureSpace(30)
-      doc.setFont('helvetica', 'bold')
-      doc.setFontSize(12)
-      doc.setTextColor(60, 60, 60)
-      const wrapped = wrapText(trimmed.slice(4), 12)
-      doc.text(wrapped, margin, cursorY)
-      cursorY += wrapped.length * 16 + 6
-    } else if (trimmed.startsWith('## ')) {
-      ensureSpace(35)
-      cursorY += 4
-      doc.setFont('helvetica', 'bold')
-      doc.setFontSize(14)
-      doc.setTextColor(20, 20, 20)
-      const wrapped = wrapText(trimmed.slice(3), 14)
-      doc.text(wrapped, margin, cursorY)
-      cursorY += wrapped.length * 18 + 8
-    } else if (trimmed.startsWith('# ')) {
-      ensureSpace(40)
-      doc.setFont('helvetica', 'bold')
-      doc.setFontSize(18)
-      doc.setTextColor(0, 0, 0)
-      const wrapped = wrapText(trimmed.slice(2), 18)
-      doc.text(wrapped, margin, cursorY)
-      cursorY += wrapped.length * 22 + 10
-    } else if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
-      // Bullet point
-      ensureSpace(20)
-      doc.setFont('helvetica', 'normal')
-      doc.setFontSize(11)
-      doc.setTextColor(40, 40, 40)
-      const bulletText = '•  ' + stripMarkdown(trimmed.slice(2))
-      const wrapped = wrapText(bulletText, 11)
-      // Indent bullet points slightly
-      doc.text(wrapped, margin + 12, cursorY)
-      cursorY += wrapped.length * 14 + 3
-    } else {
-      // Regular paragraph
-      ensureSpace(20)
-      doc.setFont('helvetica', 'normal')
-      doc.setFontSize(11)
-      doc.setTextColor(40, 40, 40)
-      const cleanText = stripMarkdown(trimmed)
-      const wrapped = wrapText(cleanText, 11)
-      doc.text(wrapped, margin, cursorY)
-      cursorY += wrapped.length * 14 + 4
-    }
+  * {
+    box-sizing: border-box;
   }
+  body {
+    font-family: 'Calibri', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 11pt;
+    line-height: 1.4;
+    color: #1a1a1a;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  h1 {
+    font-size: 18pt;
+    font-weight: 700;
+    margin: 0 0 8pt 0;
+    color: #0f1a1f;
+    border-bottom: 1.5pt solid #10b981;
+    padding-bottom: 4pt;
+  }
+  h2 {
+    font-size: 13pt;
+    font-weight: 700;
+    margin: 16pt 0 4pt 0;
+    color: #1a1a1a;
+    text-transform: uppercase;
+    letter-spacing: 0.5pt;
+    border-bottom: 0.5pt solid #d1d5db;
+    padding-bottom: 2pt;
+  }
+  h3 {
+    font-size: 11.5pt;
+    font-weight: 700;
+    margin: 12pt 0 3pt 0;
+    color: #374151;
+  }
+  p {
+    margin: 0 0 6pt 0;
+    line-height: 1.45;
+  }
+  ul, ol {
+    margin: 0 0 6pt 0;
+    padding-left: 18pt;
+  }
+  li {
+    margin-bottom: 3pt;
+    line-height: 1.4;
+  }
+  strong {
+    font-weight: 700;
+  }
+  em {
+    font-style: italic;
+  }
+  hr {
+    border: none;
+    border-top: 0.5pt solid #d1d5db;
+    margin: 12pt 0;
+  }
+  a {
+    color: #0563C1;
+    text-decoration: underline;
+  }
+  /* Prevent page breaks inside sections */
+  h2, h3, li {
+    page-break-inside: avoid;
+  }
+</style>
+</head>
+<body>
+${html}
+</body>
+</html>
+  `)
+  printDoc.close()
 
-  // Save the PDF
-  doc.save(fileName)
+  // Wait for the iframe to render, then trigger print
+  await new Promise(resolve => setTimeout(resolve, 500))
+
+  iframe.contentWindow?.focus()
+  iframe.contentWindow?.print()
+
+  // Remove the iframe after print dialog closes
+  setTimeout(() => {
+    if (iframe.parentNode) {
+      document.body.removeChild(iframe)
+    }
+  }, 1000)
 }
 
 // ============================================================
@@ -126,10 +145,8 @@ export async function generateDocxFromMarkdown(markdown: string, fileName: strin
     Paragraph,
     TextRun,
     HeadingLevel,
-    AlignmentType,
   } = docx
 
-  // Parse markdown into paragraphs
   const paragraphs: any[] = []
   const lines = markdown.split('\n')
 
@@ -137,64 +154,65 @@ export async function generateDocxFromMarkdown(markdown: string, fileName: strin
     const trimmed = line.trim()
 
     if (!trimmed) {
-      // Blank line — add small spacer paragraph
       paragraphs.push(new Paragraph({ children: [] }))
       continue
     }
 
-    // Headings
     if (trimmed.startsWith('### ')) {
       paragraphs.push(
         new Paragraph({
           heading: HeadingLevel.HEADING_3,
-          children: [new TextRun({ text: stripMarkdown(trimmed.slice(4)), bold: true, size: 24 })],
-          spacing: { before: 200, after: 100 },
+          children: [new TextRun({ text: stripMarkdown(trimmed.slice(4)), bold: true, size: 23 })],
+          spacing: { before: 200, after: 80 },
         }),
       )
     } else if (trimmed.startsWith('## ')) {
       paragraphs.push(
         new Paragraph({
           heading: HeadingLevel.HEADING_2,
-          children: [new TextRun({ text: stripMarkdown(trimmed.slice(3)), bold: true, size: 28 })],
-          spacing: { before: 240, after: 120 },
+          children: [new TextRun({ text: stripMarkdown(trimmed.slice(3)), bold: true, size: 26 })],
+          spacing: { before: 240, after: 80 },
+          border: {
+            bottom: { color: 'D1D5DB', space: 1, style: 'single', size: 6 },
+          },
         }),
       )
     } else if (trimmed.startsWith('# ')) {
       paragraphs.push(
         new Paragraph({
           heading: HeadingLevel.HEADING_1,
-          children: [new TextRun({ text: stripMarkdown(trimmed.slice(2)), bold: true, size: 36 })],
-          spacing: { before: 280, after: 160 },
+          children: [new TextRun({ text: stripMarkdown(trimmed.slice(2)), bold: true, size: 32, color: '0F1A1F' })],
+          spacing: { before: 0, after: 120 },
+          border: {
+            bottom: { color: '10B981', space: 1, style: 'single', size: 12 },
+          },
         }),
       )
     } else if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
-      // Bullet point
       paragraphs.push(
         new Paragraph({
           children: parseInlineMarkdown(trimmed.slice(2)),
           bullet: { level: 0 },
-          spacing: { after: 60 },
+          spacing: { after: 40 },
         }),
       )
     } else {
-      // Regular paragraph
       paragraphs.push(
         new Paragraph({
           children: parseInlineMarkdown(trimmed),
-          spacing: { after: 80 },
+          spacing: { after: 60 },
         }),
       )
     }
   }
 
-  // Build the document
   const doc = new Document({
     sections: [
       {
         properties: {
           page: {
             margin: {
-              top: 720, // 0.5 inch in twips (1/20 point)
+              top: 720,
               right: 720,
               bottom: 720,
               left: 720,
@@ -209,18 +227,17 @@ export async function generateDocxFromMarkdown(markdown: string, fileName: strin
         document: {
           run: {
             font: 'Calibri',
-            size: 22, // 11pt (size is in half-points)
-            color: '333333',
+            size: 22,
+            color: '1A1A1A',
           },
           paragraph: {
-            spacing: { line: 312 }, // 1.3x line spacing
+            spacing: { line: 280 },
           },
         },
       },
     },
   })
 
-  // Generate the .docx file as a Blob → trigger download
   const blob = await Packer.toBlob(doc)
   triggerDownload(blob, fileName)
 }
@@ -230,64 +247,106 @@ export async function generateDocxFromMarkdown(markdown: string, fileName: strin
 // ============================================================
 
 /**
- * Strip markdown formatting from text (used for PDF where jsPDF can't render **bold** inline).
- * For DOCX we keep the formatting via parseInlineMarkdown().
+ * Convert markdown to clean HTML for PDF printing.
+ * Supports: # H1, ## H2, ### H3, - bullets, **bold**, *italic*, [text](url), ---, paragraphs
  */
-function stripMarkdown(text: string): string {
-  return text
-    .replace(/\*\*([^*]+)\*\*/g, '$1')  // **bold**
-    .replace(/\*([^*]+)\*/g, '$1')        // *italic*
-    .replace(/_([^_]+)_/g, '$1')          // _italic_
-    .replace(/`([^`]+)`/g, '$1')         // `code`
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1')  // [text](url) → text
+function markdownToHtml(md: string): string {
+  const lines = md.split('\n')
+  let html = ''
+  let inList = false
+
+  for (const line of lines) {
+    const trimmed = line.trim()
+
+    if (!trimmed) {
+      if (inList) { html += '</ul>'; inList = false }
+      continue
+    }
+
+    // Horizontal rule
+    if (trimmed === '---' || trimmed === '***' || trimmed === '___') {
+      if (inList) { html += '</ul>'; inList = false }
+      html += '<hr>'
+      continue
+    }
+
+    // Headings
+    if (trimmed.startsWith('### ')) {
+      if (inList) { html += '</ul>'; inList = false }
+      html += `<h3>${inlineHtml(trimmed.slice(4))}</h3>`
+    } else if (trimmed.startsWith('## ')) {
+      if (inList) { html += '</ul>'; inList = false }
+      html += `<h2>${inlineHtml(trimmed.slice(3))}</h2>`
+    } else if (trimmed.startsWith('# ')) {
+      if (inList) { html += '</ul>'; inList = false }
+      html += `<h1>${inlineHtml(trimmed.slice(2))}</h1>`
+    } else if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+      if (!inList) { html += '<ul>'; inList = true }
+      html += `<li>${inlineHtml(trimmed.slice(2))}</li>`
+    } else {
+      if (inList) { html += '</ul>'; inList = false }
+      html += `<p>${inlineHtml(trimmed)}</p>`
+    }
+  }
+  if (inList) html += '</ul>'
+  return html
 }
 
-/**
- * Parse inline markdown (bold, italic, code) into TextRun objects for DOCX.
- * Supports: **bold**, *italic*, `code`, [text](url)
- */
+/** Convert inline markdown (**bold**, *italic*, [text](url)) to HTML */
+function inlineHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>')
+}
+
+/** Strip all markdown formatting (for DOCX headings) */
+function stripMarkdown(text: string): string {
+  return text
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/\*([^*]+)\*/g, '$1')
+    .replace(/_([^_]+)_/g, '$1')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1')
+}
+
+/** Parse inline markdown into docx TextRun objects */
 function parseInlineMarkdown(text: string): any[] {
+  const docx = require('docx')
   const runs: any[] = []
-  // Simple regex-based parser: find **bold**, *italic*, `code`, [text](url)
   const regex = /(\*\*([^*]+)\*\*|\*([^*]+)\*|`([^`]+)`|\[([^\]]+)\]\(([^)]+)\))/g
   let lastIndex = 0
   let match
 
   while ((match = regex.exec(text)) !== null) {
-    // Add any text before this match as a normal run
     if (match.index > lastIndex) {
-      runs.push(new (require('docx').TextRun)({ text: text.slice(lastIndex, match.index) }))
+      runs.push(new docx.TextRun({ text: text.slice(lastIndex, match.index) }))
     }
-    // Add the matched run with appropriate formatting
     if (match[2]) {
-      // **bold**
-      runs.push(new (require('docx').TextRun)({ text: match[2], bold: true }))
+      runs.push(new docx.TextRun({ text: match[2], bold: true }))
     } else if (match[3]) {
-      // *italic*
-      runs.push(new (require('docx').TextRun)({ text: match[3], italics: true }))
+      runs.push(new docx.TextRun({ text: match[3], italics: true }))
     } else if (match[4]) {
-      // `code`
-      runs.push(new (require('docx').TextRun)({ text: match[4], font: 'Consolas' }))
+      runs.push(new docx.TextRun({ text: match[4], font: 'Consolas' }))
     } else if (match[5]) {
-      // [text](url) → make text bold + underlined (Word doesn't have native hyperlinks in TextRun)
-      runs.push(new (require('docx').TextRun)({ text: match[5], color: '0563C1', underline: {} }))
+      runs.push(new docx.TextRun({ text: match[5], color: '0563C1', underline: {} }))
     }
     lastIndex = regex.lastIndex
   }
-  // Add any remaining text after last match
   if (lastIndex < text.length) {
-    runs.push(new (require('docx').TextRun)({ text: text.slice(lastIndex) }))
+    runs.push(new docx.TextRun({ text: text.slice(lastIndex) }))
   }
-  // If no markdown was found, return the plain text as a single run
   if (runs.length === 0) {
-    runs.push(new (require('docx').TextRun)({ text }))
+    runs.push(new docx.TextRun({ text }))
   }
   return runs
 }
 
-/**
- * Trigger a browser download for a Blob.
- */
+/** Trigger browser download for a Blob */
 function triggerDownload(blob: Blob, fileName: string): void {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
@@ -296,6 +355,5 @@ function triggerDownload(blob: Blob, fileName: string): void {
   document.body.appendChild(a)
   a.click()
   document.body.removeChild(a)
-  // Clean up the object URL after a short delay (download has started)
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
