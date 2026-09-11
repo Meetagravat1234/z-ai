@@ -26,7 +26,9 @@ export default async function CompaniesPage() {
     ;[companies, total] = await Promise.all([
       db.company.findMany({
         include: { _count: { select: { jobs: { where: { verified: true } } } } },
-        orderBy: { name: 'asc' },
+        orderBy: {
+          jobs: { _count: 'desc' },
+        },
       }),
       db.company.count(),
     ])

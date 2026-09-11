@@ -1,10 +1,9 @@
 'use client'
 
 import { Building2, Target, Eye, Heart, Mail, MapPin, Sparkles, ShieldCheck } from 'lucide-react'
-import { useNav } from '@/lib/nav-store'
+import Link from 'next/link'
 
 export function AboutView() {
-  const { go } = useNav()
   return (
     <div className="space-y-8 pb-8 max-w-3xl">
       <header>
@@ -14,7 +13,7 @@ export function AboutView() {
         </div>
         <h1 className="text-3xl font-extrabold tracking-tight">About Hirebase</h1>
         <p className="text-muted-foreground mt-2 text-lg">
-          Hirebase is a career intelligence platform: verified jobs from employer sources, company research, AI resume tools, and editorial guidance — not a generic repost board.
+          Hirebase is a career intelligence platform: verified jobs, company research, AI resume tools, and editorial guidance — not a generic repost board.
         </p>
       </header>
 
@@ -47,10 +46,10 @@ export function AboutView() {
           Where opportunities come from
         </h2>
         <p className="text-foreground/90 leading-relaxed">
-          Opportunities are identified from official company career pages, public hiring announcements, recruiter or company posts, professional networking sources, and other legitimate public recruitment sources — including employer systems such as Workday, Greenhouse, Oracle, Lever, and SuccessFactors where publicly available.
+          Opportunities on Hirebase are identified from official company career pages, public hiring announcements, and verified professional networking sources. Every listing goes through a technology-assisted discovery and enrichment process before publication.
         </p>
         <p className="text-foreground/90 leading-relaxed mt-3">
-          We use technology-assisted job discovery followed by manual selection, review, enrichment, and publication. We do not automatically publish every discovered opportunity.
+          We do not automatically repost listings from other job boards. Each opportunity is reviewed, enriched with structured metadata (skills, work mode, location, experience level), and linked back to the original employer's application page.
         </p>
       </section>
 
@@ -60,7 +59,7 @@ export function AboutView() {
           Relationship with employers
         </h2>
         <p className="text-sm text-foreground/90 leading-relaxed">
-          Unless explicitly stated otherwise, Hirebase is not the employer for jobs listed on the platform and does not make hiring decisions on behalf of employers. Apply links send you to the employer's own application page. If a listing looks wrong or outdated, use Report a Job or Contact.
+          Unless explicitly stated otherwise, Hirebase is not the employer for jobs listed on the platform and does not make hiring decisions on behalf of employers. Apply links send you to the employer's own application page. If a listing looks wrong or outdated, use Report a Job or <Link href="/contact" className="text-primary hover:underline">Contact us</Link>.
         </p>
       </section>
 
@@ -69,7 +68,6 @@ export function AboutView() {
           <Mail className="w-5 h-5 text-primary mb-2" />
           <h3 className="font-bold mb-1">Contact</h3>
           <p className="text-sm text-muted-foreground">contact@hirebase.in</p>
-          <p className="text-sm text-muted-foreground">+91-87909-XXXXX</p>
         </div>
         <div className="rounded-2xl border border-border bg-card p-5">
           <MapPin className="w-5 h-5 text-primary mb-2" />
@@ -85,12 +83,12 @@ export function AboutView() {
           Built for Indian job seekers by the Hirebase team
         </div>
         <div className="mt-4">
-          <button
-            onClick={() => go('home')}
+          <Link
+            href="/jobs"
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold hover:opacity-90"
           >
             Explore jobs
-          </button>
+          </Link>
         </div>
       </section>
     </div>

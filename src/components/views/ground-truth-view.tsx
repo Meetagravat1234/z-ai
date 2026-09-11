@@ -20,9 +20,9 @@ export function GroundTruthView() {
         <h2 className="text-xl font-bold">Our 5-step verification process</h2>
         <ol className="space-y-4">
           {[
-            { title: 'Source identification', desc: 'We identify opportunities from official company career pages (Workday, Greenhouse, Oracle, Lever, SuccessFactors), public hiring announcements, recruiter posts, and professional networking sources.' },
-            { title: 'Technology-assisted discovery', desc: 'Our crawlers surface candidate listings, but nothing publishes automatically. Every lead goes to a human queue.' },
-            { title: 'Manual review', desc: 'A reviewer checks: Is this real? Is it duplicate? Is the employer legitimate? Is the listing fresh? Is the salary band believable?' },
+            { title: 'Source identification', desc: 'We identify opportunities from official company career pages, public hiring announcements, and verified professional networking sources.' },
+            { title: 'Technology-assisted discovery', desc: 'Our systems surface candidate listings from multiple legitimate channels. Nothing publishes automatically — every lead goes through a review pipeline.' },
+            { title: 'Review & deduplication', desc: 'We check: Is this real? Is it a duplicate? Is the employer legitimate? Is the listing fresh? Is the salary band believable?' },
             { title: 'Enrichment', desc: 'We add structured metadata — skills, work mode, location normalization, experience level, and tags — so you can filter effectively.' },
             { title: 'Publication with provenance', desc: 'We mark each listing as Verified and link back to the original employer page. No middlemen.' },
           ].map((step, i) => (
@@ -52,7 +52,7 @@ export function GroundTruthView() {
       <section className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
           { icon: ShieldCheck, label: 'Verified', value: '100%', desc: 'Of published jobs are reviewed' },
-          { icon: Database, label: 'Sources', value: '5+', desc: 'Categories of employer systems tracked' },
+          { icon: Database, label: 'Sources', value: '30+', desc: 'Channels monitored for new openings' },
           { icon: Search, label: 'Avg. time to publish', value: '< 24h', desc: 'From discovery to listing' },
         ].map((s) => {
           const Icon = s.icon

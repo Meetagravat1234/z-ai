@@ -60,7 +60,9 @@ async function getHomeData(): Promise<HomeInitialData> {
       }),
       db.company.findMany({
         include: { _count: { select: { jobs: { where: { verified: true } } } } },
-        orderBy: { name: 'asc' },
+        orderBy: {
+          jobs: { _count: 'desc' },
+        },
       }),
       db.article.findMany({
         where: { published: true },
