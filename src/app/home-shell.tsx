@@ -64,7 +64,13 @@ function ViewRouter({ view, initialData }: { view: string; initialData?: HomeIni
     case 'discover':
       return <DiscoverView />
     case 'all-jobs':
-      return <JobsView />
+      // Pass SSR-fetched jobs so the page renders instantly (no 2-3s loading spinner)
+      return (
+        <JobsView
+          initialJobs={initialData?.initialAllJobs}
+          initialTotal={initialData?.initialAllJobsTotal}
+        />
+      )
     case 'job-detail':
       return <JobDetailView />
     case 'companies':
@@ -76,13 +82,41 @@ function ViewRouter({ view, initialData }: { view: string; initialData?: HomeIni
     case 'ground-truth':
       return <GroundTruthView />
     case 'freshers':
-      return <JobsView fixedCategory="fresher" fixedTitle="Fresher Jobs" />
+      return (
+        <JobsView
+          fixedCategory="fresher"
+          fixedTitle="Fresher Jobs"
+          initialJobs={initialData?.initialFresherJobs}
+          initialTotal={initialData?.initialFresherJobsTotal}
+        />
+      )
     case 'internships':
-      return <JobsView fixedCategory="internship" fixedTitle="Internships" />
+      return (
+        <JobsView
+          fixedCategory="internship"
+          fixedTitle="Internships"
+          initialJobs={initialData?.initialInternshipJobs}
+          initialTotal={initialData?.initialInternshipJobsTotal}
+        />
+      )
     case 'walk-in':
-      return <JobsView fixedCategory="walk-in" fixedTitle="Walk-in Jobs" />
+      return (
+        <JobsView
+          fixedCategory="walk-in"
+          fixedTitle="Walk-in Jobs"
+          initialJobs={initialData?.initialWalkInJobs}
+          initialTotal={initialData?.initialWalkInJobsTotal}
+        />
+      )
     case 'hidden':
-      return <JobsView fixedCategory="hidden" fixedTitle="Hidden Jobs" />
+      return (
+        <JobsView
+          fixedCategory="hidden"
+          fixedTitle="Hidden Jobs"
+          initialJobs={initialData?.initialHiddenJobs}
+          initialTotal={initialData?.initialHiddenJobsTotal}
+        />
+      )
     case 'saved':
       return <SavedJobsView />
     case 'ai-resume':

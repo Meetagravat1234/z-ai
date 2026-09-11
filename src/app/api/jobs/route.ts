@@ -62,13 +62,42 @@ export async function GET(req: NextRequest) {
     const conditions: any[] = []
 
     if (q) {
-      conditions.push({
-        OR: [
-          { title: { contains: q, mode: 'insensitive' } },
-          { skills: { contains: q, mode: 'insensitive' } },
-          { company: { name: { contains: q, mode: 'insensitive' } } },
-        ],
-      })
+      // Split query into individual words and match ANY word (not the full phrase).
+      // This way "embedded engineer" matches "Embedded Software Engineer" (which contains "embedded"),
+      // "java developer" matches "Java Backend Developer", etc.
+      // Words shorter than 2 chars are skipped.
+      const words = q.split(/\s+/).filter((w) => w.length >= 2)
+      // For multi-word queries: try to match jobs that contain ALL words first (more relevant).
+      // If a word is too common (e.g. "engineer"), exclude it from the "must match" set,
+      // but still include it in the OR set so we don't over-filter.
+      if (words.length <= 1) {
+        // Single word — use simple contains
+        conditions.push({
+          OR: [
+            { title: { contains: q, mode: 'insensitive' } },
+            { skills: { contains: q, mode: 'insensitive' } },
+            { company: { name: { contains: q, mode: 'insensitive' } } },
+            { description: { contains: q, mode: 'insensitive' } },
+          ],
+        })
+      } else {
+        // Multi-word: build OR of per-word matches. The OR semantics mean a job that contains
+        // any of the words will match. We rely on SQL's natural ordering (recent first) to
+        // surface jobs that contain MORE words near the top — but Prisma doesn't support
+        // relevance ranking out of the box, so the order may not be perfect.
+        // For better UX, we could rank by word count in app code, but that's complex.
+        // For now, OR semantics is much better than the old "exact phrase" behaviour.
+        const wordConditions: any[] = []
+        for (const w of words) {
+          wordConditions.push(
+            { title: { contains: w, mode: 'insensitive' } },
+            { skills: { contains: w, mode: 'insensitive' } },
+            { company: { name: { contains: w, mode: 'insensitive' } } },
+            { description: { contains: w, mode: 'insensitive' } },
+          )
+        }
+        conditions.push({ OR: wordConditions })
+      }
     }
 
     // India filter: single condition with startsWith for speed

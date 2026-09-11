@@ -1,16 +1,19 @@
 'use client'
 
 import * as React from 'react'
-import { Filter, X, Loader2, Search, SlidersHorizontal, Briefcase, Lock, Sparkles } from 'lucide-react'
+import { Filter, X, Loader2, Search, SlidersHorizontal, Briefcase } from 'lucide-react'
 import { JobCard, type Job } from '@/components/jobs/job-card'
 import { useNav } from '@/lib/nav-store'
-import { useAuth } from '@/lib/auth-context'
 import { cn } from '@/lib/utils'
 
 interface Props {
   fixedCategory?: string
   fixedTitle?: string
   showFilters?: boolean
+  // SSR-provided initial jobs — shown instantly, no loading spinner.
+  // When present, the client skips the initial fetch and only refetches when filters change.
+  initialJobs?: Job[]
+  initialTotal?: number
 }
 
 const ALL_CATEGORIES = [
@@ -30,11 +33,13 @@ const SORTS = [
   { id: 'salary-low', label: 'Salary: Low to High' },
 ]
 
-export function JobsView({ fixedCategory, fixedTitle, showFilters = true }: Props) {
-  const { jobFilter, go } = useNav()
-  const { user, loading: authLoading } = useAuth()
-  const [jobs, setJobs] = React.useState<Job[]>([])
-  const [loading, setLoading] = React.useState(true)
+export function JobsView({ fixedCategory, fixedTitle, showFilters = true, initialJobs, initialTotal }: Props) {
+  const { jobFilter } = useNav()
+  const [jobs, setJobs] = React.useState<Job[]>(initialJobs || [])
+  const [total, setTotal] = React.useState<number>(initialTotal ?? (initialJobs?.length ?? 0))
+  // If SSR provided initial data, we're NOT loading on mount — show jobs instantly.
+  // If no SSR data, show spinner until client fetch completes.
+  const [loading, setLoading] = React.useState(!initialJobs || initialJobs.length === 0)
   const [q, setQ] = React.useState(jobFilter.q || '')
   const [category, setCategory] = React.useState(fixedCategory || jobFilter.category || 'all')
   const [workMode, setWorkMode] = React.useState('All')
@@ -43,16 +48,41 @@ export function JobsView({ fixedCategory, fixedTitle, showFilters = true }: Prop
   const [company, setCompany] = React.useState(jobFilter.company || '')
   const [country, setCountry] = React.useState('india') // 'india' or 'all'
   const [showFilterPanel, setShowFilterPanel] = React.useState(false)
+  // Debounce search input so we don't fire a fetch on every keystroke
+  const [qInput, setQInput] = React.useState(jobFilter.q || '')
+  const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+  const skipNextFetch = React.useRef(!!initialJobs && initialJobs.length > 0)
+  const firstRender = React.useRef(true)
 
   // Reset state when fixedCategory changes (e.g. switching from Freshers to Internships)
   React.useEffect(() => {
     if (fixedCategory) {
       setCategory(fixedCategory)
       setQ('')
+      setQInput('')
+      // When category changes, we DO need to refetch even if we had initial data
+      skipNextFetch.current = false
     }
   }, [fixedCategory])
 
+  // Debounce qInput → q (so typing "embedded engineer" fires 1 fetch, not 16)
   React.useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => {
+      setQ(qInput)
+    }, 300)
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+    }
+  }, [qInput])
+
+  // Fetch jobs when filters change
+  React.useEffect(() => {
+    // Skip first render if we have SSR data (already shown)
+    if (firstRender.current) {
+      firstRender.current = false
+      if (skipNextFetch.current) return
+    }
     setLoading(true)
     const params = new URLSearchParams()
     if (q) params.set('q', q)
@@ -65,7 +95,10 @@ export function JobsView({ fixedCategory, fixedTitle, showFilters = true }: Prop
     params.set('limit', '200')
     fetch(`/api/jobs?${params}`)
       .then((r) => r.json())
-      .then((d) => setJobs(d.jobs || []))
+      .then((d) => {
+        setJobs(d.jobs || [])
+        setTotal(d.total ?? (d.jobs || []).length)
+      })
       .finally(() => setLoading(false))
   }, [q, category, workMode, employmentType, sort, company, country])
 
@@ -93,8 +126,8 @@ export function JobsView({ fixedCategory, fixedTitle, showFilters = true }: Prop
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
+            value={qInput}
+            onChange={(e) => setQInput(e.target.value)}
             placeholder="Search by role, skill, or company…"
             className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary"
           />
@@ -190,7 +223,7 @@ export function JobsView({ fixedCategory, fixedTitle, showFilters = true }: Prop
       {(category !== 'all' || workMode !== 'All' || employmentType !== 'All' || q) && (
         <div className="flex flex-wrap gap-2">
           {q && (
-            <Chip label={`Search: "${q}"`} onRemove={() => setQ('')} />
+            <Chip label={`Search: "${q}"`} onRemove={() => { setQ(''); setQInput('') }} />
           )}
           {category !== 'all' && !fixedCategory && (
             <Chip label={category} onRemove={() => setCategory('all')} />
@@ -204,10 +237,10 @@ export function JobsView({ fixedCategory, fixedTitle, showFilters = true }: Prop
         </div>
       )}
 
-      {/* Results */}
+      {/* Results count */}
       <div className="flex items-center justify-between text-sm">
         <span className="text-muted-foreground">
-          {loading ? 'Loading…' : `${user ? jobs.length : Math.min(jobs.length, 3)} of ${jobs.length} job${jobs.length !== 1 ? 's' : ''} shown${!user && jobs.length > 3 ? ' — sign up to see all' : ''}`}
+          {loading ? 'Loading…' : `${jobs.length} of ${total} job${total !== 1 ? 's' : ''}${q ? ` matching "${q}"` : ''}`}
         </span>
       </div>
 
@@ -218,35 +251,24 @@ export function JobsView({ fixedCategory, fixedTitle, showFilters = true }: Prop
       ) : jobs.length === 0 ? (
         <div className="text-center py-12 rounded-2xl border border-dashed border-border">
           <Briefcase className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
-          <p className="text-muted-foreground">No jobs match your filters.</p>
+          <p className="text-muted-foreground">
+            {q ? `No jobs match "${q}". Try a different keyword or clear the search.` : 'No jobs match your filters.'}
+          </p>
+          {q && (
+            <button
+              onClick={() => { setQ(''); setQInput('') }}
+              className="mt-3 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground font-semibold text-sm"
+            >
+              Clear search
+            </button>
+          )}
         </div>
       ) : (
-        <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {(user ? jobs : jobs.slice(0, 3)).map((job) => (
-              <JobCard key={job.id} job={job} />
-            ))}
-          </div>
-          {/* Signup gate for anonymous users */}
-          {!user && !authLoading && jobs.length > 3 && (
-            <div className="rounded-2xl border-2 border-dashed border-primary/40 bg-primary/5 p-8 text-center">
-              <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                <Lock className="w-7 h-7 text-primary" />
-              </div>
-              <h3 className="font-extrabold text-lg mb-1">{jobs.length - 3} more jobs waiting for you!</h3>
-              <p className="text-sm text-muted-foreground mb-4 max-w-md mx-auto">
-                Sign up free to unlock all {jobs.length} jobs, save your favorites, track applications, and get AI-powered career tools.
-              </p>
-              <button
-                onClick={() => go('auth')}
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-primary text-primary-foreground font-bold shadow-lg shadow-primary/30 hover:opacity-90"
-              >
-                <Sparkles className="w-4 h-4" />
-                Sign up to see all jobs — it's free
-              </button>
-            </div>
-          )}
-        </>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {jobs.map((job) => (
+            <JobCard key={job.id} job={job} />
+          ))}
+        </div>
       )}
     </div>
   )

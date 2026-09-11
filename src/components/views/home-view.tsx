@@ -440,15 +440,15 @@ export function HomeView({ initialData }: { initialData?: HomeInitialData }) {
           </button>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-          {(user ? jobs : jobs.slice(0, 3)).map((job) => (
+          {jobs.map((job) => (
             <JobCard key={job.id} job={job} />
           ))}
         </div>
-        {/* Signup CTA for anonymous users on Home page */}
+        {/* Signup CTA for anonymous users — emphasizes AI tools + alerts, NOT more jobs */}
         {!user && !isDemo && jobs.length > 0 && (
           <div className="mt-4 rounded-2xl border-2 border-dashed border-primary/40 bg-primary/5 p-6 text-center">
             <p className="text-sm font-semibold text-foreground mb-2">
-              🔒 Sign up free to see all {stats.jobs || ''} jobs + AI tools + job alerts
+              ✨ Sign up free for AI tools (resume optimizer, ATS score, mock interview) + email job alerts
             </p>
             <button
               onClick={() => go('auth')}

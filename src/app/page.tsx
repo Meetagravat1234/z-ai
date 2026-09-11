@@ -43,8 +43,15 @@ async function getHomeData(): Promise<HomeInitialData> {
       ],
     }
 
-    // Parallel fetch — same as the client Promise.all
-    const [jobs, companies, articles, totalJobs, totalCompanies] = await Promise.all([
+    // Parallel fetch — home page + jobs views (so switching to All Jobs / Freshers / Internships is instant)
+    const [
+      jobs, companies, articles, totalJobs, totalCompanies,
+      allJobs, allJobsTotal,
+      fresherJobs, fresherJobsTotal,
+      internshipJobs, internshipJobsTotal,
+      walkInJobs, walkInJobsTotal,
+      hiddenJobs, hiddenJobsTotal,
+    ] = await Promise.all([
       db.job.findMany({
         where: { AND: [{ verified: true }, indiaCondition] },
         include: { company: true },
@@ -62,15 +69,59 @@ async function getHomeData(): Promise<HomeInitialData> {
       }),
       db.job.count({ where: { verified: true } }),
       db.company.count(),
+      // All Jobs view — 60 most recent India-only
+      db.job.findMany({
+        where: { AND: [{ verified: true }, indiaCondition] },
+        include: { company: true },
+        orderBy: { postedAt: 'desc' },
+        take: 60,
+      }),
+      db.job.count({ where: { AND: [{ verified: true }, indiaCondition] } }),
+      // Fresher view
+      db.job.findMany({
+        where: { AND: [{ verified: true, category: 'fresher' }, indiaCondition] },
+        include: { company: true },
+        orderBy: { postedAt: 'desc' },
+        take: 60,
+      }),
+      db.job.count({ where: { AND: [{ verified: true, category: 'fresher' }, indiaCondition] } }),
+      // Internship view
+      db.job.findMany({
+        where: { AND: [{ verified: true, category: 'internship' }, indiaCondition] },
+        include: { company: true },
+        orderBy: { postedAt: 'desc' },
+        take: 60,
+      }),
+      db.job.count({ where: { AND: [{ verified: true, category: 'internship' }, indiaCondition] } }),
+      // Walk-in view
+      db.job.findMany({
+        where: { AND: [{ verified: true, category: 'walk-in' }, indiaCondition] },
+        include: { company: true },
+        orderBy: { postedAt: 'desc' },
+        take: 60,
+      }),
+      db.job.count({ where: { AND: [{ verified: true, category: 'walk-in' }, indiaCondition] } }),
+      // Hidden view
+      db.job.findMany({
+        where: { AND: [{ verified: true, category: 'hidden' }, indiaCondition] },
+        include: { company: true },
+        orderBy: { postedAt: 'desc' },
+        take: 60,
+      }),
+      db.job.count({ where: { AND: [{ verified: true, category: 'hidden' }, indiaCondition] } }),
     ])
 
-    return {
-      initialJobs: jobs.map((j) => ({
+    // Helper: serialize Date objects to ISO strings for client components
+    const serializeJobs = (arr: any[]) =>
+      arr.map((j) => ({
         ...j,
         postedAt: j.postedAt.toISOString(),
         createdAt: j.createdAt?.toISOString(),
         updatedAt: j.updatedAt?.toISOString(),
-      })),
+      }))
+
+    return {
+      initialJobs: serializeJobs(jobs),
       initialCompanies: companies.slice(0, 8).map((c) => ({
         id: c.id,
         name: c.name,
@@ -92,6 +143,16 @@ async function getHomeData(): Promise<HomeInitialData> {
         createdAt: a.createdAt.toISOString(),
       })),
       stats: { jobs: totalJobs, companies: totalCompanies },
+      initialAllJobs: serializeJobs(allJobs),
+      initialAllJobsTotal: allJobsTotal,
+      initialFresherJobs: serializeJobs(fresherJobs),
+      initialFresherJobsTotal: fresherJobsTotal,
+      initialInternshipJobs: serializeJobs(internshipJobs),
+      initialInternshipJobsTotal: internshipJobsTotal,
+      initialWalkInJobs: serializeJobs(walkInJobs),
+      initialWalkInJobsTotal: walkInJobsTotal,
+      initialHiddenJobs: serializeJobs(hiddenJobs),
+      initialHiddenJobsTotal: hiddenJobsTotal,
     }
   } catch (e) {
     // Fail gracefully — empty initial state, client will retry
