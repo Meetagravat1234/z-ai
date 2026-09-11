@@ -7,7 +7,7 @@ import { AdGateModal } from '@/components/ad-gate-modal'
  * Hook that wraps an AI tool API call with ad-gate retry logic.
  *
  * Usage:
- *   const { call, loading, adGateState } = useAICallWithAdGate()
+ *   const { call, loading, adGateModal } = useAICallWithAdGate()
  *   const result = await call('/api/ai/resume-optimize', {
  *     tool: 'resumeOptimizations',
  *     toolLabel: 'AI Resume Optimizer',
@@ -48,18 +48,30 @@ export function useAICallWithAdGate() {
     toolLabel: '',
   })
   const [loading, setLoading] = React.useState(false)
-  const pendingCallRef = React.useRef<{ url: string; options: CallOptions; resolve: (r: CallResult) => void; reject: (e: any) => void } | null>(null)
+  // Use a ref to hold the pending Promise's resolve/reject so it survives re-renders
+  const pendingCallRef = React.useRef<{
+    url: string
+    options: CallOptions
+    resolve: (r: CallResult) => void
+    reject: (e: any) => void
+  } | null>(null)
 
   const call = React.useCallback(async (url: string, options: CallOptions): Promise<CallResult> => {
     setLoading(true)
     try {
       // First attempt — no adToken
       const firstResult = await doFetch(url, options.body)
+
       if (firstResult.ok || !firstResult.requiresAd) {
+        // Success or non-ad error — return immediately
+        setLoading(false)
         return firstResult
       }
 
-      // Got 403 with requiresAd: true — show AdGate modal + wait for token
+      // Got 403 with requiresAd: true — DON'T set loading to false yet.
+      // Open the AdGate modal and wait for the user to watch the ad.
+      // The finally block is intentionally omitted here to avoid
+      // setLoading(false) running before the modal resolves.
       return new Promise<CallResult>((resolve, reject) => {
         pendingCallRef.current = { url, options, resolve, reject }
         setAdGateState({
@@ -67,12 +79,15 @@ export function useAICallWithAdGate() {
           tool: options.tool,
           toolLabel: options.toolLabel,
         })
+        // NOTE: We do NOT call setLoading(false) here.
+        // It will be called in handleAdWatched or handleAdGateClose.
       })
     } catch (e: any) {
-      return { ok: false, error: e.message }
-    } finally {
       setLoading(false)
+      return { ok: false, error: e.message }
     }
+    // No finally block — prevents setLoading(false) from running
+    // prematurely when the ad-gate Promise is pending.
   }, [])
 
   const handleAdWatched = React.useCallback(async (token: string) => {
@@ -80,9 +95,12 @@ export function useAICallWithAdGate() {
     if (!pending) return
     pendingCallRef.current = null
     setAdGateState({ open: false, tool: '', toolLabel: '' })
-    setLoading(true)
+    // Keep loading=true while we retry with the ad token
     try {
-      const result = await doFetch(`${pending.url}?adToken=${encodeURIComponent(token)}`, pending.options.body)
+      const result = await doFetch(
+        `${pending.url}?adToken=${encodeURIComponent(token)}`,
+        pending.options.body,
+      )
       pending.resolve(result)
     } catch (e: any) {
       pending.reject(e)
@@ -95,12 +113,13 @@ export function useAICallWithAdGate() {
     const pending = pendingCallRef.current
     pendingCallRef.current = null
     setAdGateState({ open: false, tool: '', toolLabel: '' })
+    setLoading(false)
     if (pending) {
       pending.resolve({ ok: false, error: 'Ad watch cancelled. Try again or upgrade to Pro.' })
     }
   }, [])
 
-  // Render the AdGateModal — caller should include this in their JSX
+  // The AdGateModal element — caller includes {adGateModal} in their JSX
   const adGateModal = (
     <AdGateModal
       open={adGateState.open}
