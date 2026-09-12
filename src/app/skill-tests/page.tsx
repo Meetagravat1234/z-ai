@@ -56,25 +56,26 @@ export default async function SkillTestsPage() {
             Test Your <span className="gradient-text">Skills</span>
           </h1>
           <p className="mt-3 text-sm sm:text-base text-muted-foreground max-w-2xl mx-auto">
-            Take free online skill tests to assess your knowledge. Choose from 7 subjects, each with full tests and topic-wise quizzes. Get instant scores with detailed explanations.
+            Sharpen your knowledge with comprehensive skill tests. Full subject tests and topic-wise quizzes with instant scoring and detailed explanations. Perfect for interview prep and placement exams.
           </p>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-3 gap-4 mb-10 max-w-2xl mx-auto">
-          <div className="rounded-2xl border border-border bg-card p-4 text-center">
-            <div className="text-2xl font-extrabold text-primary">7</div>
-            <div className="text-xs text-muted-foreground">Subjects</div>
+        {/* Value props instead of small numbers */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10 max-w-3xl mx-auto">
+          <div className="rounded-2xl border border-border bg-card p-5 text-center">
+            <div className="text-2xl mb-1">🎯</div>
+            <div className="font-bold text-sm">Full + Topic Tests</div>
+            <p className="text-xs text-muted-foreground mt-1">Comprehensive coverage of every subject</p>
           </div>
-          <div className="rounded-2xl border border-border bg-card p-4 text-center">
-            <div className="text-2xl font-extrabold text-primary">{tests.length}</div>
-            <div className="text-xs text-muted-foreground">Tests</div>
+          <div className="rounded-2xl border border-border bg-card p-5 text-center">
+            <div className="text-2xl mb-1">⚡</div>
+            <div className="font-bold text-sm">Instant Scoring</div>
+            <p className="text-xs text-muted-foreground mt-1">Get your score immediately with detailed explanations</p>
           </div>
-          <div className="rounded-2xl border border-border bg-card p-4 text-center">
-            <div className="text-2xl font-extrabold text-primary">
-              {tests.reduce((sum, t) => sum + (t._count?.questions || 0), 0)}
-            </div>
-            <div className="text-xs text-muted-foreground">Questions</div>
+          <div className="rounded-2xl border border-border bg-card p-5 text-center">
+            <div className="text-2xl mb-1">🔄</div>
+            <div className="font-bold text-sm">Unlimited Retakes</div>
+            <p className="text-xs text-muted-foreground mt-1">Questions shuffle every time for fresh practice</p>
           </div>
         </div>
 
@@ -111,7 +112,7 @@ export default async function SkillTestsPage() {
                             Full Test
                           </span>
                           <span className="text-[10px] text-muted-foreground">
-                            {fullTest._count.questions} Qs · {fullTest.durationMin} min
+                            {fullTest.durationMin} min · Full subject
                           </span>
                         </div>
                         <h3 className="font-bold text-sm mt-1">{fullTest.title}</h3>
@@ -135,7 +136,7 @@ export default async function SkillTestsPage() {
                           Topic
                         </span>
                         <span className="text-[9px] text-muted-foreground">
-                          {t._count.questions} Qs · {t.durationMin}m
+                          {t.durationMin} min · Topic-focused
                         </span>
                       </div>
                       <h4 className="font-semibold text-xs leading-snug">{t.title}</h4>

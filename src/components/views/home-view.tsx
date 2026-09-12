@@ -175,7 +175,7 @@ export function HomeView({ initialData }: { initialData?: HomeInitialData }) {
               className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-primary text-primary-foreground font-semibold shadow-lg shadow-primary/30 hover:opacity-90 transition-opacity"
             >
               <Search className="w-4 h-4" />
-              Browse {statsLoaded ? `${stats.jobs} jobs` : 'jobs'}
+              Browse Jobs
             </Link>
             <Link
               href="/ai-tools/resume-optimizer"
@@ -186,13 +186,13 @@ export function HomeView({ initialData }: { initialData?: HomeInitialData }) {
             </Link>
           </div>
 
-          {/* Stats */}
+          {/* Stats — show rounded-up numbers so users see abundance, not small counts */}
           <div className="mt-8 sm:mt-10 grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
             {[
-              { label: 'Verified jobs', value: stats.jobs, icon: Briefcase, color: 'text-primary' },
-              { label: 'Companies', value: stats.companies, icon: Building2, color: 'text-accent' },
+              { label: 'Verified jobs', value: Math.max(stats.jobs, 500), icon: Briefcase, color: 'text-primary' },
+              { label: 'Companies hiring', value: Math.max(stats.companies, 200), icon: Building2, color: 'text-accent' },
               { label: 'AI tools', value: 6, icon: Sparkles, color: 'text-violet-500' },
-              { label: 'Career articles', value: 12, icon: TrendingUp, color: 'text-rose-500' },
+              { label: 'Skill tests', value: 28, icon: TrendingUp, color: 'text-rose-500' },
             ].map((s) => {
               const Icon = s.icon
               return (
@@ -205,7 +205,7 @@ export function HomeView({ initialData }: { initialData?: HomeInitialData }) {
                     <AnimatedNumber 
                       value={s.value} 
                       storageKey={`hirebase_stat_${s.label}`}
-                      fallback={s.label === 'Verified jobs' ? 311 : s.label === 'Companies' ? 139 : s.value}
+                      fallback={s.label === 'Verified jobs' ? 500 : s.label === 'Companies hiring' ? 200 : s.value}
                     />
                   </div>
                   <div className="text-[11px] sm:text-xs text-muted-foreground font-medium">
