@@ -186,31 +186,23 @@ export function HomeView({ initialData }: { initialData?: HomeInitialData }) {
             </Link>
           </div>
 
-          {/* Stats — show rounded-up numbers so users see abundance, not small counts */}
-          <div className="mt-8 sm:mt-10 grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
+          {/* Trust signals — no raw numbers, just features that engage */}
+          <div className="mt-8 sm:mt-10 grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
             {[
-              { label: 'Verified jobs', value: Math.max(stats.jobs, 500), icon: Briefcase, color: 'text-primary' },
-              { label: 'Companies hiring', value: Math.max(stats.companies, 200), icon: Building2, color: 'text-accent' },
-              { label: 'AI tools', value: 6, icon: Sparkles, color: 'text-violet-500' },
-              { label: 'Skill tests', value: 28, icon: TrendingUp, color: 'text-rose-500' },
+              { icon: Briefcase, label: 'Verified Jobs', desc: 'From top employers', color: 'text-primary' },
+              { icon: Sparkles, label: '6 AI Tools', desc: 'Free for all users', color: 'text-violet-500' },
+              { icon: Target, label: 'Skill Tests', desc: 'Test & improve', color: 'text-rose-500' },
+              { icon: BookOpen, label: 'Career Insights', desc: 'Expert guidance', color: 'text-amber-500' },
             ].map((s) => {
               const Icon = s.icon
               return (
                 <div
                   key={s.label}
-                  className="rounded-2xl border border-border bg-background/80 backdrop-blur p-3 sm:p-4"
+                  className="rounded-2xl border border-border bg-background/80 backdrop-blur p-3 sm:p-4 flex flex-col items-center text-center"
                 >
-                  <Icon className={cn('w-4 h-4 sm:w-5 sm:h-5 mb-1.5 sm:mb-2', s.color)} />
-                  <div className="text-xl sm:text-2xl font-extrabold text-foreground tabular-nums">
-                    <AnimatedNumber 
-                      value={s.value} 
-                      storageKey={`hirebase_stat_${s.label}`}
-                      fallback={s.label === 'Verified jobs' ? 500 : s.label === 'Companies hiring' ? 200 : s.value}
-                    />
-                  </div>
-                  <div className="text-[11px] sm:text-xs text-muted-foreground font-medium">
-                    {s.label}
-                  </div>
+                  <Icon className={cn('w-5 h-5 mb-2', s.color)} />
+                  <div className="text-sm font-bold text-foreground">{s.label}</div>
+                  <div className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">{s.desc}</div>
                 </div>
               )
             })}
@@ -598,8 +590,7 @@ export function HomeView({ initialData }: { initialData?: HomeInitialData }) {
         </div>
       </section>
 
-      {/* SEO content block — natural-language paragraphs that help Google understand what Hirebase is.
-          Rendered as plain HTML so even no-JS crawlers can read it. */}
+      {/* SEO content block — clean, no source revelation, with internal links */}
       <section aria-label="About Hirebase" className="prose prose-sm dark:prose-invert max-w-none text-muted-foreground">
         <h2 className="text-xl font-bold text-foreground mb-3">About Hirebase</h2>
         <p className="leading-relaxed mb-3">
@@ -615,12 +606,26 @@ export function HomeView({ initialData }: { initialData?: HomeInitialData }) {
           voice or text input, a Skill Gap Analyzer that produces a personalised learning path, and a Salary
           Predictor with negotiation tips. All tools are free for registered users.
         </p>
+        <p className="leading-relaxed mb-3">
+          Hirebase also offers <Link href="/skill-tests" className="text-primary hover:underline">free skill tests</Link> in
+          C, Java, Python, SQL, Data Structures, Aptitude, and Web Development. Each subject includes full tests and
+          topic-wise quizzes with instant scoring and detailed explanations &mdash; perfect for interview preparation and
+          placement exams.
+        </p>
         <p className="leading-relaxed">
-          The platform crawls 30+ sources every 30 minutes using public APIs (Greenhouse, Ashby, Remotive,
-          Arbeitnow, The Muse, RemoteOK, We Work Remotely), Google search for LinkedIn, Naukri, Internshala,
-          Indeed, and Glassdoor listings, and direct career-page crawls for 38 Indian companies including TCS,
-          Infosys, Wipro, Flipkart, Swiggy, Zomato, Razorpay, PhonePe, and Zerodha. Each new job is
-          AI-enriched within seconds of discovery.
+          Browse <Link href="/jobs" className="text-primary hover:underline">verified jobs</Link> by city
+          (<Link href="/jobs/bengaluru" className="text-primary hover:underline">Bengaluru</Link>,{' '}
+          <Link href="/jobs/hyderabad" className="text-primary hover:underline">Hyderabad</Link>,{' '}
+          <Link href="/jobs/pune" className="text-primary hover:underline">Pune</Link>,{' '}
+          <Link href="/jobs/chennai" className="text-primary hover:underline">Chennai</Link>), by category
+          (<Link href="/jobs/fresher" className="text-primary hover:underline">fresher jobs</Link>,{' '}
+          <Link href="/jobs/internship" className="text-primary hover:underline">internships</Link>,{' '}
+          <Link href="/jobs/remote" className="text-primary hover:underline">remote jobs</Link>), or by role
+          (<Link href="/roles/software-engineer" className="text-primary hover:underline">software engineer</Link>,{' '}
+          <Link href="/roles/data-scientist" className="text-primary hover:underline">data scientist</Link>,{' '}
+          <Link href="/roles/product-manager" className="text-primary hover:underline">product manager</Link>).
+          Read our <Link href="/insights" className="text-primary hover:underline">career insights</Link> for
+          salary guides, interview preparation tips, and industry trends.
         </p>
       </section>
     </div>

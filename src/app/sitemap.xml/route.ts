@@ -31,6 +31,16 @@ export async function GET() {
       { loc: `${baseUrl}/question-bank`, priority: '0.7', changefreq: 'weekly' },
       { loc: `${baseUrl}/compare-jobs`, priority: '0.6', changefreq: 'monthly' },
       { loc: `${baseUrl}/skill-tests`, priority: '0.8', changefreq: 'weekly' },
+      // Skill test detail pages
+      ...(await db.skillTest.findMany({
+        where: { isPublished: true },
+        select: { id: true },
+      }).then(tests => tests.map((t: any) => ({
+        loc: `${baseUrl}/skill-tests/${t.id}`,
+        lastmod: null,
+        priority: '0.6',
+        changefreq: 'monthly' as const,
+      })))),
       { loc: `${baseUrl}/about`, priority: '0.5', changefreq: 'monthly' },
       { loc: `${baseUrl}/pricing`, priority: '0.5', changefreq: 'monthly' },
       { loc: `${baseUrl}/upgrade`, priority: '0.8', changefreq: 'monthly' },

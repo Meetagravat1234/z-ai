@@ -262,6 +262,63 @@ export default async function Page() {
     }
   })
 
+  // FAQ schema — for Google rich snippets (eligible for expandable Q&A in search results)
+  const faqLd = {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: [
+      {
+        '@type': 'Question',
+        name: 'Is Hirebase free for job seekers?',
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: 'Yes. Hirebase is 100% free for browsing jobs, searching, and applying. AI tools like Resume Optimizer, ATS Score Checker, and Mock Interview are free with ad-gate (watch a 15-second ad to unlock). Skill tests are completely free with no limits.',
+        },
+      },
+      {
+        '@type': 'Question',
+        name: 'Does Hirebase have jobs in Bengaluru, Hyderabad, and Pune?',
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: 'Yes. Hirebase aggregates verified job openings from top employers across Bengaluru, Hyderabad, Pune, Chennai, Mumbai, Delhi NCR, Kolkata, Kochi, and remote positions. You can filter by city on the Jobs page.',
+        },
+      },
+      {
+        '@type': 'Question',
+        name: 'Can I optimize my resume with AI on Hirebase?',
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: 'Yes. Hirebase offers 6 AI tools: AI Resume Optimizer, ATS Score Checker, AI Cover Letter Generator, AI Mock Interview, Skill Gap Analyzer, and Salary Predictor. All tools are free with ad-gate or included in the Pro plan at ₹299/month.',
+        },
+      },
+      {
+        '@type': 'Question',
+        name: 'How does Hirebase verify job listings?',
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: 'Every job on Hirebase goes through a multi-step verification process: source identification from official career pages, technology-assisted discovery, review and deduplication, enrichment with structured metadata, and publication with a direct link to the original employer application page.',
+        },
+      },
+      {
+        '@type': 'Question',
+        name: 'Can I take skill tests on Hirebase?',
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: 'Yes. Hirebase offers free skill tests in C, Java, Python, SQL, Data Structures, Aptitude, and Web Development. Each subject has full tests and topic-wise quizzes with instant scoring and detailed explanations.',
+        },
+      },
+    ],
+  }
+
+  // BreadcrumbList schema for home page
+  const breadcrumbLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://www.hirebase.in' },
+    ],
+  }
+
   return (
     <>
       <script
@@ -271,6 +328,14 @@ export default async function Page() {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(orgLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }}
       />
       {jobPostingsLd.length > 0 && (
         <script
