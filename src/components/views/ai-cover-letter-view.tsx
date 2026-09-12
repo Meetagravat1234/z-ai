@@ -5,7 +5,7 @@ import { Loader2, Sparkles, Copy, Check, AlertCircle, FileText } from 'lucide-re
 import { toast } from 'sonner'
 import { ResumeUpload } from '@/components/resume-upload'
 import { DownloadButtons } from '@/components/download-buttons'
-import { AdGateModal } from '@/components/ad-gate-modal'
+import { ProUpsellModal } from '@/components/pro-upsell-modal'
 
 export function AICoverLetter() {
   const [resume, setResume] = React.useState('')
@@ -54,10 +54,7 @@ export function AICoverLetter() {
     }
   }
 
-  async function handleAdWatched(token: string) {
-    setShowAdGate(false)
-    await generate(token)
-  }
+  async function handleAdWatched(token: string) { setShowAdGate(false) }
 
   function handleAdGateClose() {
     setShowAdGate(false)
@@ -171,12 +168,12 @@ export function AICoverLetter() {
         </div>
       </div>
 
-      <AdGateModal
+      <ProUpsellModal
         open={showAdGate}
-        tool="coverLetters"
         toolLabel="AI Cover Letter"
+        used={1}
+        limit={1}
         onClose={handleAdGateClose}
-        onAdWatched={handleAdWatched}
       />
     </div>
   )

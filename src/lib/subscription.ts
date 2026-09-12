@@ -334,7 +334,7 @@ export async function canUseAIToolWithAdGate(
     ...baseCheck,
     requiresAd: true,
     adWatched: false,
-    message: 'Watch a 15-second ad to use this tool, or upgrade to Pro to skip ads.',
+    message: 'You have used your free monthly quota for this AI tool. Upgrade to Pro for 10x more uses per month.',
   }
 }
 

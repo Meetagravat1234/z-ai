@@ -5,7 +5,7 @@ import { Loader2, FileText, Sparkles, Copy, Check, AlertCircle } from 'lucide-re
 import { toast } from 'sonner'
 import { ResumeUpload } from '@/components/resume-upload'
 import { DownloadButtons } from '@/components/download-buttons'
-import { AdGateModal } from '@/components/ad-gate-modal'
+import { ProUpsellModal } from '@/components/pro-upsell-modal'
 
 export function AIResumeOptimizer() {
   const [resume, setResume] = React.useState('')
@@ -57,11 +57,7 @@ export function AIResumeOptimizer() {
   }
 
   // Called when the user finishes watching the ad
-  async function handleAdWatched(token: string) {
-    setShowAdGate(false)
-    // Retry the API call with the ad token
-    await optimize(token)
-  }
+  async function handleAdWatched(token: string) { setShowAdGate(false) }
 
   // Called when the user closes the ad gate without watching
   function handleAdGateClose() {
@@ -171,12 +167,12 @@ export function AIResumeOptimizer() {
       </div>
 
       {/* Ad Gate Modal — shown when free quota is used up */}
-      <AdGateModal
+      <ProUpsellModal
         open={showAdGate}
-        tool="resumeOptimizations"
         toolLabel="AI Resume Optimizer"
+        used={1}
+        limit={1}
         onClose={handleAdGateClose}
-        onAdWatched={handleAdWatched}
       />
     </div>
   )

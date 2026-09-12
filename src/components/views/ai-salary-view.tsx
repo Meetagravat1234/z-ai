@@ -3,7 +3,7 @@
 import * as React from 'react'
 import { Loader2, Wallet, AlertCircle, TrendingUp, TrendingDown, Sparkles, Lightbulb } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { AdGateModal } from '@/components/ad-gate-modal'
+import { ProUpsellModal } from '@/components/pro-upsell-modal'
 
 interface SalaryResult {
   predictedRange?: { min: number; max: number; currency: string; unit: string }
@@ -64,7 +64,7 @@ export function AISalaryPredictor() {
     }
   }
 
-  async function handleAdWatched(token: string) { setShowAdGate(false); await predict(token) }
+  async function handleAdWatched(token: string) { setShowAdGate(false) }
   function handleAdGateClose() { setShowAdGate(false); setLoading(false) }
 
   return (
@@ -215,12 +215,12 @@ export function AISalaryPredictor() {
         </div>
       </div>
 
-      <AdGateModal
+      <ProUpsellModal
         open={showAdGate}
-        tool="salaryPredictions"
         toolLabel="Salary Predictor"
+        used={1}
+        limit={1}
         onClose={handleAdGateClose}
-        onAdWatched={handleAdWatched}
       />
     </div>
   )

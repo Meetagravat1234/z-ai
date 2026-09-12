@@ -6,7 +6,7 @@ import { toast } from 'sonner'
 import { useAICallWithAdGate } from '@/lib/use-ai-call-with-ad-gate'
 import { cn } from '@/lib/utils'
 import { ResumeUpload } from '@/components/resume-upload'
-import { AdGateModal } from '@/components/ad-gate-modal'
+import { ProUpsellModal } from '@/components/pro-upsell-modal'
 
 interface ATSResult {
   overallScore?: number
@@ -59,7 +59,7 @@ export function ATSScoreView() {
     }
   }
 
-  async function handleAdWatched(token: string) { setShowAdGate(false); await check(token) }
+  async function handleAdWatched(token: string) { setShowAdGate(false) }
   function handleAdGateClose() { setShowAdGate(false); setLoading(false) }
 
   function getScoreColor(score: number) {
@@ -182,12 +182,12 @@ export function ATSScoreView() {
         </div>
       </div>
 
-      <AdGateModal
+      <ProUpsellModal
         open={showAdGate}
-        tool="atsChecks"
         toolLabel="ATS Score Checker"
+        used={1}
+        limit={1}
         onClose={handleAdGateClose}
-        onAdWatched={handleAdWatched}
       />
     </div>
   )

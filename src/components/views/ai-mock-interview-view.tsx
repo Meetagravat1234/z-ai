@@ -3,7 +3,7 @@
 import * as React from 'react'
 import { Loader2, Mic, Send, AlertCircle, User, Bot } from 'lucide-react'
 import { toast } from 'sonner'
-import { AdGateModal } from '@/components/ad-gate-modal'
+import { ProUpsellModal } from '@/components/pro-upsell-modal'
 
 interface Msg {
   role: 'user' | 'assistant'
@@ -90,10 +90,7 @@ export function AIMockInterview() {
     }
   }
 
-  async function handleAdWatched(token: string) {
-    setShowAdGate(false)
-    await start(token)
-  }
+  async function handleAdWatched(token: string) { setShowAdGate(false) }
 
   function handleAdGateClose() {
     setShowAdGate(false)
@@ -200,12 +197,12 @@ export function AIMockInterview() {
         </div>
       )}
 
-      <AdGateModal
+      <ProUpsellModal
         open={showAdGate}
-        tool="mockInterviews"
         toolLabel="AI Mock Interview"
+        used={1}
+        limit={1}
         onClose={handleAdGateClose}
-        onAdWatched={handleAdWatched}
       />
     </div>
   )

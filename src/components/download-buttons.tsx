@@ -4,7 +4,7 @@ import * as React from 'react'
 import { Download, FileText, FileType, Loader2, Lock } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
-import { AdGateModal } from '@/components/ad-gate-modal'
+import { ProUpsellModal } from '@/components/pro-upsell-modal'
 import { generatePdfFromMarkdown, generateDocxFromMarkdown } from '@/lib/resume-export'
 
 interface DownloadButtonsProps {
@@ -73,14 +73,7 @@ export function DownloadButtons({ markdown, baseFileName = 'resume', className }
     }
   }
 
-  async function handleAdWatched(token: string) {
-    setShowAdGate(false)
-    if (pendingFormat) {
-      const fmt = pendingFormat
-      setPendingFormat(null)
-      await handleDownload(fmt, token)
-    }
-  }
+  async function handleAdWatched(token: string) { setShowAdGate(false) }
 
   function handleAdGateClose() {
     setShowAdGate(false)
@@ -116,12 +109,12 @@ export function DownloadButtons({ markdown, baseFileName = 'resume', className }
           {downloading === 'docx' ? 'Generating Word…' : 'Download Word'}
         </button>
       </div>
-      <AdGateModal
+      <ProUpsellModal
         open={showAdGate}
-        tool={pendingFormat === 'pdf' ? 'pdfDownloads' : 'docxDownloads'}
         toolLabel={pendingFormat === 'pdf' ? 'PDF Download' : 'Word Document Download'}
+        used={1}
+        limit={1}
         onClose={handleAdGateClose}
-        onAdWatched={handleAdWatched}
       />
     </>
   )

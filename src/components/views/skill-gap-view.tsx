@@ -5,7 +5,7 @@ import { Loader2, Sparkles, AlertCircle, CheckCircle2, Target, BookOpen, Rocket,
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { ResumeUpload } from '@/components/resume-upload'
-import { AdGateModal } from '@/components/ad-gate-modal'
+import { ProUpsellModal } from '@/components/pro-upsell-modal'
 
 interface GapResult {
   targetRoleSummary?: string
@@ -70,7 +70,7 @@ export function SkillGapView() {
     }
   }
 
-  async function handleAdWatched(token: string) { setShowAdGate(false); await analyze(token) }
+  async function handleAdWatched(token: string) { setShowAdGate(false) }
   function handleAdGateClose() { setShowAdGate(false); setLoading(false) }
 
   return (
@@ -198,12 +198,12 @@ export function SkillGapView() {
         </div>
       </div>
 
-      <AdGateModal
+      <ProUpsellModal
         open={showAdGate}
-        tool="skillGapAnalyses"
         toolLabel="Skill Gap Analyzer"
+        used={1}
+        limit={1}
         onClose={handleAdGateClose}
-        onAdWatched={handleAdWatched}
       />
     </div>
   )
