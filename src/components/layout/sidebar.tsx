@@ -88,45 +88,30 @@ const navGroups: Array<{
     label: 'Find Jobs',
     items: [
       { id: 'home', label: 'Home', icon: LayoutDashboard },
-      { id: 'discover', label: 'Discover Jobs', icon: Compass },
       { id: 'all-jobs', label: 'All Jobs', icon: Briefcase },
       { id: 'companies', label: 'Companies', icon: Building2 },
-      { id: 'insights', label: 'Career Insights', icon: BookOpen },
-      { id: 'ground-truth', label: 'Ground Truth', icon: Microscope },
-    ],
-  },
-  {
-    label: 'Special Categories',
-    items: [
-      { id: 'freshers', label: 'Freshers', icon: GraduationCap },
+      { id: 'freshers', label: 'Fresher Jobs', icon: GraduationCap },
       { id: 'internships', label: 'Internships', icon: UserCheck },
       { id: 'walk-in', label: 'Walk-in Jobs', icon: Users },
-      { id: 'hidden', label: 'Hidden Jobs', icon: EyeOff },
     ],
   },
   {
     label: 'AI Tools',
     items: [
-      { id: 'ai-resume', label: 'AI Resume Optimizer', icon: FileText, accent: 'ai', badge: 'NEW' },
+      { id: 'ai-resume', label: 'Resume Optimizer', icon: FileText, accent: 'ai', badge: 'NEW' },
       { id: 'ats-score', label: 'ATS Score Checker', icon: FileCheck, accent: 'ai', badge: 'NEW' },
-      { id: 'ai-cover-letter', label: 'AI Cover Letter', icon: Sparkles, accent: 'ai', badge: 'NEW' },
-      { id: 'ai-mock-interview', label: 'AI Mock Interview', icon: Mic, accent: 'ai', badge: 'NEW' },
+      { id: 'ai-cover-letter', label: 'Cover Letter', icon: Sparkles, accent: 'ai', badge: 'NEW' },
+      { id: 'ai-mock-interview', label: 'Mock Interview', icon: Mic, accent: 'ai', badge: 'NEW' },
       { id: 'skill-gap', label: 'Skill Gap Analyzer', icon: Target, accent: 'ai', badge: 'NEW' },
       { id: 'ai-salary', label: 'Salary Predictor', icon: Wallet, accent: 'ai', badge: 'NEW' },
     ],
   },
   {
-    label: 'Insights & Tools',
+    label: 'Practice & Learn',
     items: [
+      { id: 'skill-tests', label: 'Skill Tests', icon: Target },
+      { id: 'insights', label: 'Career Insights', icon: BookOpen },
       { id: 'salary-dashboard', label: 'Salary Dashboard', icon: BarChart3 },
-      { id: 'question-bank', label: 'Interview Questions', icon: BookOpen },
-      { id: 'compare-jobs', label: 'Compare Jobs', icon: GitCompare },
-    ],
-  },
-  {
-    label: 'Skill Tests',
-    items: [
-      { id: 'skill-tests', label: 'Test Your Skills', icon: Target },
     ],
   },
   {
@@ -298,7 +283,7 @@ export function Sidebar() {
 
         <div className="m-3 p-4 rounded-2xl bg-primary/15 border border-primary/30">
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-base">🔔</span>
+            <Bell className="w-4 h-4 text-primary" />
             <span className="text-sm font-bold text-sidebar-foreground">
               Job Alerts
             </span>

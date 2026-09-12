@@ -111,14 +111,6 @@ export function JobCard({ job, compact = false }: { job: Job; compact?: boolean 
   return (
     <Link
       href={jobUrl(job)}
-      onClick={(e) => {
-        // For middle-click / ctrl-click, let the browser handle it (open in new tab)
-        if (e.metaKey || e.ctrlKey || e.button === 1) return
-        // For normal clicks in the SPA, intercept and use openJob for instant transition
-        // (preserves the fast SPA navigation; the URL bar will still update via the route)
-        e.preventDefault()
-        openJob(job.id)
-      }}
       className="block"
     >
     <div
