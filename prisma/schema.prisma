@@ -195,8 +195,15 @@ model JobAlert {
   frequency       String   @default("daily") // daily | weekly
   lastSentAt      DateTime?
   isActive        Boolean  @default(true)
+  // One-click unsubscribe token — included in email footer so users can
+  // unsubscribe without logging in (CAN-SPAM / GDPR compliance).
+  unsubscribeToken String @unique @default(cuid())
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+
+  @@index([userId])
+  @@index([isActive, lastSentAt])
+  @@index([email])
 }
 
 // Company reviews — like Glassdoor

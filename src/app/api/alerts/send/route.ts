@@ -18,14 +18,28 @@ export async function GET(req: Request) {
   }
 
   try {
-    // Get all active alerts that haven't been sent in the last 20 hours
-    const twentyHoursAgo = new Date(Date.now() - 20 * 60 * 60 * 1000)
+    // Pick which alerts to send. We respect the frequency field:
+    // - daily alerts: throttle to 20h (so a daily alert sent at 9 AM today
+    //   won't fire again until 5 AM tomorrow even if cron runs hourly)
+    // - weekly alerts: throttle to 6 days (so a weekly alert fires once a week
+    //   even though cron runs daily — this also gives a 1-day grace window
+    //   in case a daily cron fails)
+    const now = Date.now()
+    const twentyHoursAgo = new Date(now - 20 * 60 * 60 * 1000)
+    const sixDaysAgo = new Date(now - 6 * 24 * 60 * 60 * 1000)
+
     const alerts = await db.jobAlert.findMany({
       where: {
         isActive: true,
         OR: [
+          // Never sent yet
           { lastSentAt: null },
-          { lastSentAt: { lt: twentyHoursAgo } },
+          // Daily alerts: last sent > 20h ago
+          { frequency: 'daily', lastSentAt: { lt: twentyHoursAgo } },
+          // Weekly alerts: last sent > 6 days ago
+          { frequency: 'weekly', lastSentAt: { lt: sixDaysAgo } },
+          // Any other frequency value (default to daily cadence)
+          { frequency: { notIn: ['daily', 'weekly'] }, lastSentAt: { lt: twentyHoursAgo } },
         ],
       },
       include: { user: true },
@@ -74,7 +88,8 @@ export async function GET(req: Request) {
           continue
         }
 
-        // Send the email
+        // Send the email — pass unsubscribe token so the email footer
+        // includes a working one-click unsubscribe link.
         const emailResult = await sendJobAlertEmail({
           to: alert.email,
           userName: alert.user?.name || undefined,
@@ -84,6 +99,7 @@ export async function GET(req: Request) {
             location: alert.location,
             workMode: alert.workMode,
           },
+          unsubscribeToken: alert.unsubscribeToken,
           jobs: matchingJobs.map((j) => ({
             id: j.id,
             title: cleanJobTitle(j.title, j.company.name),

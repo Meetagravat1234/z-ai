@@ -20,12 +20,25 @@ interface JobAlertEmail {
     category: string
     applyUrl?: string | null
   }>
+  // Token used to build the one-click unsubscribe link in the email footer.
+  // Without this, the footer just shows a "Manage your alerts" link.
+  unsubscribeToken?: string | null
 }
 
-export async function sendJobAlertEmail({ to, userName, alertCriteria, jobs }: JobAlertEmail) {
+// Site base URL — env var so staging/preview deployments send links that
+// point back to themselves rather than the production domain.
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://www.hirebase.in'
+
+// From address — must use a verified Resend sending domain.
+// Default to alerts@hirebase.in which is what we'll set up in the Resend
+// dashboard. If you haven't verified the domain yet, set RESEND_FROM_EMAIL
+// in your env to fall back to onboarding@resend.dev (sandbox) temporarily.
+const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'alerts@hirebase.in'
+
+export async function sendJobAlertEmail({ to, userName, alertCriteria, jobs, unsubscribeToken }: JobAlertEmail) {
   try {
     const resend = new Resend(process.env.RESEND_API_KEY)
-    
+
     if (!process.env.RESEND_API_KEY) {
       return { success: false, error: 'RESEND_API_KEY not set' }
     }
@@ -37,7 +50,7 @@ export async function sendJobAlertEmail({ to, userName, alertCriteria, jobs }: J
       alertCriteria.workMode && alertCriteria.workMode,
     ].filter(Boolean).join(' · ') || 'All jobs'
 
-    const jobCards = jobs.map((job, i) => `
+    const jobCards = jobs.map((job) => `
       <tr>
         <td style="padding: 16px 0; border-bottom: 1px solid #f0f0f0;">
           <table width="100%" cellpadding="0" cellspacing="0">
@@ -67,6 +80,12 @@ export async function sendJobAlertEmail({ to, userName, alertCriteria, jobs }: J
       </tr>
     `).join('')
 
+    // One-click unsubscribe URL — token-based so it works without login.
+    // This is required for CAN-SPAM / GDPR compliance.
+    const unsubscribeUrl = unsubscribeToken
+      ? `${APP_URL}/api/alerts/unsubscribe?token=${unsubscribeToken}`
+      : `${APP_URL}/alerts`
+
     const html = `<!DOCTYPE html>
 <html>
 <head>
@@ -78,7 +97,7 @@ export async function sendJobAlertEmail({ to, userName, alertCriteria, jobs }: J
     <tr>
       <td align="center">
         <table width="600" cellpadding="0" cellspacing="0" style="background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-          
+
           <!-- Header -->
           <tr>
             <td style="background: linear-gradient(135deg, #10b981, #6366f1); padding: 32px 24px; text-align: center;">
@@ -106,15 +125,26 @@ export async function sendJobAlertEmail({ to, userName, alertCriteria, jobs }: J
               </table>
 
               <div style="text-align: center; margin-top: 32px;">
-                <a href="https://hirebase.in/all-jobs" style="display: inline-block; padding: 12px 32px; border-radius: 12px; background: #10b981; color: white; text-decoration: none; font-weight: 700; font-size: 15px;">
+                <a href="${APP_URL}/jobs" style="display: inline-block; padding: 12px 32px; border-radius: 12px; background: #10b981; color: white; text-decoration: none; font-weight: 700; font-size: 15px;">
                   Browse all jobs →
                 </a>
               </div>
 
-              <p style="font-size: 12px; color: #9ca3af; margin: 32px 0 0; text-align: center;">
-                You're receiving this because you set up a job alert on Hirebase.<br>
-                <a href="https://hirebase.in/profile" style="color: #6b7280;">Manage your alerts</a>
-              </p>
+              <!-- Footer with unsubscribe link -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 40px; border-top: 1px solid #f0f0f0; padding-top: 24px;">
+                <tr>
+                  <td style="text-align: center;">
+                    <p style="font-size: 12px; color: #9ca3af; margin: 0 0 8px;">
+                      You're receiving this because you set up a job alert on Hirebase.
+                    </p>
+                    <p style="font-size: 12px; color: #9ca3af; margin: 0;">
+                      <a href="${APP_URL}/alerts" style="color: #6b7280;">Manage your alerts</a>
+                      &nbsp;·&nbsp;
+                      <a href="${unsubscribeUrl}" style="color: #6b7280;">Unsubscribe</a>
+                    </p>
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
         </table>
@@ -125,10 +155,19 @@ export async function sendJobAlertEmail({ to, userName, alertCriteria, jobs }: J
 </html>`
 
     const { data, error } = await resend.emails.send({
-      from: 'Hirebase <onboarding@resend.dev>',
+      from: `Hirebase <${FROM_EMAIL}>`,
       to,
       subject: `${jobs.length} new ${jobs.length === 1 ? 'job' : 'jobs'} matching your alert on Hirebase`,
       html,
+      // List-Unsubscribe header — required by Gmail/Yahoo/Apple Mail for bulk
+      // senders as of Feb 2024. Enables the native "Unsubscribe" button in
+      // email clients.
+      headers: unsubscribeToken
+        ? {
+            'List-Unsubscribe': `<${unsubscribeUrl}>`,
+            'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+          }
+        : undefined,
     })
 
     if (error) {

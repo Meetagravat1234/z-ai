@@ -37,12 +37,19 @@
     },
     "src/app/api/ai/enrich-job/route.ts": {
       "maxDuration": 60
+    },
+    "src/app/api/alerts/send/route.ts": {
+      "maxDuration": 60
     }
   },
   "crons": [
     {
       "path": "/api/sync/parallel",
       "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/alerts/send",
+      "schedule": "30 3 * * *"
     }
   ]
 }
