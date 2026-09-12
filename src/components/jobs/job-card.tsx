@@ -30,6 +30,7 @@ export interface Job {
   sourceRef?: string | null
   enriched?: boolean
   createdAt?: string
+  estimatedSalary?: { min: number; max: number; confidence: string; basis: string } | null
   company: {
     id: string
     name: string
@@ -51,17 +52,27 @@ function timeAgo(dateStr: string) {
   return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
 }
 
-function formatSalary(min: number | null, max: number | null) {
-  if (min == null && max == null) return 'Est. ₹3-15 LPA'
+function formatSalary(job: Job): { text: string; isEstimate: boolean } | null {
   const fmt = (n: number) => {
     const lpa = n / 10
     if (Number.isInteger(lpa)) return `${lpa} LPA`
     return `${lpa.toFixed(1)} LPA`
   }
-  if (min != null && max != null) return `₹${fmt(min)} – ${fmt(max)}`
-  if (min != null) return `₹${fmt(min)}+`
-  if (max != null) return `up to ₹${fmt(max)}`
-  return 'Est. ₹3-15 LPA'
+  // 1. Actual salary from employer
+  if (job.salaryMin != null && job.salaryMax != null) {
+    return { text: `₹${fmt(job.salaryMin)} – ${fmt(job.salaryMax)}`, isEstimate: false }
+  }
+  if (job.salaryMin != null) return { text: `₹${fmt(job.salaryMin)}+`, isEstimate: false }
+  if (job.salaryMax != null) return { text: `up to ₹${fmt(job.salaryMax)}`, isEstimate: false }
+  // 2. Estimated salary from benchmark data
+  if (job.estimatedSalary) {
+    return {
+      text: `Est. ₹${fmt(job.estimatedSalary.min)} – ${fmt(job.estimatedSalary.max)}`,
+      isEstimate: true,
+    }
+  }
+  // 3. No data — hide salary entirely
+  return null
 }
 
 export function JobCard({ job, compact = false }: { job: Job; compact?: boolean }) {
@@ -69,7 +80,7 @@ export function JobCard({ job, compact = false }: { job: Job; compact?: boolean 
   const [saved, setSaved] = React.useState(false)
   const [saving, setSaving] = React.useState(false)
 
-  const salary = formatSalary(job.salaryMin, job.salaryMax)
+  const salary = formatSalary(job)
   const skills = job.skills.split(',').filter(Boolean).slice(0, 4)
   const locations = job.location.split(',').filter(Boolean)
   const isNew = (() => {
@@ -192,9 +203,15 @@ export function JobCard({ job, compact = false }: { job: Job; compact?: boolean 
                   {salary && (
                     <>
                       <span className="text-muted-foreground">·</span>
-                      <span className="inline-flex items-center font-semibold text-primary">
+                      <span
+                        className={cn(
+                          'inline-flex items-center font-semibold',
+                          salary.isEstimate ? 'text-amber-600 dark:text-amber-400' : 'text-primary'
+                        )}
+                        title={salary.isEstimate ? 'Estimated based on similar roles, companies and locations' : undefined}
+                      >
                         <IndianRupee className="w-3 h-3" />
-                        {salary.replace('₹', '')}
+                        {salary.text.replace('₹', '')}
                       </span>
                     </>
                   )}

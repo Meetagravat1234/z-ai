@@ -4,6 +4,7 @@ import { JobCard, type Job } from '@/components/jobs/job-card'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { CITY_PAGES, jobUrl } from '@/lib/seo-routes'
+import { estimateSalaryForJob } from '@/lib/salary-estimate'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 300
@@ -27,7 +28,7 @@ export default async function AllJobsPage() {
   let categories: { category: string; count: number }[] = []
 
   try {
-    ;[jobs, total, categories] = await Promise.all([
+    const [allJobs, totalCount, categoryGroups] = await Promise.all([
       db.job.findMany({
         where: { verified: true },
         include: { company: true },
@@ -42,6 +43,27 @@ export default async function AllJobsPage() {
         orderBy: { _count: { category: 'desc' } },
       }),
     ])
+    // Enrich jobs without salary with estimated range — uses in-memory benchmark
+    // cache so it's essentially free after the first call.
+    jobs = await Promise.all(
+      allJobs.map(async (j) => {
+        if (j.salaryMin != null || j.salaryMax != null) return { ...j, estimatedSalary: null }
+        try {
+          const est = await estimateSalaryForJob({
+            title: j.title,
+            location: j.location,
+            experience: j.experience,
+            category: j.category,
+            company: j.company,
+          })
+          return { ...j, estimatedSalary: est }
+        } catch {
+          return { ...j, estimatedSalary: null }
+        }
+      })
+    )
+    total = totalCount
+    categories = categoryGroups as any
   } catch (e) {
     console.error('All Jobs SSR fetch failed:', e)
   }
@@ -90,7 +112,7 @@ export default async function AllJobsPage() {
                     href={`/jobs/${c.category}`}
                     className="px-3 py-1.5 rounded-full bg-muted hover:bg-primary/10 hover:text-primary text-sm font-medium transition-colors"
                   >
-                    {categoryLabels[c.category] || c.category} ({c._count})
+                    {categoryLabels[c.category] || c.category} ({c._count || c.count})
                   </Link>
                 ))}
               </div>

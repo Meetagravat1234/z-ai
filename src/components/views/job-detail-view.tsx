@@ -62,17 +62,25 @@ function timeAgo(dateStr: string) {
   return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
-function formatSalary(min: number | null, max: number | null) {
-  if (min == null && max == null) return 'Estimated ₹3-15 LPA'
+function formatSalary(job: { salaryMin: number | null; salaryMax: number | null; estimatedSalary?: { min: number; max: number; confidence: string; basis: string } | null }): { text: string; isEstimate: boolean; basis?: string } | null {
   const fmt = (n: number) => {
     const lpa = n / 10
     if (Number.isInteger(lpa)) return `${lpa} LPA`
     return `${lpa.toFixed(1)} LPA`
   }
-  if (min != null && max != null) return `₹${fmt(min)} – ${fmt(max)}`
-  if (min != null) return `₹${fmt(min)}+`
-  if (max != null) return `up to ₹${fmt(max)}`
-  return 'Estimated ₹3-15 LPA'
+  if (job.salaryMin != null && job.salaryMax != null) {
+    return { text: `₹${fmt(job.salaryMin)} – ${fmt(job.salaryMax)}`, isEstimate: false }
+  }
+  if (job.salaryMin != null) return { text: `₹${fmt(job.salaryMin)}+`, isEstimate: false }
+  if (job.salaryMax != null) return { text: `up to ₹${fmt(job.salaryMax)}`, isEstimate: false }
+  if (job.estimatedSalary) {
+    return {
+      text: `Est. ₹${fmt(job.estimatedSalary.min)} – ${fmt(job.estimatedSalary.max)}`,
+      isEstimate: true,
+      basis: job.estimatedSalary.basis,
+    }
+  }
+  return null
 }
 
 const CATEGORY_BADGES: Record<string, { label: string; color: string }> = {
@@ -183,6 +191,7 @@ export function JobDetailView({
     }
     setApplying(true)
     try {
+      const salaryInfo = formatSalary(job)
       // Optionally track application automatically
       await fetch('/api/applications', {
         method: 'POST',
@@ -192,7 +201,7 @@ export function JobDetailView({
           company: job.company.name,
           role: job.title,
           location: job.location.split(',')[0],
-          salary: formatSalary(job.salaryMin, job.salaryMax).replace('₹', ''),
+          salary: salaryInfo ? salaryInfo.text.replace('₹', '') : 'Not disclosed',
           status: 'applied',
           url: job.applyUrl,
         }),
@@ -321,7 +330,18 @@ export function JobDetailView({
 
           {/* Quick stats grid */}
           <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <StatCard icon={IndianRupee} label="Salary" value={formatSalary(job.salaryMin, job.salaryMax)} />
+            {(() => {
+              const salaryInfo = formatSalary(job)
+              return (
+                <StatCard
+                  icon={IndianRupee}
+                  label={salaryInfo?.isEstimate ? 'Est. Salary' : 'Salary'}
+                  value={salaryInfo?.text || 'Not disclosed'}
+                  accent={salaryInfo?.isEstimate ? 'amber' : undefined}
+                  hint={salaryInfo?.basis}
+                />
+              )
+            })()}
             <StatCard icon={Briefcase} label="Experience" value={job.experience} />
             <StatCard icon={WorkIcon} label="Work mode" value={job.workMode} />
             <StatCard icon={Calendar} label="Employment" value={job.employmentType} />
@@ -439,31 +459,75 @@ export function JobDetailView({
             </section>
           )}
 
-          {/* Salary details */}
-          <section className="rounded-2xl border border-border bg-card p-6">
-            <h2 className="text-lg font-bold mb-3 flex items-center gap-2">
-              <IndianRupee className="w-5 h-5 text-emerald-600" />
-              Compensation
-            </h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-              <div>
-                <div className="text-xs text-muted-foreground">Min</div>
-                <div className="font-bold">
-                  {job.salaryMin != null ? `₹${Number.isInteger(job.salaryMin / 10) ? job.salaryMin / 10 : (job.salaryMin / 10).toFixed(1)} LPA` : '—'}
+          {/* Salary details — only shown when there is actual or estimated salary data */}
+          {(() => {
+            const salaryInfo = formatSalary(job)
+            if (!salaryInfo) {
+              return (
+                <section className="rounded-2xl border border-border bg-card p-6">
+                  <h2 className="text-lg font-bold mb-3 flex items-center gap-2">
+                    <IndianRupee className="w-5 h-5 text-emerald-600" />
+                    Compensation
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                    Salary for this role is not disclosed by the employer. We don&rsquo;t have enough benchmark data
+                    from similar roles to produce a reliable estimate. The actual compensation will be discussed
+                    during the interview process.
+                  </p>
+                </section>
+              )
+            }
+            const fmt = (n: number) => {
+              const lpa = n / 10
+              return Number.isInteger(lpa) ? `${lpa} LPA` : `${lpa.toFixed(1)} LPA`
+            }
+            const hasActual = job.salaryMin != null || job.salaryMax != null
+            return (
+              <section className="rounded-2xl border border-border bg-card p-6">
+                <h2 className="text-lg font-bold mb-3 flex items-center gap-2">
+                  <IndianRupee className="w-5 h-5 text-emerald-600" />
+                  Compensation
+                </h2>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                  <div>
+                    <div className="text-xs text-muted-foreground">
+                      {salaryInfo.isEstimate ? 'Est. Min' : 'Min'}
+                    </div>
+                    <div className={cn('font-bold', salaryInfo.isEstimate && 'text-amber-600 dark:text-amber-400')}>
+                      {hasActual
+                        ? (job.salaryMin != null
+                            ? `₹${fmt(job.salaryMin)}`
+                            : '—')
+                        : (job.estimatedSalary ? `₹${fmt(job.estimatedSalary.min)}` : '—')}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">
+                      {salaryInfo.isEstimate ? 'Est. Max' : 'Max'}
+                    </div>
+                    <div className={cn('font-bold', salaryInfo.isEstimate && 'text-amber-600 dark:text-amber-400')}>
+                      {hasActual
+                        ? (job.salaryMax != null
+                            ? `₹${fmt(job.salaryMax)}`
+                            : '—')
+                        : (job.estimatedSalary ? `₹${fmt(job.estimatedSalary.max)}` : '—')}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">Currency</div>
+                    <div className="font-bold">{job.salaryCurrency}</div>
+                  </div>
                 </div>
-              </div>
-              <div>
-                <div className="text-xs text-muted-foreground">Max</div>
-                <div className="font-bold">
-                  {job.salaryMax != null ? `₹${Number.isInteger(job.salaryMax / 10) ? job.salaryMax / 10 : (job.salaryMax / 10).toFixed(1)} LPA` : '—'}
-                </div>
-              </div>
-              <div>
-                <div className="text-xs text-muted-foreground">Currency</div>
-                <div className="font-bold">{job.salaryCurrency}</div>
-              </div>
-            </div>
-          </section>
+                {salaryInfo.isEstimate && salaryInfo.basis && (
+                  <p className="mt-4 text-xs text-muted-foreground italic">
+                    <span className="font-semibold text-amber-600 dark:text-amber-400">Estimated range</span> &mdash;
+                    based on {salaryInfo.basis}. Actual compensation may vary based on your specific experience,
+                    interview performance, and the company&rsquo;s internal bands.
+                  </p>
+                )}
+              </section>
+            )
+          })()}
 
           {/* Apply CTA at bottom */}
           <section className="rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/10 to-accent/5 p-6 text-center">
@@ -613,18 +677,35 @@ function StatCard({
   icon: Icon,
   label,
   value,
+  accent,
+  hint,
 }: {
   icon: React.ComponentType<{ className?: string }>
   label: string
   value: string
+  accent?: 'amber'
+  hint?: string
 }) {
   return (
-    <div className="rounded-xl bg-muted/40 p-3">
+    <div
+      className={cn(
+        'rounded-xl bg-muted/40 p-3',
+        accent === 'amber' && 'bg-amber-500/10'
+      )}
+      title={hint}
+    >
       <div className="flex items-center gap-1.5 text-muted-foreground text-xs mb-1">
-        <Icon className="w-3 h-3" />
+        <Icon className={cn('w-3 h-3', accent === 'amber' && 'text-amber-600 dark:text-amber-400')} />
         {label}
       </div>
-      <div className="font-bold text-sm">{value}</div>
+      <div
+        className={cn(
+          'font-bold text-sm',
+          accent === 'amber' && 'text-amber-600 dark:text-amber-400'
+        )}
+      >
+        {value}
+      </div>
     </div>
   )
 }

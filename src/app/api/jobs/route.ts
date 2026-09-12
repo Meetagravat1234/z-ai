@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { estimateSalaryForJob } from '@/lib/salary-estimate'
 
 export async function GET(req: NextRequest) {
   try {
@@ -37,7 +38,11 @@ export async function GET(req: NextRequest) {
       // Increment view count (fire-and-forget)
       db.job.update({ where: { id }, data: { viewsCount: { increment: 1 } } }).catch(() => {})
 
-      return NextResponse.json({ job, related })
+      // Enrich job + related with estimated salary when actual salary is missing
+      const enrichedJob = await enrichWithEstimatedSalary(job)
+      const enrichedRelated = await Promise.all(related.map((j) => enrichWithEstimatedSalary(j)))
+
+      return NextResponse.json({ job: enrichedJob, related: enrichedRelated })
     }
 
     const q = searchParams.get('q')?.toLowerCase()
@@ -159,9 +164,48 @@ export async function GET(req: NextRequest) {
     // Get total count for pagination/display (single count query)
     const total = await db.job.count({ where })
 
-    return NextResponse.json({ jobs, count: jobs.length, total })
+    // Enrich jobs that are missing salary with an estimated range based on
+    // role + experience + location. Jobs with no salary AND not enough
+    // benchmark data are returned as-is (the UI will hide the salary display).
+    const enrichedJobs = await Promise.all(jobs.map((j) => enrichWithEstimatedSalary(j)))
+
+    return NextResponse.json({ jobs: enrichedJobs, count: enrichedJobs.length, total })
   } catch (e: any) {
     console.error('Jobs API error:', e)
     return NextResponse.json({ error: e.message }, { status: 500 })
+  }
+}
+
+/**
+ * If a job has no salary data, attach an estimated range based on similar
+ * listings in the database. The estimate is exposed as `estimatedSalary` on
+ * the job object — the UI uses it to show "Est. ₹X – Y LPA" instead of the
+ * old hardcoded "₹3-15 LPA" placeholder.
+ */
+async function enrichWithEstimatedSalary<T extends {
+  salaryMin: number | null
+  salaryMax: number | null
+  title: string
+  location: string
+  experience: string
+  category: string
+  company?: { name?: string | null } | null
+}>(job: T): Promise<T & { estimatedSalary?: { min: number; max: number; confidence: string; basis: string } | null }> {
+  if (job.salaryMin != null || job.salaryMax != null) {
+    return { ...job, estimatedSalary: null }
+  }
+  try {
+    const estimate = await estimateSalaryForJob({
+      title: job.title,
+      location: job.location,
+      experience: job.experience,
+      category: job.category,
+      company: job.company,
+    })
+    return { ...job, estimatedSalary: estimate }
+  } catch (e) {
+    // Enrichment failure should never break job display
+    console.error('[jobs] Salary estimation failed for job:', job.title, e)
+    return { ...job, estimatedSalary: null }
   }
 }

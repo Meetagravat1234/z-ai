@@ -6,6 +6,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { CITY_PAGES, ROLE_PAGES, jobUrl, parseJobIdFromSlug, slugify } from '@/lib/seo-routes'
+import { estimateSalaryForJob } from '@/lib/salary-estimate'
 
 // Always render fresh — jobs change frequently
 export const dynamic = 'force-dynamic'
@@ -173,14 +174,56 @@ async function JobDetailPage({ slug }: { slug: string }) {
     notFound()
   }
 
+  // Enrich with estimated salary if actual salary is missing — keeps the
+  // displayed range and the JSON-LD baseSalary consistent with what /api/jobs
+  // returns on the client side.
+  let estimatedSalary: Awaited<ReturnType<typeof estimateSalaryForJob>> = null
+  if (job.salaryMin == null && job.salaryMax == null) {
+    try {
+      estimatedSalary = await estimateSalaryForJob({
+        title: job.title,
+        location: job.location,
+        experience: job.experience,
+        category: job.category,
+        company: job.company,
+      })
+    } catch (e) {
+      console.error('[jobs/ssr] Salary estimation failed:', e)
+    }
+  }
+
+  // Enrich related jobs with estimated salary too — uses the same in-memory
+  // benchmark cache as the main job, so it's essentially free after the
+  // first computation.
+  const enrichedRelated = await Promise.all(
+    related.map(async (j) => {
+      if (j.salaryMin != null || j.salaryMax != null) {
+        return { ...j, estimatedSalary: null }
+      }
+      try {
+        const est = await estimateSalaryForJob({
+          title: j.title,
+          location: j.location,
+          experience: j.experience,
+          category: j.category,
+          company: j.company,
+        })
+        return { ...j, estimatedSalary: est }
+      } catch {
+        return { ...j, estimatedSalary: null }
+      }
+    })
+  )
+
   // Serialize dates for client component
   const serializableJob = {
     ...job,
     postedAt: job.postedAt.toISOString(),
     createdAt: job.createdAt?.toISOString(),
     updatedAt: job.updatedAt?.toISOString(),
+    estimatedSalary,
   }
-  const serializableRelated = related.map((j) => ({
+  const serializableRelated = enrichedRelated.map((j: any) => ({
     ...j,
     postedAt: j.postedAt.toISOString(),
     createdAt: j.createdAt?.toISOString(),
@@ -228,17 +271,28 @@ async function JobDetailPage({ slug }: { slug: string }) {
     },
     employmentType: job.employmentType,
     url: `https://www.hirebase.in${jobUrl(job)}`,
-    // Always include baseSalary — use default range if job doesn't have one
-    baseSalary: {
-      '@type': 'MonetaryAmount',
-      currency: job.salaryCurrency || 'INR',
-      value: {
-        '@type': 'QuantitativeValue',
-        minValue: job.salaryMin ? job.salaryMin / 10 : 3,   // Default min: 3 LPA
-        maxValue: job.salaryMax ? job.salaryMax / 10 : 15,  // Default max: 15 LPA
-        unitText: 'YEAR',
-      },
-    },
+    // baseSalary: only include when we have actual or estimated salary data.
+    // Google's JobPosting schema treats baseSalary as optional — emitting a
+    // fake "3-15 LPA" placeholder caused Google to surface misleading salary
+    // info in Google for Jobs results.
+    ...(job.salaryMin != null || job.salaryMax != null || estimatedSalary
+      ? {
+          baseSalary: {
+            '@type': 'MonetaryAmount',
+            currency: job.salaryCurrency || 'INR',
+            value: {
+              '@type': 'QuantitativeValue',
+              minValue: job.salaryMin != null
+                ? job.salaryMin / 10
+                : (estimatedSalary ? estimatedSalary.min / 10 : undefined),
+              maxValue: job.salaryMax != null
+                ? job.salaryMax / 10
+                : (estimatedSalary ? estimatedSalary.max / 10 : undefined),
+              unitText: 'YEAR',
+            },
+          },
+        }
+      : {}),
     // Additional recommended fields
     jobLocationType: isRemote ? 'TELECOMMUTE' : undefined,
     applicantLocationRequirements: isRemote
@@ -311,7 +365,25 @@ async function CityPage({ citySlug }: { citySlug: string }) {
         take: 12,
       }),
     ])
-    jobs = allJobs
+    // Enrich jobs without salary with estimated range — uses the same
+    // benchmark cache as the job detail page so it's effectively free.
+    jobs = await Promise.all(
+      allJobs.map(async (j) => {
+        if (j.salaryMin != null || j.salaryMax != null) return { ...j, estimatedSalary: null }
+        try {
+          const est = await estimateSalaryForJob({
+            title: j.title,
+            location: j.location,
+            experience: j.experience,
+            category: j.category,
+            company: j.company,
+          })
+          return { ...j, estimatedSalary: est }
+        } catch {
+          return { ...j, estimatedSalary: null }
+        }
+      })
+    )
     totalJobs = totalCount
     companies = allCompanies
   } catch (e) {
@@ -474,7 +546,7 @@ async function CategoryPage({ category }: { category: string }) {
   let jobs: any[] = []
   let total = 0
   try {
-    ;[jobs, total] = await Promise.all([
+    const [allJobs, totalCount] = await Promise.all([
       db.job.findMany({
         where: { verified: true, category },
         include: { company: true },
@@ -483,6 +555,25 @@ async function CategoryPage({ category }: { category: string }) {
       }),
       db.job.count({ where: { verified: true, category } }),
     ])
+    // Enrich jobs without salary with estimated range
+    jobs = await Promise.all(
+      allJobs.map(async (j) => {
+        if (j.salaryMin != null || j.salaryMax != null) return { ...j, estimatedSalary: null }
+        try {
+          const est = await estimateSalaryForJob({
+            title: j.title,
+            location: j.location,
+            experience: j.experience,
+            category: j.category,
+            company: j.company,
+          })
+          return { ...j, estimatedSalary: est }
+        } catch {
+          return { ...j, estimatedSalary: null }
+        }
+      })
+    )
+    total = totalCount
   } catch (e) {
     console.error('Category page SSR fetch failed:', e)
   }

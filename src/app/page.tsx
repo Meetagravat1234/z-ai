@@ -2,6 +2,7 @@ import { db } from '@/lib/db'
 import HomeShell from './home-shell'
 import type { HomeInitialData } from '@/lib/home-types'
 import type { Metadata } from 'next'
+import { estimateSalaryForJob } from '@/lib/salary-estimate'
 
 // Force dynamic rendering — always shows fresh jobs/companies to Google
 export const dynamic = 'force-dynamic'
@@ -122,8 +123,43 @@ async function getHomeData(): Promise<HomeInitialData> {
         updatedAt: j.updatedAt?.toISOString(),
       }))
 
+    // Helper: enrich jobs without salary with estimated range — uses the
+    // in-memory benchmark cache so all 7 arrays below reuse the same lookup.
+    const enrichJobs = async (arr: any[]) =>
+      Promise.all(
+        arr.map(async (j: any) => {
+          if (j.salaryMin != null || j.salaryMax != null) {
+            return { ...j, estimatedSalary: null }
+          }
+          try {
+            const est = await estimateSalaryForJob({
+              title: j.title,
+              location: j.location,
+              experience: j.experience,
+              category: j.category,
+              company: j.company,
+            })
+            return { ...j, estimatedSalary: est }
+          } catch {
+            return { ...j, estimatedSalary: null }
+          }
+        })
+      )
+
+    const [
+      enrichedJobs, enrichedAllJobs, enrichedFresherJobs, enrichedInternshipJobs,
+      enrichedWalkInJobs, enrichedHiddenJobs,
+    ] = await Promise.all([
+      enrichJobs(jobs),
+      enrichJobs(allJobs),
+      enrichJobs(fresherJobs),
+      enrichJobs(internshipJobs),
+      enrichJobs(walkInJobs),
+      enrichJobs(hiddenJobs),
+    ])
+
     return {
-      initialJobs: serializeJobs(jobs),
+      initialJobs: serializeJobs(enrichedJobs),
       initialCompanies: companies.slice(0, 8).map((c) => ({
         id: c.id,
         name: c.name,
@@ -145,15 +181,15 @@ async function getHomeData(): Promise<HomeInitialData> {
         createdAt: a.createdAt.toISOString(),
       })),
       stats: { jobs: totalJobs, companies: totalCompanies },
-      initialAllJobs: serializeJobs(allJobs),
+      initialAllJobs: serializeJobs(enrichedAllJobs),
       initialAllJobsTotal: allJobsTotal,
-      initialFresherJobs: serializeJobs(fresherJobs),
+      initialFresherJobs: serializeJobs(enrichedFresherJobs),
       initialFresherJobsTotal: fresherJobsTotal,
-      initialInternshipJobs: serializeJobs(internshipJobs),
+      initialInternshipJobs: serializeJobs(enrichedInternshipJobs),
       initialInternshipJobsTotal: internshipJobsTotal,
-      initialWalkInJobs: serializeJobs(walkInJobs),
+      initialWalkInJobs: serializeJobs(enrichedWalkInJobs),
       initialWalkInJobsTotal: walkInJobsTotal,
-      initialHiddenJobs: serializeJobs(hiddenJobs),
+      initialHiddenJobs: serializeJobs(enrichedHiddenJobs),
       initialHiddenJobsTotal: hiddenJobsTotal,
     }
   } catch (e) {
@@ -210,7 +246,8 @@ export default async function Page() {
 
   // JobPosting schema — critical for showing up in Google for Jobs
   // Full schema with all recommended fields to avoid GSC warnings
-  const jobPostingsLd = data.initialJobs.map((job: any) => {
+  // Enrich jobs without salary with an estimated range so JSON-LD matches UI.
+  const jobPostingsLd = await Promise.all(data.initialJobs.map(async (job: any) => {
     const locationParts = (job.location || 'India').split(',').map((s: string) => s.trim())
     const city = locationParts[0] || 'India'
     const stateOrRegion = locationParts[1] || city
@@ -218,6 +255,22 @@ export default async function Page() {
     const postedDate = new Date(job.postedAt)
     const validThrough = new Date(postedDate)
     validThrough.setDate(validThrough.getDate() + 30)
+
+    // Estimate salary only if actual salary is missing
+    let estimated: Awaited<ReturnType<typeof estimateSalaryForJob>> = null
+    if (job.salaryMin == null && job.salaryMax == null) {
+      try {
+        estimated = await estimateSalaryForJob({
+          title: job.title,
+          location: job.location,
+          experience: job.experience,
+          category: job.category,
+          company: job.company,
+        })
+      } catch {
+        // ignore — baseSalary just won't be emitted
+      }
+    }
 
     return {
       '@context': 'https://schema.org',
@@ -243,16 +296,25 @@ export default async function Page() {
       },
       employmentType: job.employmentType,
       url: `https://www.hirebase.in/jobs/${job.id}-${job.title?.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').slice(0, 60)}`,
-      baseSalary: {
-        '@type': 'MonetaryAmount',
-        currency: job.salaryCurrency || 'INR',
-        value: {
-          '@type': 'QuantitativeValue',
-          minValue: job.salaryMin ? job.salaryMin / 10 : 3,
-          maxValue: job.salaryMax ? job.salaryMax / 10 : 15,
-          unitText: 'YEAR',
-        },
-      },
+      // baseSalary only emitted when we have actual or estimated data
+      ...(job.salaryMin != null || job.salaryMax != null || estimated
+        ? {
+            baseSalary: {
+              '@type': 'MonetaryAmount',
+              currency: job.salaryCurrency || 'INR',
+              value: {
+                '@type': 'QuantitativeValue',
+                minValue: job.salaryMin != null
+                  ? job.salaryMin / 10
+                  : (estimated ? estimated.min / 10 : undefined),
+                maxValue: job.salaryMax != null
+                  ? job.salaryMax / 10
+                  : (estimated ? estimated.max / 10 : undefined),
+                unitText: 'YEAR',
+              },
+            },
+          }
+        : {}),
       jobLocationType: isRemote ? 'TELECOMMUTE' : undefined,
       applicantLocationRequirements: isRemote
         ? { '@type': 'Country', name: 'India' }
@@ -260,7 +322,7 @@ export default async function Page() {
       experienceRequirements: job.experience || undefined,
       skills: job.skills || undefined,
     }
-  })
+  }))
 
   // FAQ schema — for Google rich snippets (eligible for expandable Q&A in search results)
   const faqLd = {

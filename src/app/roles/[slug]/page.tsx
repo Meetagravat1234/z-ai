@@ -5,6 +5,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ROLE_PAGES, jobUrl } from '@/lib/seo-routes'
+import { estimateSalaryForJob } from '@/lib/salary-estimate'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 300
@@ -53,7 +54,7 @@ export default async function RolePage({ params }: PageProps) {
       verified: true,
       OR: [...titleConditions, ...skillsConditions],
     }
-    ;[jobs, total, topCompanies] = await Promise.all([
+    const [allJobs, totalCount, companies] = await Promise.all([
       db.job.findMany({
         where,
         include: { company: true },
@@ -68,6 +69,26 @@ export default async function RolePage({ params }: PageProps) {
         take: 8,
       }),
     ])
+    // Enrich jobs without salary with estimated range
+    jobs = await Promise.all(
+      allJobs.map(async (j) => {
+        if (j.salaryMin != null || j.salaryMax != null) return { ...j, estimatedSalary: null }
+        try {
+          const est = await estimateSalaryForJob({
+            title: j.title,
+            location: j.location,
+            experience: j.experience,
+            category: j.category,
+            company: j.company,
+          })
+          return { ...j, estimatedSalary: est }
+        } catch {
+          return { ...j, estimatedSalary: null }
+        }
+      })
+    )
+    total = totalCount
+    topCompanies = companies
   } catch (e) {
     console.error('Role page SSR fetch failed:', e)
   }

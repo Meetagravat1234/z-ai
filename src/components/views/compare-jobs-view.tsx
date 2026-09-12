@@ -15,6 +15,7 @@ interface Job {
   experience: string
   salaryMin: number | null
   salaryMax: number | null
+  estimatedSalary?: { min: number; max: number; confidence: string; basis: string } | null
   location: string
   skills: string
   description: string
@@ -63,8 +64,9 @@ export function CompareJobsView() {
 
   function getWinner(field: 'salary' | 'views' | 'trend', job: Job): boolean {
     if (selected.length < 2) return false
-    const value = field === 'salary' ? (job.salaryMax || 0) : field === 'views' ? job.viewsCount : job.company.sevenDayTrend
-    const maxValue = Math.max(...selected.map((j) => field === 'salary' ? (j.salaryMax || 0) : field === 'views' ? j.viewsCount : j.company.sevenDayTrend))
+    const getSalaryValue = (j: Job) => j.salaryMax || j.estimatedSalary?.max || j.salaryMin || j.estimatedSalary?.min || 0
+    const value = field === 'salary' ? getSalaryValue(job) : field === 'views' ? job.viewsCount : job.company.sevenDayTrend
+    const maxValue = Math.max(...selected.map((j) => field === 'salary' ? getSalaryValue(j) : field === 'views' ? j.viewsCount : j.company.sevenDayTrend))
     return value === maxValue && value > 0
   }
 
@@ -156,7 +158,7 @@ export function CompareJobsView() {
               <CompareRow label="Salary" icon={IndianRupee} />
               {selected.map((job) => (
                 <CompareCell key={job.id} highlight={getWinner('salary', job)}>
-                  <div className="font-bold">{formatSalary(job.salaryMin, job.salaryMax)}</div>
+                  <div className="font-bold">{formatSalary(job)}</div>
                 </CompareCell>
               ))}
 
@@ -268,8 +270,8 @@ export function CompareJobsView() {
               <p>
                 <strong>Highest salary:</strong>{' '}
                 {(() => {
-                  const winner = [...selected].sort((a, b) => (b.salaryMax || 0) - (a.salaryMax || 0))[0]
-                  return winner ? `${winner.company.name} — ${formatSalary(winner.salaryMin, winner.salaryMax)}` : '—'
+                  const winner = [...selected].sort((a, b) => (b.salaryMax || b.estimatedSalary?.max || b.salaryMin || b.estimatedSalary?.min || 0) - (a.salaryMax || a.estimatedSalary?.max || a.salaryMin || a.estimatedSalary?.min || 0))[0]
+                  return winner ? `${winner.company.name} — ${formatSalary(winner)}` : '—'
                 })()}
               </p>
               <p>
@@ -321,16 +323,17 @@ function CompareCell({ children, highlight = false }: { children: React.ReactNod
   )
 }
 
-function formatSalary(min: number | null, max: number | null): string {
-  if (min == null && max == null) return 'Not disclosed'
+function formatSalary(job: Job): string {
   const fmt = (n: number) => {
     const lpa = n / 10
     if (Number.isInteger(lpa)) return `${lpa} LPA`
     return `${lpa.toFixed(1)} LPA`
   }
-  if (min != null && max != null) return `₹${fmt(min)} – ${fmt(max)}`
-  if (min != null) return `₹${fmt(min)}+`
-  return `up to ₹${fmt(max!)}`
+  if (job.salaryMin != null && job.salaryMax != null) return `₹${fmt(job.salaryMin)} – ${fmt(job.salaryMax)}`
+  if (job.salaryMin != null) return `₹${fmt(job.salaryMin)}+`
+  if (job.salaryMax != null) return `up to ₹${fmt(job.salaryMax)}`
+  if (job.estimatedSalary) return `Est. ₹${fmt(job.estimatedSalary.min)} – ${fmt(job.estimatedSalary.max)}`
+  return 'Not disclosed'
 }
 
 function timeAgo(dateStr: string) {
