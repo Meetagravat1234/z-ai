@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { sendJobAlertEmail } from '@/lib/email/send-alerts'
 import { getAdminUser } from '@/lib/admin-auth'
 import { cleanJobTitle } from '@/lib/seo-routes'
+import { estimateSalaryForJob } from '@/lib/salary-estimate'
 
 // GET /api/alerts/send — triggered by cron-job.org daily
 // CRITICAL: Now requires either admin auth OR a CRON_SECRET header.
@@ -74,12 +75,16 @@ export async function GET(req: Request) {
         if (alert.location) where.location = { contains: alert.location, mode: 'insensitive' }
         if (alert.minSalary) where.salaryMin = { gte: alert.minSalary }
 
-        const matchingJobs = await db.job.findMany({
-          where,
-          include: { company: true },
-          orderBy: { postedAt: 'desc' },
-          take: 20,
-        })
+        // Get total count of matching jobs first (the email only shows the top 10)
+        const [matchingJobs, totalMatching] = await Promise.all([
+          db.job.findMany({
+            where,
+            include: { company: true },
+            orderBy: { postedAt: 'desc' },
+            take: 20, // fetch 20 so we have headroom; email slices to 10
+          }),
+          db.job.count({ where }),
+        ])
 
         if (matchingJobs.length === 0) {
           results.push({ email: alert.email, matched: 0, sent: false, reason: 'no matching jobs' })
@@ -87,6 +92,55 @@ export async function GET(req: Request) {
           await db.jobAlert.update({ where: { id: alert.id }, data: { lastSentAt: new Date() } })
           continue
         }
+
+        // Build the job list for the email — apply cleanJobTitle + estimated
+        // salary so the email shows realistic ranges instead of "Not disclosed"
+        // for every job (which was the previous behavior and looked bad).
+        const jobsForEmail = await Promise.all(
+          matchingJobs.map(async (j) => {
+            const cleanTitle = cleanJobTitle(j.title, j.company.name)
+            // Determine salary display — use actual salary if available,
+            // otherwise compute an estimate from our benchmark data
+            let salaryDisplay: string
+            if (j.salaryMin != null && j.salaryMax != null) {
+              const minLpa = j.salaryMin / 10
+              const maxLpa = j.salaryMax / 10
+              const fmt = (n: number) => Number.isInteger(n) ? `${n}` : n.toFixed(1)
+              salaryDisplay = `₹${fmt(minLpa)}–${fmt(maxLpa)} LPA`
+            } else {
+              try {
+                const estimate = await estimateSalaryForJob({
+                  title: j.title,
+                  location: j.location,
+                  experience: j.experience,
+                  category: j.category,
+                  company: j.company,
+                })
+                if (estimate) {
+                  const minLpa = estimate.min / 10
+                  const maxLpa = estimate.max / 10
+                  const fmt = (n: number) => Number.isInteger(n) ? `${n}` : n.toFixed(1)
+                  salaryDisplay = `Est. ₹${fmt(minLpa)}–${fmt(maxLpa)} LPA`
+                } else {
+                  salaryDisplay = 'Not disclosed'
+                }
+              } catch {
+                salaryDisplay = 'Not disclosed'
+              }
+            }
+            return {
+              id: j.id,
+              title: cleanTitle,
+              company: j.company.name,
+              logo: j.company.logo,
+              location: j.location,
+              salary: salaryDisplay,
+              workMode: j.workMode,
+              category: j.category,
+              applyUrl: j.applyUrl,
+            }
+          })
+        )
 
         // Send the email — pass unsubscribe token so the email footer
         // includes a working one-click unsubscribe link.
@@ -100,19 +154,8 @@ export async function GET(req: Request) {
             workMode: alert.workMode,
           },
           unsubscribeToken: alert.unsubscribeToken,
-          jobs: matchingJobs.map((j) => ({
-            id: j.id,
-            title: cleanJobTitle(j.title, j.company.name),
-            company: j.company.name,
-            logo: j.company.logo,
-            location: j.location,
-            salary: j.salaryMin && j.salaryMax
-              ? `₹${j.salaryMin / 10} – ₹${j.salaryMax / 10} LPA`
-              : 'Not disclosed',
-            workMode: j.workMode,
-            category: j.category,
-            applyUrl: j.applyUrl,
-          })),
+          totalMatching,
+          jobs: jobsForEmail,
         })
 
         if (emailResult.success) {

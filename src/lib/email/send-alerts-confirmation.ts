@@ -32,85 +32,136 @@ export async function sendAlertConfirmationEmail({ to, userName, criteria, unsub
     const resend = new Resend(process.env.RESEND_API_KEY)
 
     // Build the human-readable criteria summary
-    const criteriaParts: string[] = []
-    if (criteria.query) criteriaParts.push(`Keywords: <strong>${criteria.query}</strong>`)
-    if (criteria.category) criteriaParts.push(`Category: <strong>${criteria.category}</strong>`)
-    if (criteria.location) criteriaParts.push(`Location: <strong>${criteria.location}</strong>`)
-    if (criteria.workMode) criteriaParts.push(`Work mode: <strong>${criteria.workMode}</strong>`)
-    if (criteria.minSalary) criteriaParts.push(`Min salary: <strong>₹${criteria.minSalary} LPA</strong>`)
-    criteriaParts.push(`Frequency: <strong>${criteria.frequency}</strong>`)
+    const criteriaParts: Array<{ label: string; value: string }> = []
+    if (criteria.query) criteriaParts.push({ label: 'Keywords', value: criteria.query })
+    if (criteria.category) criteriaParts.push({ label: 'Category', value: criteria.category })
+    if (criteria.location) criteriaParts.push({ label: 'Location', value: criteria.location })
+    if (criteria.workMode) criteriaParts.push({ label: 'Work mode', value: criteria.workMode })
+    if (criteria.minSalary) criteriaParts.push({ label: 'Min salary', value: `₹${criteria.minSalary} LPA` })
+    criteriaParts.push({ label: 'Frequency', value: criteria.frequency })
 
+    const greeting = userName ? `Hi ${userName.split(' ')[0]},` : 'Hi,'
     const unsubscribeUrl = `${APP_URL}/api/alerts/unsubscribe?token=${unsubscribeToken}`
+    const criteriaRowsHtml = criteriaParts.map((p) => `
+      <tr>
+        <td style="padding: 8px 0; font-size: 13px; color: #6b7280; width: 110px; vertical-align: top;">${p.label}</td>
+        <td style="padding: 8px 0; font-size: 13px; color: #111827; font-weight: 500;">${p.value}</td>
+      </tr>
+    `).join('')
+
+    const frequencyDescription = criteria.frequency === 'weekly'
+      ? 'once a week (every 6 days, with a 1-day grace window)'
+      : 'every day (around 9 AM IST)'
 
     const html = `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light only">
+  <meta name="supported-color-schemes" content="light only">
+  <title>Your Hirebase alert is active</title>
 </head>
-<body style="margin: 0; padding: 0; background: #f9fafb; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background: #f9fafb; padding: 32px 16px;">
+<body style="margin: 0; padding: 0; background: #f4f5f7; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; -webkit-font-smoothing: antialiased;">
+
+  <!-- Preheader -->
+  <div style="display: none; max-height: 0; overflow: hidden; opacity: 0;">
+    Your job alert is now active. We'll email you ${frequencyDescription} with matching jobs.
+  </div>
+
+  <table width="100%" cellpadding="0" cellspacing="0" style="background: #f4f5f7; padding: 24px 12px;">
     <tr>
       <td align="center">
-        <table width="600" cellpadding="0" cellspacing="0" style="background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+        <table width="560" cellpadding="0" cellspacing="0" style="background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 2px rgba(0,0,0,0.04); border: 1px solid #e5e7eb;">
 
-          <!-- Header -->
+          <!-- Brand bar -->
           <tr>
-            <td style="background: linear-gradient(135deg, #10b981, #6366f1); padding: 32px 24px; text-align: center;">
-              <div style="font-size: 28px; font-weight: 800; color: white; margin-bottom: 4px;">
-                Hirebase
-              </div>
-              <div style="font-size: 13px; color: rgba(255,255,255,0.8); text-transform: uppercase; letter-spacing: 1px;">
-                Alert Confirmed
-              </div>
+            <td style="padding: 20px 32px; border-bottom: 1px solid #f3f4f6;">
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td>
+                    <div style="font-size: 18px; font-weight: 700; color: #111827; letter-spacing: -0.3px;">
+                      Hirebase
+                    </div>
+                  </td>
+                  <td align="right">
+                    <span style="font-size: 11px; color: #9ca3af; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Alert Confirmed</span>
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
 
           <!-- Body -->
           <tr>
-            <td style="padding: 32px 24px;">
-              <h1 style="font-size: 22px; font-weight: 800; color: #111827; margin: 0 0 8px;">
-                Your alert is active${userName ? `, ${userName}` : ''}! ✅
+            <td style="padding: 28px 32px 24px;">
+              <p style="font-size: 14px; color: #6b7280; margin: 0 0 4px;">${greeting}</p>
+              <h1 style="font-size: 22px; font-weight: 700; color: #111827; margin: 0 0 12px; line-height: 1.3; letter-spacing: -0.4px;">
+                Your job alert is active ✅
               </h1>
-              <p style="font-size: 14px; color: #6b7280; margin: 0 0 24px;">
-                We&rsquo;ll email you ${criteria.frequency} when new jobs match your criteria. Here&rsquo;s what you signed up for:
+              <p style="font-size: 14px; color: #6b7280; margin: 0 0 24px; line-height: 1.5;">
+                We&rsquo;ll email you <strong style="color: #374151;">${frequencyDescription}</strong> when new jobs match your criteria. Here&rsquo;s what you&rsquo;ll be notified about:
               </p>
 
-              <table width="100%" cellpadding="0" cellspacing="0" style="background: #f9fafb; border-radius: 12px; padding: 16px; margin-bottom: 24px;">
+              <!-- Criteria card -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="background: #fafbfc; border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px 16px; margin-bottom: 24px;">
                 <tr>
-                  <td style="padding: 16px;">
-                    <ul style="margin: 0; padding-left: 20px; font-size: 14px; color: #374151; line-height: 1.8;">
-                      ${criteriaParts.map((p) => `<li>${p}</li>`).join('')}
-                    </ul>
+                  <td style="padding: 8px 16px;">
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                      ${criteriaRowsHtml}
+                    </table>
                   </td>
                 </tr>
               </table>
 
-              <div style="text-align: center; margin-top: 24px;">
-                <a href="${APP_URL}/jobs" style="display: inline-block; padding: 12px 32px; border-radius: 12px; background: #10b981; color: white; text-decoration: none; font-weight: 700; font-size: 15px;">
+              <!-- CTA -->
+              <div style="text-align: center;">
+                <a href="${APP_URL}/jobs" style="display: inline-block; padding: 12px 28px; border-radius: 8px; background: #111827; color: white; text-decoration: none; font-weight: 600; font-size: 14px;">
                   Browse jobs now →
                 </a>
               </div>
+            </td>
+          </tr>
 
-              <div style="margin-top: 24px; padding: 16px; background: #fef3c7; border-radius: 8px; border-left: 4px solid #f59e0b;">
-                <p style="font-size: 13px; color: #92400e; margin: 0;">
-                  <strong>Didn&rsquo;t sign up for this?</strong> If you didn&rsquo;t create this alert, you can
-                  <a href="${unsubscribeUrl}" style="color: #92400e; font-weight: 600;">unsubscribe here</a>
-                  with one click — no login required.
-                </p>
-              </div>
-
-              <!-- Footer -->
-              <table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 32px; border-top: 1px solid #f0f0f0; padding-top: 24px;">
+          <!-- Didn't sign up? warning -->
+          <tr>
+            <td style="padding: 0 32px 24px;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="background: #fef3c7; border: 1px solid #fde68a; border-radius: 8px;">
                 <tr>
-                  <td style="text-align: center;">
-                    <p style="font-size: 12px; color: #9ca3af; margin: 0 0 8px;">
+                  <td style="padding: 14px 16px;">
+                    <p style="font-size: 13px; color: #92400e; margin: 0; line-height: 1.5;">
+                      <strong>Didn&rsquo;t sign up for this?</strong><br>
+                      If you didn&rsquo;t create this alert, you can
+                      <a href="${unsubscribeUrl}" style="color: #92400e; font-weight: 600; text-decoration: underline;">unsubscribe with one click</a>
+                      — no login required.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 24px 32px; background: #fafbfc; border-top: 1px solid #f3f4f6;">
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td>
+                    <p style="font-size: 12px; color: #9ca3af; margin: 0 0 8px; line-height: 1.5;">
                       You're receiving this because you set up a job alert on Hirebase.
                     </p>
-                    <p style="font-size: 12px; color: #9ca3af; margin: 0;">
-                      <a href="${APP_URL}/alerts" style="color: #6b7280;">Manage your alerts</a>
-                      &nbsp;·&nbsp;
-                      <a href="${unsubscribeUrl}" style="color: #6b7280;">Unsubscribe</a>
+                    <p style="font-size: 12px; margin: 0;">
+                      <a href="${APP_URL}/alerts" style="color: #6b7280; text-decoration: underline;">Manage alerts</a>
+                      &nbsp;&nbsp;·&nbsp;&nbsp;
+                      <a href="${unsubscribeUrl}" style="color: #6b7280; text-decoration: underline;">Unsubscribe</a>
+                    </p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding-top: 16px; border-top: 1px solid #f3f4f6; margin-top: 16px;">
+                    <p style="font-size: 11px; color: #d1d5db; margin: 0; line-height: 1.4;">
+                      Hirebase · Bengaluru, India<br>
+                      <a href="${APP_URL}" style="color: #d1d5db; text-decoration: none;">www.hirebase.in</a>
                     </p>
                   </td>
                 </tr>
