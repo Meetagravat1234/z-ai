@@ -62,6 +62,7 @@ const VIEW_URLS: Record<string, string> = {
   'salary-dashboard': '/salary-dashboard',
   'question-bank': '/question-bank',
   'compare-jobs': '/compare-jobs',
+  'skill-tests': '/skill-tests',
   saved: '/saved',
   tracker: '/tracker',
   alerts: '/alerts',
@@ -120,6 +121,12 @@ const navGroups: Array<{
       { id: 'salary-dashboard', label: 'Salary Dashboard', icon: BarChart3 },
       { id: 'question-bank', label: 'Interview Questions', icon: BookOpen },
       { id: 'compare-jobs', label: 'Compare Jobs', icon: GitCompare },
+    ],
+  },
+  {
+    label: 'Skill Tests',
+    items: [
+      { id: 'skill-tests', label: 'Test Your Skills', icon: Target },
     ],
   },
   {

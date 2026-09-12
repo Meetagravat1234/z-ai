@@ -29,6 +29,7 @@ export type ViewId =
   | 'skill-gap'
   | 'compare-jobs'
   | 'ats-score'
+  | 'skill-tests'
   | 'auth'
   | 'profile'
   | 'alerts'

@@ -252,3 +252,54 @@ model Payment {
   @@index([userId])
   @@index([status])
 }
+
+// Skill Tests — programming + aptitude quizzes for skill verification
+// Subjects: C, Java, Python, SQL, Data Structures, Aptitude, Web Development
+// Two types: 'full' (all topics) and 'topic' (single topic like "operators")
+model SkillTest {
+  id          String   @id @default(cuid())
+  title       String   // "C Programming — Full Test" or "C — Operators"
+  slug        String   @unique
+  subject     String   // "c" | "java" | "python" | "sql" | "data-structures" | "aptitude" | "web-development"
+  topic       String?  // null = full test, "operators" / "functions" / "pointers" etc = topic test
+  testType    String   @default("full") // "full" | "topic"
+  description String
+  difficulty  String   @default("intermediate") // beginner | intermediate | advanced
+  durationMin Int      @default(15) // time limit in minutes
+  passingScore Int     @default(60) // percentage needed to pass
+  isPublished Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  questions   SkillTestQuestion[]
+  attempts    SkillTestAttempt[]
+}
+
+model SkillTestQuestion {
+  id          String   @id @default(cuid())
+  testId      String
+  test        SkillTest @relation(fields: [testId], references: [id], onDelete: Cascade)
+  question    String
+  options     String   // JSON array: ["opt1","opt2","opt3","opt4"]
+  correctIdx  Int      // 0-based index of correct option
+  explanation String?  // why the answer is correct
+  difficulty  String   @default("intermediate") // beginner | intermediate | advanced
+  createdAt   DateTime @default(now())
+}
+
+model SkillTestAttempt {
+  id          String   @id @default(cuid())
+  testId      String
+  test        SkillTest @relation(fields: [testId], references: [id], onDelete: Cascade)
+  userId      String?
+  score       Int      // percentage (0-100)
+  correctCount Int
+  totalCount  Int
+  timeTakenSec Int     // actual time taken
+  answers     String   // JSON: [{questionId, selectedIdx, correct}]
+  passed      Boolean
+  createdAt   DateTime @default(now())
+
+  @@index([testId])
+  @@index([userId])
+}
