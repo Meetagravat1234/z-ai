@@ -114,7 +114,7 @@ export function AuthView() {
 
           <div className="space-y-3">
             {[
-              { icon: TrendingUp, title: 'Live job aggregation', desc: 'Syncs from Greenhouse, Ashby, Remotive, The Muse, RemoteOK + crawls LinkedIn/Naukri/Internshala every 30 min' },
+              { icon: TrendingUp, title: 'Aggregated + verified', desc: 'Surfaces jobs from 14+ sources — Greenhouse, Ashby, LinkedIn, Naukri, Internshala & more — then verifies each listing before publishing.' },
               { icon: Sparkles, title: '6 AI tools', desc: 'Resume optimizer, ATS score checker, cover letter, mock interview, skill gap analyzer, salary predictor' },
               { icon: Target, title: 'Personalized matches', desc: 'Get job recommendations based on your skills, target role, and salary expectations' },
               { icon: Shield, title: 'Private & secure', desc: 'Your saved jobs, applications, and alerts are tied to your account — private to you' },
@@ -254,7 +254,11 @@ export function AuthView() {
           </div>
 
           <p className="text-center text-xs text-muted-foreground mt-4">
-            No account yet?{' '}
+            {mode === 'signup' ? (
+              <>Already have an account?{' '}</>
+            ) : (
+              <>No account yet?{' '}</>
+            )}
             <button
               onClick={() => setMode(mode === 'signup' ? 'login' : 'signup')}
               className="text-primary font-semibold hover:underline"

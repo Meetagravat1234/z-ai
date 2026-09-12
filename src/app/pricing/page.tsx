@@ -1,8 +1,7 @@
 import { SiteShell } from '@/components/layout/site-shell'
-import { PricingView } from '@/components/views/pricing-view'
 import Link from 'next/link'
 import type { Metadata } from 'next'
-import { Check, Crown, ArrowRight, Sparkles } from 'lucide-react'
+import { Check, Crown, ArrowRight, Sparkles, FileText, Mic, Wallet, Briefcase } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 3600
@@ -33,7 +32,7 @@ const faqLd = {
       name: 'Is Hirebase free for job seekers?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'Yes. Hirebase is 100% free for browsing jobs, searching, and applying. You can also use each AI tool once per month for free. Upgrade to Pro for ₹299/month to unlock 10x AI tool usage.',
+        text: 'Yes. Hirebase is 100% free for browsing jobs, searching, and applying. You can also use each AI tool once per month for free, and save up to 10 jobs. Upgrade to Pro for ₹299/month for 10x AI tool usage, unlimited saved jobs, and email job alerts.',
       },
     },
     {
@@ -41,7 +40,7 @@ const faqLd = {
       name: 'How much does Hirebase Pro cost?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'Hirebase Pro costs ₹299/month or ₹2,499/year (save 30% with annual plan). Includes 10 AI resume optimizations, 10 cover letters, 10 mock interviews, 50 ATS score checks, 50 salary predictions, unlimited saved jobs, and daily email job alerts.',
+        text: 'Hirebase Pro costs ₹299/month or ₹2,499/year (save 30% with the annual plan). Includes 10 AI resume optimizations, 10 cover letters, 10 mock interviews, 50 ATS score checks, unlimited saved jobs, application tracker (Kanban), and daily email job alerts. One-time payment via Razorpay — no auto-renewal.',
       },
     },
   ],
@@ -151,8 +150,32 @@ export default function Page() {
             </div>
           </div>
 
-          {/* Existing pricing view (legacy) */}
-          <PricingView />
+          {/* What's included in AI tools */}
+          <section className="rounded-2xl border border-border bg-card p-6 sm:p-8">
+            <h2 className="text-xl sm:text-2xl font-bold mb-2">What&rsquo;s included in the AI tools?</h2>
+            <p className="text-sm text-muted-foreground mb-6 max-w-2xl">
+              Every Pro plan includes unlimited access to all six AI-powered career tools. Free tier users get 1 use per tool per month.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {[
+                { icon: FileText, name: 'AI Resume Optimizer', desc: 'Tailor your resume for any job description in seconds.' },
+                { icon: Sparkles, name: 'AI Cover Letter', desc: 'Generate a personalized cover letter for any role.' },
+                { icon: Mic, name: 'AI Mock Interview', desc: 'Practice with a realistic AI interviewer.' },
+                { icon: Wallet, name: 'Salary Predictor', desc: 'Predict realistic salary ranges and negotiation tips.' },
+                { icon: Briefcase, name: 'ATS Score Checker', desc: 'See how your resume scores against applicant tracking systems.' },
+                { icon: Check, name: 'Skill Gap Analyzer', desc: 'Find skill gaps between you and your target role.' },
+              ].map((t) => {
+                const Icon = t.icon
+                return (
+                  <div key={t.name} className="rounded-xl border border-border bg-muted/40 p-4">
+                    <Icon className="w-5 h-5 text-primary mb-2" />
+                    <div className="font-semibold text-sm">{t.name}</div>
+                    <p className="text-xs text-muted-foreground mt-1">{t.desc}</p>
+                  </div>
+                )
+              })}
+            </div>
+          </section>
 
           {/* FAQ */}
           <div className="mt-16">

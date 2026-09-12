@@ -24,6 +24,63 @@ export function jobUrl(job: { id: string; title: string }): string {
 }
 
 /**
+ * Strip a trailing "at <Company>" suffix from a scraped job title.
+ *
+ * Why this exists:
+ * - LinkedIn and several other feeds include the company name in the title
+ *   itself (e.g. "Software Engineer at Stripe"). When we then interpolate
+ *   that title into `${title} at ${company}` for the page <title> / meta tags /
+ *   share text, we end up with "Software Engineer at Stripe at Stripe" —
+ *   which looks automated and triggers keyword-stuffing signals in Google.
+ *
+ * Behavior:
+ * - Title "Software Engineer at Stripe" + company "Stripe" → "Software Engineer"
+ * - Title "Software Engineer" + company "Stripe"           → "Software Engineer" (unchanged)
+ * - Title "SDE II at Amazon Web Services" + company "Amazon" → "SDE II at Amazon Web Services"
+ *   (only strips if the trailing token actually matches the company name)
+ *
+ * Also strips trailing " | Company", " - Company", " (Company)" variants.
+ */
+export function cleanJobTitle(title: string, companyName?: string | null): string {
+  if (!title) return ''
+  let cleaned = title.trim()
+
+  if (companyName) {
+    const company = companyName.trim()
+    if (company) {
+      // Escape regex metachars in company name
+      const esc = company.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      // Match trailing " at <Company>" (case-insensitive), optionally followed
+      // by punctuation or whitespace
+      const patterns = [
+        new RegExp(`\\s+at\\s+${esc}\\s*$`, 'i'),
+        new RegExp(`\\s*\\|\\s*${esc}\\s*$`, 'i'),
+        new RegExp(`\\s*-\\s*${esc}\\s*$`, 'i'),
+        new RegExp(`\\s*\\(${esc}\\)\\s*$`, 'i'),
+        new RegExp(`\\s*\\[${esc}\\]\\s*$`, 'i'),
+      ]
+      for (const p of patterns) {
+        cleaned = cleaned.replace(p, '')
+      }
+    }
+  }
+
+  // Generic cleanup: strip any trailing " at <Something>" where Something
+  // is 1-3 words and looks like a company suffix (only if the cleaned title
+  // is meaningfully long afterwards — at least 3 chars).
+  // This catches "Backend Engineer at Razorpay" → "Backend Engineer"
+  // without needing the company name to be passed.
+  if (cleaned.length > 0) {
+    const generic = cleaned.match(/^(.+?)\s+at\s+[A-Z][\w&.\s-]{1,40}$/)
+    if (generic && generic[1].trim().length >= 3) {
+      cleaned = generic[1].trim()
+    }
+  }
+
+  return cleaned.trim()
+}
+
+/**
  * Extract the job ID from a slug-style path segment.
  * Input:  "cmabc123-senior-software-engineer"
  * Output: "cmabc123"

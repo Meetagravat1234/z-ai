@@ -5,7 +5,7 @@ import type { HomeInitialData } from '@/lib/home-types'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { CITY_PAGES, ROLE_PAGES, jobUrl, parseJobIdFromSlug, slugify } from '@/lib/seo-routes'
+import { CITY_PAGES, ROLE_PAGES, jobUrl, parseJobIdFromSlug, slugify, cleanJobTitle } from '@/lib/seo-routes'
 import { estimateSalaryForJob } from '@/lib/salary-estimate'
 
 // Always render fresh — jobs change frequently
@@ -93,8 +93,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     if (!job) {
       return { title: 'Job not found | Hirebase', description: 'This job may have been removed.' }
     }
-    const title = `${job.title} at ${job.company.name} — ${job.location.split(',')[0]} | Hirebase`
-    const description = `${job.title} role at ${job.company.name} in ${job.location}. ${job.employmentType}, ${job.workMode}. Apply free on Hirebase — verified job listing.`
+    // Strip a trailing "at <Company>" from the scraped title before interpolating
+    // — LinkedIn titles often look like "Software Engineer at Stripe", which
+    // would otherwise produce "Software Engineer at Stripe at Stripe" in the
+    // page title (keyword stuffing + looks automated).
+    const cleanTitle = cleanJobTitle(job.title, job.company.name)
+    const title = `${cleanTitle} at ${job.company.name} — ${job.location.split(',')[0]} | Hirebase`
+    const description = `${cleanTitle} role at ${job.company.name} in ${job.location}. ${job.employmentType}, ${job.workMode}. Apply free on Hirebase — verified job listing.`
     return {
       title,
       description,
@@ -241,6 +246,10 @@ async function JobDetailPage({ slug }: { slug: string }) {
   const stateOrRegion = locationParts[1] || ''
   const isRemote = /remote/i.test(job.location)
 
+  // Strip "at <Company>" suffix from title before publishing (prevents
+  // "Software Engineer at Stripe at Stripe" duplication in JSON-LD).
+  const cleanTitle = cleanJobTitle(job.title, job.company.name)
+
   // Determine validThrough (30 days from postedAt — standard job posting validity)
   const postedAtDate = new Date(job.postedAt)
   const validThrough = new Date(postedAtDate)
@@ -249,7 +258,7 @@ async function JobDetailPage({ slug }: { slug: string }) {
   const jobPostingLd = {
     '@context': 'https://schema.org',
     '@type': 'JobPosting',
-    title: job.title,
+    title: cleanTitle,
     description: (job.description || '').slice(0, 5000),
     datePosted: job.postedAt.toISOString(),
     validThrough: validThrough.toISOString(),
@@ -315,7 +324,7 @@ async function JobDetailPage({ slug }: { slug: string }) {
       {
         '@type': 'ListItem',
         position: 3,
-        name: job.title,
+        name: cleanTitle,
         item: `https://www.hirebase.in${jobUrl(job)}`,
       },
     ],

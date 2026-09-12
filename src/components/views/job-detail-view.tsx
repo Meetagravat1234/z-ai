@@ -220,8 +220,21 @@ export function JobDetailView({
   function shareJob() {
     if (!job) return
     const url = window.location.href
+    // Build a clean share title — strip "at Company" from scraped title
+    // so we don't end up with "Software Engineer at Stripe at Stripe"
+    const shareTitle = (() => {
+      const company = job.company.name
+      const t = job.title || ''
+      // Strip " at <Company>" suffix from title
+      const esc = company.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      const stripped = t.replace(new RegExp(`\\s+at\\s+${esc}\\s*$`, 'i'), '').trim()
+      // Also strip a generic " at <Something>" suffix
+      const generic = stripped.match(/^(.+?)\s+at\s+[A-Z][\w&.\s-]{1,40}$/)
+      const finalTitle = generic && generic[1].trim().length >= 3 ? generic[1].trim() : stripped
+      return `${finalTitle} at ${company}`
+    })()
     if (navigator.share) {
-      navigator.share({ title: `${job.title} at ${job.company.name}`, url }).catch(() => {})
+      navigator.share({ title: shareTitle, url }).catch(() => {})
     } else {
       navigator.clipboard.writeText(url)
       toast.success('Link copied to clipboard')
@@ -299,7 +312,16 @@ export function JobDetailView({
                 </span>
               </div>
               <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight mt-1 leading-tight">
-                {job.title}
+                {(() => {
+                  // Strip "at <Company>" suffix from scraped title to avoid
+                  // "Software Engineer at Stripe at Stripe" in the H1.
+                  const t = job.title || ''
+                  const company = job.company?.name || ''
+                  const esc = company.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+                  const stripped = t.replace(new RegExp(`\\s+at\\s+${esc}\\s*$`, 'i'), '').trim()
+                  const generic = stripped.match(/^(.+?)\s+at\s+[A-Z][\w&.\s-]{1,40}$/)
+                  return generic && generic[1].trim().length >= 3 ? generic[1].trim() : stripped
+                })()}
               </h1>
               {/* Meta */}
               <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground">

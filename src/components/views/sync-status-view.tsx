@@ -1,6 +1,7 @@
 'use client'
 
 import * as React from 'react'
+import Link from 'next/link'
 import {
   Activity,
   RefreshCw,
@@ -384,37 +385,36 @@ export function SyncStatusView() {
 
       {/* How it works */}
       <section className="rounded-2xl border border-border bg-muted/30 p-5">
-        <h3 className="font-bold text-sm mb-3">How live aggregation works</h3>
+        <h3 className="font-bold text-sm mb-3">How aggregation + verification works</h3>
         <ol className="space-y-2 text-sm text-foreground/80">
           <li className="flex gap-2">
             <span className="font-bold text-primary">1.</span>
-            <span><strong>Every 30 minutes</strong>, the job-aggregator service triggers a <strong>parallel sync</strong> across 14+ sources simultaneously — not just one source at a time.</span>
+            <span><strong>Aggregation</strong> — our systems pull candidate listings from 14+ legitimate sources in parallel: 6 public job-board APIs (Remotive, Arbeitnow, The Muse, RemoteOK, We Work Remotely, Indeed RSS), web searches across LinkedIn / Naukri / Internshala / Indeed / Glassdoor / Google Jobs, and direct career-page crawlers for top Indian employers (TCS, Infosys, Wipro, Flipkart, etc.).</span>
           </li>
           <li className="flex gap-2">
             <span className="font-bold text-primary">2.</span>
-            <span>Each cycle hits <strong>6 free job board APIs</strong> (Remotive, Arbeitnow, The Muse, RemoteOK, We Work Remotely, Indeed RSS), <strong>3 web-search queries</strong> (LinkedIn, Naukri, Internshala, Indeed, Glassdoor, Google Jobs), <strong>2 direct career-page crawlers</strong> (TCS, Infosys, Wipro, Flipkart, etc.), and random Greenhouse/Ashby companies.</span>
+            <span><strong>Dedup + freshness</strong> — each candidate listing is checked for duplicates (by source+ref or by title+company+location hash) and freshness (older than 30 days → rejected).</span>
           </li>
           <li className="flex gap-2">
             <span className="font-bold text-primary">3.</span>
-            <span>The <strong>web-search adapter</strong> uses z-ai-web-dev-sdk to search Google for job URLs (e.g. <code>site:linkedin.com/jobs</code>, <code>site:naukri.com</code>, <code>site:internshala.com</code>, <code>site:indeed.com</code>, <code>site:glassdoor.com</code>, <code>site:jobs.google.com</code>), then the <strong>page_reader</strong> fetches each job page's full content — works for any public site.</span>
+            <span><strong>AI enrichment</strong> — surviving listings are enriched with structured metadata: skills, experience level, work mode, normalized location, and category. Salary data is preserved as-is when the source provides it; when not, we estimate a range from benchmark data (never a hardcoded placeholder).</span>
           </li>
           <li className="flex gap-2">
             <span className="font-bold text-primary">4.</span>
-            <span>Each new job is deduplicated by source+sourceRef or by hash of (title, company, location).</span>
+            <span><strong>Publication</strong> — verified jobs appear on the site with a direct apply link back to the original employer page. No middlemen, no signup walls.</span>
           </li>
           <li className="flex gap-2">
             <span className="font-bold text-primary">5.</span>
-            <span>AI rewrites the raw description into clean Markdown with structured sections, and extracts skills, experience level, salary range, and category.</span>
-          </li>
-          <li className="flex gap-2">
-            <span className="font-bold text-primary">6.</span>
             <span><strong>"⚡ Boost Sync"</strong>: runs 14 sources in parallel immediately — adds 20-50 new jobs in ~2 minutes.</span>
           </li>
           <li className="flex gap-2">
-            <span className="font-bold text-primary">7.</span>
+            <span className="font-bold text-primary">6.</span>
             <span><strong>"🚀 Deep Crawl"</strong>: runs ALL 30+ sources at once (all APIs + 12 web-search queries + 8 career-page crawlers) — adds 100-200 new jobs in 3-5 minutes. Use this for the most comprehensive coverage.</span>
           </li>
         </ol>
+        <p className="text-xs text-muted-foreground mt-3 italic">
+          Read more about our verification pipeline on the <Link href="/ground-truth" className="text-primary hover:underline">Ground Truth page</Link>.
+        </p>
       </section>
     </div>
   )

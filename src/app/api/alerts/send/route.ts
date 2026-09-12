@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { sendJobAlertEmail } from '@/lib/email/send-alerts'
 import { getAdminUser } from '@/lib/admin-auth'
+import { cleanJobTitle } from '@/lib/seo-routes'
 
 // GET /api/alerts/send — triggered by cron-job.org daily
 // CRITICAL: Now requires either admin auth OR a CRON_SECRET header.
@@ -85,7 +86,7 @@ export async function GET(req: Request) {
           },
           jobs: matchingJobs.map((j) => ({
             id: j.id,
-            title: j.title,
+            title: cleanJobTitle(j.title, j.company.name),
             company: j.company.name,
             logo: j.company.logo,
             location: j.location,

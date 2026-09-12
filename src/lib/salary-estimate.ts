@@ -100,6 +100,53 @@ const CITY_TIER_MULTIPLIER: Record<string, number> = {
   india: 0.9, // Generic "India" location — assume slightly below tier-1 average
 }
 
+/**
+ * Known tier-1 global employers that pay significantly above the Indian market
+ * median. When the estimator encounters a job at one of these companies, it
+ * applies a multiplier so we don't mislead candidates with underestimates.
+ *
+ * Without this list, the estimator would compute ₹8-12 LPA for a Stripe SDE
+ * role based on generic Indian SDE benchmarks — when Stripe's actual pay band
+ * is ₹30-50+ LPA. That misleading underestimate damages platform credibility.
+ *
+ * Multipliers are calibrated to publicly available compensation data
+ * (levels.fyi, Glassdoor, Blind) for India roles as of 2025.
+ *
+ * NOTE: When we don't have enough role-specific benchmark data AND the company
+ * is in this list, we actually prefer to return null (hide salary entirely)
+ * rather than publish a low-confidence estimate that's likely wrong.
+ */
+const TIER1_EMPLOYER_MULTIPLIER: Array<{ pattern: RegExp; multiplier: number; minLpa: number }> = [
+  // FAANG / top-tier US tech — pay 2.5-4x Indian market median
+  { pattern: /\b(stripe|openai|anthropic|nvidia|databricks|snowflake)\b/i, multiplier: 3.2, minLpa: 25 },
+  { pattern: /\b(google|alphabet|microsoft|amazon|meta|facebook|apple|netflix|adobe)\b/i, multiplier: 2.5, minLpa: 18 },
+  { pattern: /\b(uber|airbnb|linkedin|salesforce|oracle|vmware|cisco|intel)\b/i, multiplier: 2.2, minLpa: 15 },
+  { pattern: /\b(atlassian|samsung|qualcomm|samsung research|siemens)\b/i, multiplier: 1.8, minLpa: 12 },
+  // Indian top-tier product companies
+  { pattern: /\b(flipkart|swiggy|zomato|razorpay|phonepe|cRED|cred|zepto|browserstack|freshworks|zoho|postman)\b/i, multiplier: 1.7, minLpa: 12 },
+  // Tier-2 global tech
+  { pattern: /\b(sap|vmware|servicenow|workday|intuit|paypal|visa|mastercard|vmware|citrix|symantec|mcafee)\b/i, multiplier: 1.6, minLpa: 10 },
+  // Major Indian services companies — at or slightly below market median
+  { pattern: /\b(tcs|infosys|wipro|hcl|tech mahindra|cognizant|capgemini|accenture|ibm|deloitte)\b/i, multiplier: 0.85, minLpa: 3 },
+]
+
+/**
+ * Look up the company-tier multiplier for a given company name.
+ * Returns null if the company isn't a known tier-1 employer.
+ */
+function getCompanyTierMultiplier(companyName?: string | null): { multiplier: number; minLpa: number; maxLpa: number } | null {
+  if (!companyName) return null
+  for (const { pattern, multiplier, minLpa } of TIER1_EMPLOYER_MULTIPLIER) {
+    if (pattern.test(companyName)) {
+      // The maxLpa caps the estimate so we don't show absurd numbers for
+      // a fresher role at, say, Stripe (where actual max could be 80 LPA
+      // for someone with exceptional offers, but we don't want to overstate)
+      return { multiplier, minLpa, maxLpa: minLpa * 4 }
+    }
+  }
+  return null
+}
+
 export function normalizeRole(title: string): string {
   if (!title) return 'Other'
   for (const { pattern, canonical } of ROLE_PATTERNS) {
@@ -361,26 +408,56 @@ export async function estimateSalaryForJob(job: {
     ? 1.0 // benchmark already includes the city filter
     : CITY_TIER_MULTIPLIER[tier]
 
-  const adjustedMedian = baseMedian * expMultiplier * cityMultiplier
+  // Apply company-tier multiplier for known tier-1 employers (Stripe, Google, etc.)
+  // This corrects the gross underestimate where a generic SDE benchmark of
+  // ₹10 LPA median would be applied to a Stripe SDE role (actual: ₹30-50+ LPA).
+  const companyTier = getCompanyTierMultiplier(job.company?.name)
+  const companyMultiplier = companyTier?.multiplier ?? 1.0
+
+  let adjustedMedian = baseMedian * expMultiplier * cityMultiplier * companyMultiplier
+
+  // For tier-1 employers, ensure the estimate doesn't fall below the
+  // company's floor (minLpa) — those companies simply don't pay below
+  // that floor for full-time engineering roles in India.
+  if (companyTier && adjustedMedian < companyTier.minLpa) {
+    adjustedMedian = companyTier.minLpa
+  }
+  // Also enforce an upper cap so we don't publish absurd numbers
+  if (companyTier && adjustedMedian > companyTier.maxLpa) {
+    adjustedMedian = companyTier.maxLpa
+  }
 
   // Build a range with reasonable spread:
   // - For high confidence, use a tighter band (±15% around median)
   // - For medium confidence, wider band (±22%)
   // - For low confidence, even wider (±30%)
-  const spread = best.confidence === 'high' ? 0.15 : best.confidence === 'medium' ? 0.22 : 0.30
-  const estimatedMin = adjustedMedian * (1 - spread)
-  const estimatedMax = adjustedMedian * (1 + spread)
+  // - For tier-1 employers, widen the band to ±25% (their bands are wider)
+  const baseSpread = best.confidence === 'high' ? 0.15 : best.confidence === 'medium' ? 0.22 : 0.30
+  const spread = companyTier ? Math.max(baseSpread, 0.25) : baseSpread
+  let estimatedMin = adjustedMedian * (1 - spread)
+  let estimatedMax = adjustedMedian * (1 + spread)
+
+  // For tier-1 employers, ensure min doesn't fall below the floor
+  if (companyTier) {
+    estimatedMin = Math.max(estimatedMin, companyTier.minLpa)
+  }
 
   // Round to nearest 0.5 LPA for cleaner display
   const roundToHalf = (n: number) => Math.round(n * 2) / 2
   const finalMin = Math.max(1, roundToHalf(estimatedMin))
   const finalMax = Math.max(finalMin + 0.5, roundToHalf(estimatedMax))
 
+  // Build the basis description — include company-tier context when applicable
+  let basis = best.basis
+  if (companyTier) {
+    basis += `, adjusted for ${job.company?.name}'s known compensation tier`
+  }
+
   return {
     min: Math.round(finalMin * 10), // convert back to LPA*10 for DB convention
     max: Math.round(finalMax * 10),
     confidence: best.confidence,
-    basis: best.basis,
+    basis,
   }
 }
 

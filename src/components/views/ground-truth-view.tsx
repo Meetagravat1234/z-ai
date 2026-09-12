@@ -12,7 +12,7 @@ export function GroundTruthView() {
         </div>
         <h1 className="text-3xl font-extrabold tracking-tight">How we verify jobs on Hirebase</h1>
         <p className="text-muted-foreground mt-2">
-          Most job boards scrape and repost listings automatically. We don't. Every job on Hirebase goes through a multi-step verification and enrichment process before it reaches you.
+          We aggregate listings from 14+ legitimate sources — official company career pages, public ATS feeds (Greenhouse, Ashby, Lever), and verified job boards. But unlike generic scrape-and-repost boards, every job on Hirebase goes through a multi-step verification and enrichment pipeline before it reaches you. Nothing publishes automatically.
         </p>
       </header>
 
@@ -20,11 +20,11 @@ export function GroundTruthView() {
         <h2 className="text-xl font-bold">Our 5-step verification process</h2>
         <ol className="space-y-4">
           {[
-            { title: 'Source identification', desc: 'We identify opportunities from official company career pages, public hiring announcements, and verified professional networking sources.' },
-            { title: 'Technology-assisted discovery', desc: 'Our systems surface candidate listings from multiple legitimate channels. Nothing publishes automatically — every lead goes through a review pipeline.' },
-            { title: 'Review & deduplication', desc: 'We check: Is this real? Is it a duplicate? Is the employer legitimate? Is the listing fresh? Is the salary band believable?' },
-            { title: 'Enrichment', desc: 'We add structured metadata — skills, work mode, location normalization, experience level, and tags — so you can filter effectively.' },
-            { title: 'Publication with provenance', desc: 'We mark each listing as Verified and link back to the original employer page. No middlemen.' },
+            { title: 'Aggregation', desc: 'Our systems surface candidate listings from multiple legitimate channels — official career pages, public ATS feeds, verified job boards, and trusted professional sources. This is automated.' },
+            { title: 'Deduplication & freshness check', desc: 'We check each listing: Is it real? Is it a duplicate of an existing job? Is the employer legitimate? Is the posting fresh? Stale, spam, or duplicate listings are rejected.' },
+            { title: 'AI enrichment', desc: 'Each surviving listing is enriched with structured metadata — extracted skills, normalized location, experience level, work mode, and category — using AI on the original job description.' },
+            { title: 'Salary verification', desc: 'When a salary is provided by the source, we publish it as-is. When it isn&rsquo;t, we estimate a realistic range based on actual benchmark data from similar roles (same role family, experience level, and city tier) — never a hardcoded placeholder.' },
+            { title: 'Publication with provenance', desc: 'We mark each listing as Verified and link back to the original employer page. No middlemen, no paywalls, no "unlock to see salary" games.' },
           ].map((step, i) => (
             <li key={i} className="flex gap-4">
               <div className="w-8 h-8 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center shrink-0">
@@ -76,7 +76,8 @@ export function GroundTruthView() {
           <li className="flex gap-2"><span className="text-primary">•</span> We are not the employer — apply links send you to the original employer page.</li>
           <li className="flex gap-2"><span className="text-primary">•</span> We are not a consultancy or commission-based recruiter.</li>
           <li className="flex gap-2"><span className="text-primary">•</span> We do not guarantee interviews — we surface real openings, you bring the application.</li>
-          <li className="flex gap-2"><span className="text-primary">•</span> We do not auto-publish every discovered job. Quality over quantity.</li>
+          <li className="flex gap-2"><span className="text-primary">•</span> We do not publish unverified or duplicate listings — every job passes dedup + freshness + legitimacy checks.</li>
+          <li className="flex gap-2"><span className="text-primary">•</span> We do not gate salary information behind signups or paywalls — what we know, you see.</li>
         </ul>
       </section>
     </div>

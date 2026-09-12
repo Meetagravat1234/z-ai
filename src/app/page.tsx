@@ -3,6 +3,7 @@ import HomeShell from './home-shell'
 import type { HomeInitialData } from '@/lib/home-types'
 import type { Metadata } from 'next'
 import { estimateSalaryForJob } from '@/lib/salary-estimate'
+import { cleanJobTitle } from '@/lib/seo-routes'
 
 // Force dynamic rendering — always shows fresh jobs/companies to Google
 export const dynamic = 'force-dynamic'
@@ -275,7 +276,7 @@ export default async function Page() {
     return {
       '@context': 'https://schema.org',
       '@type': 'JobPosting',
-      title: job.title,
+      title: cleanJobTitle(job.title, job.company?.name),
       description: (job.description || '').slice(0, 5000),
       datePosted: job.postedAt,
       validThrough: validThrough.toISOString(),
@@ -295,7 +296,7 @@ export default async function Page() {
         },
       },
       employmentType: job.employmentType,
-      url: `https://www.hirebase.in/jobs/${job.id}-${job.title?.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').slice(0, 60)}`,
+      url: `https://www.hirebase.in/jobs/${job.id}-${(cleanJobTitle(job.title, job.company?.name) || job.title || '').toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').slice(0, 60)}`,
       // baseSalary only emitted when we have actual or estimated data
       ...(job.salaryMin != null || job.salaryMax != null || estimated
         ? {
