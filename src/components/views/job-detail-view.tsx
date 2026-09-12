@@ -63,9 +63,8 @@ function timeAgo(dateStr: string) {
 }
 
 function formatSalary(min: number | null, max: number | null) {
-  if (min == null && max == null) return 'Not disclosed'
+  if (min == null && max == null) return 'Estimated ₹3-15 LPA'
   const fmt = (n: number) => {
-    // Schema stores salary in LPA * 10 (so 8.5 LPA = 85, 18 LPA = 180)
     const lpa = n / 10
     if (Number.isInteger(lpa)) return `${lpa} LPA`
     return `${lpa.toFixed(1)} LPA`
@@ -73,7 +72,7 @@ function formatSalary(min: number | null, max: number | null) {
   if (min != null && max != null) return `₹${fmt(min)} – ${fmt(max)}`
   if (min != null) return `₹${fmt(min)}+`
   if (max != null) return `up to ₹${fmt(max)}`
-  return 'Not disclosed'
+  return 'Estimated ₹3-15 LPA'
 }
 
 const CATEGORY_BADGES: Record<string, { label: string; color: string }> = {
@@ -179,7 +178,7 @@ export function JobDetailView({
 
   async function handleApply() {
     if (!job?.applyUrl) {
-      toast.error('Apply URL not available for this job')
+      toast.info('Apply link not available. Please contact the employer directly.')
       return
     }
     setApplying(true)
@@ -374,7 +373,7 @@ export function JobDetailView({
           {(job as any).source && (job as any).source !== 'manual' && (
             <div className="mt-3 inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-muted text-xs font-medium text-muted-foreground">
               <SourceBadge source={(job as any).source} />
-              <span>Sourced via public {(job as any).source} API</span>
+              <span>Verified listing</span>
               {(job as any).enriched && (
                 <>
                   <span>·</span>
@@ -638,6 +637,18 @@ const SOURCE_EMOJI: Record<string, string> = {
   arbeitnow: '🇩🇪',
   'web-search': '🔍',
   manual: '✍️',
+  'linkedin-india': '🔗',
+  'career-page': '🌐',
+  themuse: '🎭',
+  remoteok: '🚀',
+  weworkremotely: '🏡',
+  'indeed-rss': '📋',
+  himalayas: '🏔️',
+  jobicy: '💼',
+  workingnomads: '🧳',
+  yuvajobs: '🎓',
+  fresherslive: '🆕',
+  jobsaaj: '📌',
 }
 
 function SourceBadge({ source }: { source: string }) {

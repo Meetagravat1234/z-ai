@@ -52,9 +52,8 @@ function timeAgo(dateStr: string) {
 }
 
 function formatSalary(min: number | null, max: number | null) {
-  if (min == null && max == null) return null
+  if (min == null && max == null) return 'Est. ₹3-15 LPA'
   const fmt = (n: number) => {
-    // Schema stores salary in LPA * 10 (so 8.5 LPA = 85, 18 LPA = 180)
     const lpa = n / 10
     if (Number.isInteger(lpa)) return `${lpa} LPA`
     return `${lpa.toFixed(1)} LPA`
@@ -62,7 +61,7 @@ function formatSalary(min: number | null, max: number | null) {
   if (min != null && max != null) return `₹${fmt(min)} – ${fmt(max)}`
   if (min != null) return `₹${fmt(min)}+`
   if (max != null) return `up to ₹${fmt(max)}`
-  return null
+  return 'Est. ₹3-15 LPA'
 }
 
 export function JobCard({ job, compact = false }: { job: Job; compact?: boolean }) {
