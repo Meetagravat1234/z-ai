@@ -1,10 +1,10 @@
 // Multi-provider AI system — tries z-ai first, falls back to free alternatives
 // when rate limited (429). No more "Too many requests" errors!
 //
-// Providers:
+// Providers (in order):
 // 1. z-ai-web-dev-sdk (primary) — works in sandbox (Alibaba Cloud network)
 // 2. Groq (fallback 1) — free, fast, OpenAI-compatible. Needs GROQ_API_KEY env var
-// 3. (future) Google Gemini fallback
+// 3. Google Gemini (fallback 2) — free, generous 1500 req/day. Needs GEMINI_API_KEY env var
 //
 // For web_search and page_reader, falls back to Jina AI (free, no key needed).
 
@@ -15,6 +15,7 @@ import ZAI from 'z-ai-web-dev-sdk'
 // than that, and 5 min made bulk fetches unusable (1 job → 5 min lockout).
 let zaiRateLimitedUntil: number = 0
 let groqRateLimitedUntil: number = 0
+let geminiRateLimitedUntil: number = 0
 
 const RATE_LIMIT_COOLDOWN = 60 * 1000 // 1 minute (was 5 minutes)
 
@@ -66,20 +67,37 @@ export async function chatComplete(
     }
   }
 
-  // Fallback to Groq (free, OpenAI-compatible)
+  // Fallback 1: Groq (free, OpenAI-compatible)
   if (Date.now() > groqRateLimitedUntil) {
     try {
       const result = await groqChatComplete(messages)
       if (result) return result
     } catch (e: any) {
       if (e.message?.includes('429') || e.message?.includes('rate_limit')) {
-        console.log('[multi-ai] Groq rate limited too')
+        console.log('[multi-ai] Groq rate limited too — falling back to Gemini')
         groqRateLimitedUntil = Date.now() + RATE_LIMIT_COOLDOWN
+      } else {
+        console.log('[multi-ai] Groq error:', e.message?.slice(0, 80))
       }
     }
   }
 
-  throw new Error('All AI providers are rate limited. Please wait 1-2 minutes and try again — or set GROQ_API_KEY for a free fallback provider (see .env.example).')
+  // Fallback 2: Google Gemini (free, generous tier — 15 RPM, 1500/day)
+  if (Date.now() > geminiRateLimitedUntil) {
+    try {
+      const result = await geminiChatComplete(messages)
+      if (result) return result
+    } catch (e: any) {
+      if (e.message?.includes('429') || e.message?.includes('rate_limit') || e.message?.includes('RESOURCE_EXHAUSTED')) {
+        console.log('[multi-ai] Gemini rate limited too — all providers exhausted')
+        geminiRateLimitedUntil = Date.now() + RATE_LIMIT_COOLDOWN
+      } else {
+        console.log('[multi-ai] Gemini error:', e.message?.slice(0, 80))
+      }
+    }
+  }
+
+  throw new Error('All AI providers are rate limited. To fix: set GROQ_API_KEY (console.groq.com) OR GEMINI_API_KEY (aistudio.google.com) — both are free.')
 }
 
 // ============================================================================
@@ -224,6 +242,60 @@ async function groqChatComplete(
 
   const data = await response.json()
   return data.choices[0]?.message?.content || ''
+}
+
+// Google Gemini chat completions (free, generous tier — 15 RPM, 1500 req/day)
+// Sign up at https://aistudio.google.com/app/apikey to get a free API key.
+// Uses the gemini-1.5-flash model (fast, free, supports up to 1M tokens input).
+async function geminiChatComplete(
+  messages: Array<{ role: string; content: string }>
+): Promise<string> {
+  const apiKey = process.env.GEMINI_API_KEY
+  if (!apiKey) {
+    throw new Error('GEMINI_API_KEY not set — sign up at https://aistudio.google.com for free')
+  }
+
+  // Convert OpenAI-style messages to Gemini's format.
+  // Gemini uses 'contents' with 'parts' (text), and a separate 'systemInstruction' field.
+  // Our messages array is typically [{role: 'system', content: '...'}, {role: 'user', content: '...'}]
+  const systemMessage = messages.find((m) => m.role === 'system')
+  const userMessages = messages.filter((m) => m.role !== 'system')
+
+  const contents = userMessages.map((m) => ({
+    role: m.role === 'assistant' ? 'model' : 'user',
+    parts: [{ text: m.content }],
+  }))
+
+  const body: any = {
+    contents,
+    generationConfig: {
+      temperature: 0.7,
+      maxOutputTokens: 4096,
+    },
+  }
+  if (systemMessage) {
+    body.systemInstruction = { parts: [{ text: systemMessage.content }] }
+  }
+
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }
+  )
+
+  if (!response.ok) {
+    const errText = await response.text()
+    throw new Error(`Gemini API error: ${response.status} ${errText.slice(0, 100)}`)
+  }
+
+  const data = await response.json()
+  // Gemini returns candidates[].content.parts[].text
+  const candidate = data.candidates?.[0]
+  const text = candidate?.content?.parts?.map((p: any) => p.text).join('') || ''
+  return text
 }
 
 // Jina AI Search (free, no key needed)

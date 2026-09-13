@@ -4,7 +4,7 @@ import * as React from 'react'
 import {
   Loader2, Sparkles, Link2, Plus, Trash2, Edit3, Eye, TrendingUp, Building2,
   Database, Users, FileText, CheckCircle2, AlertCircle, BarChart3,
-  Save, ExternalLink, Star, Clock, Search, Wand2, RefreshCw, Layers,
+  Save, ExternalLink, Star, Clock, Search, Wand2, RefreshCw, Layers, XCircle,
 } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
 import { useNav } from '@/lib/nav-store'
@@ -429,6 +429,28 @@ function BulkFetchTab() {
     }
   }
 
+  // Cancel the active job — stops processing, marks pending URLs as cancelled
+  async function cancelJob() {
+    if (!activeJob) return
+    if (!confirm('Cancel this batch? Pending URLs will be marked as cancelled. Already-processed jobs stay saved.')) {
+      return
+    }
+    try {
+      const r = await fetch('/api/admin/bulk-fetch/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jobId: activeJob.id }),
+      })
+      const d = await r.json()
+      if (!r.ok) throw new Error(d.error || 'Cancel failed')
+      stopPolling()
+      toast.success(d.message || 'Batch cancelled')
+      await fetchStatus(activeJob.id)
+    } catch (e: any) {
+      toast.error(e.message)
+    }
+  }
+
   // Start auto-polling — every 15 seconds, fetch status + trigger next batch
   function startPolling(jobId: string) {
     if (pollIntervalRef.current) clearInterval(pollIntervalRef.current)
@@ -568,10 +590,12 @@ function BulkFetchTab() {
                     activeJob.status === 'completed' && 'bg-emerald-500/10 text-emerald-600',
                     activeJob.status === 'processing' && 'bg-blue-500/10 text-blue-600',
                     activeJob.status === 'pending' && 'bg-amber-500/10 text-amber-600',
+                    activeJob.status === 'cancelled' && 'bg-rose-500/10 text-rose-600',
                   )}>
                     {activeJob.status === 'completed' && '✓ Completed'}
                     {activeJob.status === 'processing' && '● Processing'}
                     {activeJob.status === 'pending' && '○ Queued'}
+                    {activeJob.status === 'cancelled' && '✕ Cancelled'}
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
@@ -580,14 +604,24 @@ function BulkFetchTab() {
                 </p>
               </div>
               {isJobActive && (
-                <button
-                  onClick={() => triggerProcess(activeJob.id)}
-                  disabled={polling}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold disabled:opacity-60"
-                >
-                  {polling ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
-                  {polling ? 'Processing…' : 'Process now'}
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => triggerProcess(activeJob.id)}
+                    disabled={polling}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold disabled:opacity-60"
+                  >
+                    {polling ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+                    {polling ? 'Processing…' : 'Process now'}
+                  </button>
+                  <button
+                    onClick={cancelJob}
+                    disabled={polling}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-rose-500/30 text-rose-600 hover:bg-rose-500/10 text-xs font-semibold disabled:opacity-60"
+                  >
+                    <XCircle className="w-3 h-3" />
+                    Cancel batch
+                  </button>
+                </div>
               )}
             </div>
 
