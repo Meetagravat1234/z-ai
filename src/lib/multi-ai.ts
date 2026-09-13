@@ -10,14 +10,16 @@
 
 import ZAI from 'z-ai-web-dev-sdk'
 
-// Track rate limit status so we don't keep trying a rate-limited provider
+// Track rate limit status so we don't keep trying a rate-limited provider.
+// Reduced from 5 min to 1 min — z-ai's rate limit window is much shorter
+// than that, and 5 min made bulk fetches unusable (1 job → 5 min lockout).
 let zaiRateLimitedUntil: number = 0
 let groqRateLimitedUntil: number = 0
 
-const RATE_LIMIT_COOLDOWN = 5 * 60 * 1000 // 5 minutes
+const RATE_LIMIT_COOLDOWN = 60 * 1000 // 1 minute (was 5 minutes)
 
 // ============================================================================
-// CHAT COMPLETIONS — multi-provider
+// CHAT COMPLETIONS — multi-provider with retry
 // ============================================================================
 export async function chatComplete(
   messages: Array<{ role: string; content: string }>,
@@ -36,9 +38,28 @@ export async function chatComplete(
         if (content) return content
       }
     } catch (e: any) {
-      if (e.message?.includes('429') || e.message?.includes('Too many requests')) {
-        console.log('[multi-ai] z-ai rate limited, falling back to Groq')
-        zaiRateLimitedUntil = Date.now() + RATE_LIMIT_COOLDOWN
+      if (e.message?.includes('429') || e.message?.includes('Too many requests') || e.message?.includes('rate limit')) {
+        console.log('[multi-ai] z-ai rate limited — waiting 10s and retrying once before fallback')
+        // Wait 10 seconds and retry once — often the rate limit window is short
+        // and a brief pause is enough to get the next request through.
+        await new Promise((r) => setTimeout(r, 10000))
+        try {
+          const zai = await getZai()
+          if (zai) {
+            const completion = await zai.chat.completions.create({
+              messages: messages as any,
+              thinking: options?.thinking || { type: 'disabled' },
+            })
+            const content = completion.choices[0]?.message?.content || ''
+            if (content) {
+              console.log('[multi-ai] retry succeeded after 10s wait')
+              return content
+            }
+          }
+        } catch (e2: any) {
+          console.log('[multi-ai] retry also failed — setting 1-min cooldown and falling back to Groq')
+          zaiRateLimitedUntil = Date.now() + RATE_LIMIT_COOLDOWN
+        }
       } else {
         console.log('[multi-ai] z-ai error:', e.message?.slice(0, 80))
       }
@@ -58,7 +79,7 @@ export async function chatComplete(
     }
   }
 
-  throw new Error('All AI providers are rate limited. Please try again in a few minutes.')
+  throw new Error('All AI providers are rate limited. Please wait 1-2 minutes and try again — or set GROQ_API_KEY for a free fallback provider (see .env.example).')
 }
 
 // ============================================================================
@@ -99,7 +120,7 @@ export async function webSearch(query: string, num: number = 8): Promise<Array<{
 }
 
 // ============================================================================
-// PAGE READER — multi-provider (z-ai → Jina AI Reader)
+// PAGE READER — multi-provider (z-ai → Jina AI Reader) with retry
 // ============================================================================
 export async function pageRead(url: string): Promise<{
   title: string
@@ -123,8 +144,27 @@ export async function pageRead(url: string): Promise<{
         }
       }
     } catch (e: any) {
-      if (e.message?.includes('429')) {
-        zaiRateLimitedUntil = Date.now() + RATE_LIMIT_COOLDOWN
+      if (e.message?.includes('429') || e.message?.includes('rate limit')) {
+        console.log('[multi-ai] page_reader rate limited — waiting 5s and retrying once')
+        await new Promise((r) => setTimeout(r, 5000))
+        try {
+          const zai = await getZai()
+          if (zai) {
+            const result = await zai.functions.invoke('page_reader', { url })
+            if (result?.data?.html) {
+              console.log('[multi-ai] page_reader retry succeeded')
+              return {
+                title: result.data.title || '',
+                html: result.data.html || '',
+                text: stripHtml(result.data.html || ''),
+                publishedTime: result.data.publishedTime || result.data.publish_time,
+              }
+            }
+          }
+        } catch (e2: any) {
+          console.log('[multi-ai] page_reader retry failed — using Jina fallback')
+          zaiRateLimitedUntil = Date.now() + RATE_LIMIT_COOLDOWN
+        }
       }
     }
   }

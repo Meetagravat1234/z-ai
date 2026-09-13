@@ -353,6 +353,12 @@ function BulkFetchTab() {
     // Process sequentially — the fetch-job API uses AI (slow) and hitting it
     // in parallel could blow the Vercel function timeout + overwhelm the AI
     // provider's rate limit.
+    //
+    // We add a 5-second delay between each job to give the AI provider time
+    // to recover. Without this delay, jobs 2+ would hit 429 rate limit
+    // errors and fail with "All AI providers are rate limited".
+    const DELAY_BETWEEN_JOBS_MS = 5000 // 5 seconds
+
     for (let i = 0; i < urls.length; i++) {
       const url = urls[i]
       setResults((prev) => prev.map((r, idx) => idx === i ? { ...r, status: 'fetching' } : r))
@@ -401,12 +407,37 @@ function BulkFetchTab() {
         } : r))
         errCount++
       }
+
+      // Delay before next job (skip after the last one)
+      if (i < urls.length - 1) {
+        await new Promise((r) => setTimeout(r, DELAY_BETWEEN_JOBS_MS))
+      }
     }
 
     setProcessing(false)
-    toast.success(
-      `Done! ${savedCount} saved, ${dupCount} duplicates, ${errCount} errors`
-    )
+    const msg = errCount > 0 && errCount === urls.length
+      ? `All ${errCount} jobs failed — AI provider may be rate limited. Wait 1-2 min and click "Retry failed".`
+      : `Done! ${savedCount} saved, ${dupCount} duplicates, ${errCount} errors`
+    if (errCount > 0) {
+      toast.error(msg)
+    } else {
+      toast.success(msg)
+    }
+  }
+
+  async function retryFailed() {
+    const failedUrls = results
+      .filter((r) => r.status === 'error')
+      .map((r) => r.url)
+    if (failedUrls.length === 0) {
+      toast.info('No failed jobs to retry')
+      return
+    }
+    setRawUrls(failedUrls.join('\n'))
+    setResults([])
+    // Wait a moment for state to update, then process
+    await new Promise((r) => setTimeout(r, 100))
+    await processAll()
   }
 
   const urlCount = parseUrls(rawUrls).length
@@ -442,7 +473,7 @@ function BulkFetchTab() {
         <div className="flex flex-wrap items-center justify-between gap-3 mt-3">
           <p className="text-xs text-muted-foreground">
             Supports LinkedIn, Naukri, Indeed, Lever, Greenhouse, Ashby, and any public job page.
-            {urlCount > 0 && ` Each job takes ~10-15 seconds to fetch + extract.`}
+            {urlCount > 0 && ` Each job takes ~10-15s + 5s delay between jobs (to avoid AI rate limits). Total: ~${Math.ceil((urlCount * 20) / 60)} min.`}
           </p>
           <div className="flex items-center gap-2">
             {rawUrls && (
@@ -477,20 +508,46 @@ function BulkFetchTab() {
 
       {/* Progress summary */}
       {results.length > 0 && (
-        <div className="grid grid-cols-3 gap-3">
-          <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4">
-            <div className="text-2xl font-extrabold text-emerald-600">{savedCount}</div>
-            <div className="text-xs text-muted-foreground font-medium">Saved</div>
+        <>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4">
+              <div className="text-2xl font-extrabold text-emerald-600">{savedCount}</div>
+              <div className="text-xs text-muted-foreground font-medium">Saved</div>
+            </div>
+            <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
+              <div className="text-2xl font-extrabold text-amber-600">{dupCount}</div>
+              <div className="text-xs text-muted-foreground font-medium">Duplicates</div>
+            </div>
+            <div className="rounded-xl border border-rose-500/30 bg-rose-500/5 p-4">
+              <div className="text-2xl font-extrabold text-rose-600">{errCount}</div>
+              <div className="text-xs text-muted-foreground font-medium">Errors</div>
+            </div>
           </div>
-          <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
-            <div className="text-2xl font-extrabold text-amber-600">{dupCount}</div>
-            <div className="text-xs text-muted-foreground font-medium">Duplicates</div>
-          </div>
-          <div className="rounded-xl border border-rose-500/30 bg-rose-500/5 p-4">
-            <div className="text-2xl font-extrabold text-rose-600">{errCount}</div>
-            <div className="text-xs text-muted-foreground font-medium">Errors</div>
-          </div>
-        </div>
+
+          {/* Rate-limit warning + retry button */}
+          {errCount > 0 && !processing && (
+            <div className="rounded-2xl border border-amber-500/40 bg-amber-500/5 p-4 flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <h4 className="font-bold text-sm text-amber-900 dark:text-amber-200">
+                  {errCount} job{errCount !== 1 && 's'} failed
+                </h4>
+                <p className="text-xs text-amber-800 dark:text-amber-300 mt-1 leading-relaxed">
+                  The AI provider (z-ai) likely rate-limited your requests. This is normal for bulk fetches —
+                  the provider allows ~1-2 jobs per minute on the free tier. Wait 1-2 minutes, then click
+                  "Retry failed" to re-attempt just the failed URLs.
+                </p>
+                <button
+                  onClick={retryFailed}
+                  className="mt-3 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-600 text-white text-sm font-semibold hover:bg-amber-700 transition-colors"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  Retry {errCount} failed job{errCount !== 1 && 's'}
+                </button>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {/* Per-URL results */}
