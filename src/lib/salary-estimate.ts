@@ -349,7 +349,7 @@ export async function estimateSalaryForJob(job: {
 
   const reKey = `${role}__${exp}`
   const reBenchmark = table.byRoleAndExp.get(reKey)
-  if (reBenchmark && reBenchmark.samples >= 3) {
+  if (reBenchmark && reBenchmark.samples >= 3 && role !== 'Other') {
     candidates.push({
       benchmark: reBenchmark,
       confidence: 'high',
@@ -359,7 +359,7 @@ export async function estimateSalaryForJob(job: {
 
   const rcKey = `${role}__${tier}`
   const rcBenchmark = table.byRoleAndCity.get(rcKey)
-  if (rcBenchmark && rcBenchmark.samples >= 3) {
+  if (rcBenchmark && rcBenchmark.samples >= 3 && role !== 'Other') {
     candidates.push({
       benchmark: rcBenchmark,
       confidence: candidates.length === 0 ? 'high' : 'medium',
@@ -368,7 +368,7 @@ export async function estimateSalaryForJob(job: {
   }
 
   const roleBenchmark = table.byRole.get(role)
-  if (roleBenchmark && roleBenchmark.samples >= 5) {
+  if (roleBenchmark && roleBenchmark.samples >= 5 && role !== 'Other') {
     candidates.push({
       benchmark: roleBenchmark,
       confidence: candidates.length === 0 ? 'medium' : 'low',
@@ -376,20 +376,18 @@ export async function estimateSalaryForJob(job: {
     })
   }
 
-  // Final fallback: category-based benchmark (fresher / internship / experienced / etc.)
-  if (candidates.length === 0) {
-    const catBenchmark = table.byCategory.get(job.category || '') || table.byCategory.get('experienced')
-    if (catBenchmark && catBenchmark.samples >= 5) {
-      candidates.push({
-        benchmark: catBenchmark,
-        confidence: 'low',
-        basis: `${job.category} roles overall (${catBenchmark.samples} listings)`,
-      })
-    }
-  }
+  // CRITICAL: We deliberately do NOT fall back to the category-based benchmark
+  // or the "Other" role bucket. Doing so would produce the same generic
+  // estimate (₹8-15 LPA) for very different jobs — "VP Business Head" and
+  // "Lead Clocking Design Engineer" would both show the same range, which
+  // is misleading and damages platform credibility.
+  //
+  // When we don't have enough role-specific data, we return null and the UI
+  // hides the salary entirely. This is the user's explicit preference:
+  // "either show real data based on the actual job, or don't show salary."
 
   if (candidates.length === 0) {
-    // Not enough data — return null so UI hides salary entirely
+    // Not enough role-specific data — return null so UI hides salary entirely
     return null
   }
 

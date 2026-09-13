@@ -327,9 +327,6 @@ export function TopNav() {
       >
         <Search className="w-4 h-4" />
         <span className="flex-1 truncate">Search jobs, companies, articles…</span>
-        <kbd className="hidden sm:inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded border border-border bg-background">
-          ⌘K
-        </kbd>
       </button>
 
       <div className="flex-1" />

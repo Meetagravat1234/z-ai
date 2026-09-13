@@ -4,14 +4,14 @@ import * as React from 'react'
 import {
   Loader2, Sparkles, Link2, Plus, Trash2, Edit3, Eye, TrendingUp, Building2,
   Database, Users, FileText, CheckCircle2, AlertCircle, BarChart3,
-  Save, ExternalLink, Star, Clock, Search, Wand2, RefreshCw,
+  Save, ExternalLink, Star, Clock, Search, Wand2, RefreshCw, Layers,
 } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
 import { useNav } from '@/lib/nav-store'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
-type Tab = 'fetch' | 'add' | 'jobs' | 'companies' | 'analytics'
+type Tab = 'fetch' | 'bulk' | 'add' | 'jobs' | 'companies' | 'analytics'
 
 export function AdminDashboardView() {
   const { user, loading: userLoading } = useAuth()
@@ -75,6 +75,7 @@ export function AdminDashboardView() {
       <div className="flex gap-2 overflow-x-auto pb-1">
         {([
           { id: 'fetch', label: 'Fetch from URL', icon: Link2 },
+          { id: 'bulk', label: 'Bulk Fetch', icon: Layers },
           { id: 'add', label: 'Add Manually', icon: Plus },
           { id: 'jobs', label: 'Manage Jobs', icon: FileText },
           { id: 'companies', label: 'Companies', icon: Building2 },
@@ -102,6 +103,7 @@ export function AdminDashboardView() {
 
       {/* Tab content */}
       {tab === 'fetch' && <FetchFromUrlTab />}
+      {tab === 'bulk' && <BulkFetchTab />}
       {tab === 'add' && <AddManuallyTab />}
       {tab === 'jobs' && <ManageJobsTab />}
       {tab === 'companies' && <ManageCompaniesTab />}
@@ -307,6 +309,238 @@ function FetchFromUrlTab() {
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+// ============================================================================
+// TAB 1b: Bulk Fetch — paste multiple URLs at once, fetch + save them in batch
+// ============================================================================
+function BulkFetchTab() {
+  const [rawUrls, setRawUrls] = React.useState('')
+  const [processing, setProcessing] = React.useState(false)
+  const [results, setResults] = React.useState<Array<{
+    url: string
+    status: 'pending' | 'fetching' | 'saved' | 'duplicate' | 'error'
+    title?: string
+    company?: string
+    error?: string
+  }>>([])
+
+  // Parse the textarea into a clean list of URLs (one per line, also handles
+  // comma-separated and URLs pasted with surrounding text)
+  function parseUrls(text: string): string[] {
+    return text
+      .split(/[\n,]/)
+      .map((s) => s.trim())
+      .filter((s) => /^https?:\/\//.test(s))
+  }
+
+  async function processAll() {
+    const urls = parseUrls(rawUrls)
+    if (urls.length === 0) {
+      toast.error('Please paste at least one valid URL (starting with http:// or https://)')
+      return
+    }
+
+    setProcessing(true)
+    setResults(urls.map((url) => ({ url, status: 'pending' as const })))
+
+    let savedCount = 0
+    let dupCount = 0
+    let errCount = 0
+
+    // Process sequentially — the fetch-job API uses AI (slow) and hitting it
+    // in parallel could blow the Vercel function timeout + overwhelm the AI
+    // provider's rate limit.
+    for (let i = 0; i < urls.length; i++) {
+      const url = urls[i]
+      setResults((prev) => prev.map((r, idx) => idx === i ? { ...r, status: 'fetching' } : r))
+
+      try {
+        // Save=true so we both fetch AND save in one call (no preview step —
+        // for bulk we trust the AI extraction and let the admin review later
+        // via Manage Jobs).
+        const r = await fetch('/api/admin/fetch-job?save=true', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url }),
+        })
+        const d = await r.json()
+        if (!r.ok) {
+          // Common error: "Job already exists" — count as duplicate, not error
+          const isDup = /already exists|duplicate/i.test(d.error || '')
+          setResults((prev) => prev.map((ridx, idx) => idx === i ? {
+            ...ridx,
+            status: isDup ? 'duplicate' : 'error',
+            error: d.error || 'Failed',
+          } : ridx))
+          if (isDup) dupCount++
+          else errCount++
+        } else if (d.ok && d.saved) {
+          setResults((prev) => prev.map((r, idx) => idx === i ? {
+            ...r,
+            status: 'saved',
+            title: d.job?.title,
+            company: d.job?.company?.name || d.job?.companyName,
+          } : r))
+          savedCount++
+        } else {
+          setResults((prev) => prev.map((r, idx) => idx === i ? {
+            ...r,
+            status: 'error',
+            error: 'Unexpected response',
+          } : r))
+          errCount++
+        }
+      } catch (e: any) {
+        setResults((prev) => prev.map((r, idx) => idx === i ? {
+          ...r,
+          status: 'error',
+          error: e.message || 'Network error',
+        } : r))
+        errCount++
+      }
+    }
+
+    setProcessing(false)
+    toast.success(
+      `Done! ${savedCount} saved, ${dupCount} duplicates, ${errCount} errors`
+    )
+  }
+
+  const urlCount = parseUrls(rawUrls).length
+  const savedCount = results.filter((r) => r.status === 'saved').length
+  const dupCount = results.filter((r) => r.status === 'duplicate').length
+  const errCount = results.filter((r) => r.status === 'error').length
+
+  return (
+    <div className="space-y-5">
+      <div className="rounded-2xl border border-border bg-card p-5">
+        <div className="flex items-start justify-between gap-3 mb-3">
+          <div>
+            <h2 className="text-lg font-bold">Bulk fetch jobs from URLs</h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              Paste multiple job posting URLs (one per line). The AI will fetch + extract + save each one automatically.
+            </p>
+          </div>
+          <div className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 text-primary text-xs font-bold">
+            <Layers className="w-3.5 h-3.5" />
+            {urlCount} URL{urlCount !== 1 && 's'} ready
+          </div>
+        </div>
+
+        <textarea
+          value={rawUrls}
+          onChange={(e) => setRawUrls(e.target.value)}
+          placeholder={`Paste job URLs here, one per line:\n\nhttps://www.linkedin.com/jobs/view/1234567890\nhttps://www.naukri.com/job-listings-12345\nhttps://jobs.lever.co/companyname/1234-abc\nhttps://www.indeed.com/viewjob?jk=abcdef`}
+          rows={10}
+          disabled={processing}
+          className="w-full p-3 rounded-xl border border-border bg-background text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/40 resize-y disabled:opacity-60"
+        />
+
+        <div className="flex flex-wrap items-center justify-between gap-3 mt-3">
+          <p className="text-xs text-muted-foreground">
+            Supports LinkedIn, Naukri, Indeed, Lever, Greenhouse, Ashby, and any public job page.
+            {urlCount > 0 && ` Each job takes ~10-15 seconds to fetch + extract.`}
+          </p>
+          <div className="flex items-center gap-2">
+            {rawUrls && (
+              <button
+                onClick={() => { setRawUrls(''); setResults([]) }}
+                disabled={processing}
+                className="px-4 py-2 rounded-xl border border-border bg-background hover:bg-muted text-sm font-semibold disabled:opacity-60"
+              >
+                Clear
+              </button>
+            )}
+            <button
+              onClick={processAll}
+              disabled={processing || urlCount === 0}
+              className="inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-primary text-primary-foreground font-semibold hover:opacity-90 disabled:opacity-60"
+            >
+              {processing ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Processing…
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4" />
+                  Fetch & save {urlCount > 0 && `(${urlCount})`}
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Progress summary */}
+      {results.length > 0 && (
+        <div className="grid grid-cols-3 gap-3">
+          <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4">
+            <div className="text-2xl font-extrabold text-emerald-600">{savedCount}</div>
+            <div className="text-xs text-muted-foreground font-medium">Saved</div>
+          </div>
+          <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
+            <div className="text-2xl font-extrabold text-amber-600">{dupCount}</div>
+            <div className="text-xs text-muted-foreground font-medium">Duplicates</div>
+          </div>
+          <div className="rounded-xl border border-rose-500/30 bg-rose-500/5 p-4">
+            <div className="text-2xl font-extrabold text-rose-600">{errCount}</div>
+            <div className="text-xs text-muted-foreground font-medium">Errors</div>
+          </div>
+        </div>
+      )}
+
+      {/* Per-URL results */}
+      {results.length > 0 && (
+        <div className="rounded-2xl border border-border bg-card overflow-hidden">
+          <div className="px-5 py-3 border-b border-border bg-muted/30">
+            <h3 className="font-bold text-sm">Results</h3>
+          </div>
+          <div className="divide-y divide-border max-h-[400px] overflow-y-auto">
+            {results.map((r, idx) => (
+              <div key={idx} className="px-5 py-3 flex items-start gap-3">
+                <div className="shrink-0 mt-0.5">
+                  {r.status === 'pending' && <Clock className="w-4 h-4 text-muted-foreground" />}
+                  {r.status === 'fetching' && <Loader2 className="w-4 h-4 animate-spin text-primary" />}
+                  {r.status === 'saved' && <CheckCircle2 className="w-4 h-4 text-emerald-500" />}
+                  {r.status === 'duplicate' && <AlertCircle className="w-4 h-4 text-amber-500" />}
+                  {r.status === 'error' && <AlertCircle className="w-4 h-4 text-rose-500" />}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium truncate">
+                    {r.title || r.url}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-0.5 truncate">
+                    {r.company && <span className="text-foreground">{r.company} · </span>}
+                    <a href={r.url} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                      {r.url}
+                    </a>
+                  </div>
+                  {r.error && (
+                    <div className="text-xs text-rose-600 mt-1">{r.error}</div>
+                  )}
+                  {r.status === 'duplicate' && (
+                    <div className="text-xs text-amber-600 mt-1">Already exists in the database</div>
+                  )}
+                  {r.status === 'saved' && (
+                    <div className="text-xs text-emerald-600 mt-1">Saved successfully</div>
+                  )}
+                </div>
+                <div className="shrink-0 text-xs font-bold uppercase tracking-wide">
+                  {r.status === 'pending' && <span className="text-muted-foreground">Pending</span>}
+                  {r.status === 'fetching' && <span className="text-primary">Fetching…</span>}
+                  {r.status === 'saved' && <span className="text-emerald-600">Saved</span>}
+                  {r.status === 'duplicate' && <span className="text-amber-600">Duplicate</span>}
+                  {r.status === 'error' && <span className="text-rose-600">Error</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
