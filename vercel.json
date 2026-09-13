@@ -43,6 +43,9 @@
     },
     "src/app/api/payment/webhook/route.ts": {
       "maxDuration": 30
+    },
+    "src/app/api/admin/bulk-fetch/process/route.ts": {
+      "maxDuration": 60
     }
   },
   "crons": [

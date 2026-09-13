@@ -52,6 +52,7 @@ model User {
   applications  Application[]
   jobAlerts     JobAlert[]
   payments      Payment[]
+  bulkFetchJobs BulkFetchJob[]
 }
 
 model Company {
@@ -309,4 +310,52 @@ model SkillTestAttempt {
 
   @@index([testId])
   @@index([userId])
+}
+
+// Bulk fetch jobs — powers the server-side queue for processing many job URLs
+// at once. Solves the "500 URLs in one go" problem: URLs are persisted in the
+// DB so progress survives browser refresh, laptop sleep, or Vercel redeploy.
+//
+// Flow:
+//   1. Admin pastes 500 URLs into the Bulk Fetch UI
+//   2. POST /api/admin/bulk-fetch/create — creates a BulkFetchJob + 500 BulkFetchJobUrl rows
+//   3. POST /api/admin/bulk-fetch/process — picks the next N pending URLs and processes them
+//      (called by the UI auto-poller every 30s, OR by cron-job.org every 5 min)
+//   4. GET /api/admin/bulk-fetch/status?id=<jobId> — returns progress (saved/dup/error counts)
+//   5. User can close browser; status is persisted in DB. Revisit any time to check progress.
+model BulkFetchJob {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  totalUrls       Int      // total URLs in this batch
+  processedCount  Int      @default(0)  // saved + duplicate + error
+  savedCount      Int      @default(0)
+  duplicateCount  Int      @default(0)
+  failedCount     Int      @default(0)
+  status          String   @default("pending")  // pending | processing | completed | cancelled
+  createdAt       DateTime @default(now())
+  startedAt       DateTime?
+  completedAt      DateTime?
+  error           String?  // if the entire batch failed (rare)
+  urls            BulkFetchJobUrl[]
+
+  @@index([userId])
+  @@index([status])
+}
+
+// One row per URL in a bulk fetch job. Status transitions:
+//   pending → processing → saved | duplicate | error
+model BulkFetchJobUrl {
+  id          String   @id @default(cuid())
+  jobId       String
+  job         BulkFetchJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  url         String
+  status      String   @default("pending")  // pending | processing | saved | duplicate | error
+  title       String?  // filled after processing — the extracted job title
+  company     String?  // filled after processing — the extracted company name
+  error       String?  // filled if status='error'
+  processedAt DateTime?
+
+  @@index([jobId, status])
+  @@index([status])
 }

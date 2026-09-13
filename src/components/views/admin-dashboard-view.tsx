@@ -314,21 +314,41 @@ function FetchFromUrlTab() {
 }
 
 // ============================================================================
-// TAB 1b: Bulk Fetch — paste multiple URLs at once, fetch + save them in batch
+// TAB 1b: Bulk Fetch — server-side queue for processing many URLs at once
 // ============================================================================
+type BulkJobUrl = {
+  id: string
+  url: string
+  status: 'pending' | 'processing' | 'saved' | 'duplicate' | 'error'
+  title?: string | null
+  company?: string | null
+  error?: string | null
+  processedAt?: string | null
+}
+type BulkJob = {
+  id: string
+  totalUrls: number
+  processedCount: number
+  savedCount: number
+  duplicateCount: number
+  failedCount: number
+  status: 'pending' | 'processing' | 'completed' | 'cancelled'
+  createdAt: string
+  startedAt?: string | null
+  completedAt?: string | null
+  error?: string | null
+  urls: BulkJobUrl[]
+}
+
 function BulkFetchTab() {
   const [rawUrls, setRawUrls] = React.useState('')
-  const [processing, setProcessing] = React.useState(false)
-  const [results, setResults] = React.useState<Array<{
-    url: string
-    status: 'pending' | 'fetching' | 'saved' | 'duplicate' | 'error'
-    title?: string
-    company?: string
-    error?: string
-  }>>([])
+  const [creating, setCreating] = React.useState(false)
+  const [activeJob, setActiveJob] = React.useState<BulkJob | null>(null)
+  const [polling, setPolling] = React.useState(false)
+  const [error, setError] = React.useState('')
+  const pollIntervalRef = React.useRef<ReturnType<typeof setInterval> | null>(null)
 
-  // Parse the textarea into a clean list of URLs (one per line, also handles
-  // comma-separated and URLs pasted with surrounding text)
+  // Parse URLs from textarea — accepts newlines, commas, mixed formats
   function parseUrls(text: string): string[] {
     return text
       .split(/[\n,]/)
@@ -336,123 +356,144 @@ function BulkFetchTab() {
       .filter((s) => /^https?:\/\//.test(s))
   }
 
-  async function processAll() {
+  // Create a new batch job
+  async function createBatch() {
     const urls = parseUrls(rawUrls)
     if (urls.length === 0) {
-      toast.error('Please paste at least one valid URL (starting with http:// or https://)')
+      setError('Please paste at least one valid URL (starting with http:// or https://)')
       return
     }
+    if (urls.length > 1000) {
+      setError(`Too many URLs (${urls.length}). Maximum 1000 per batch.`)
+      return
+    }
+    setError('')
+    setCreating(true)
+    try {
+      const r = await fetch('/api/admin/bulk-fetch/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ urls }),
+      })
+      const d = await r.json()
+      if (!r.ok) throw new Error(d.error || 'Failed to create batch')
+      toast.success(`Batch created with ${d.totalUrls} URLs. Processing will start automatically.`)
+      setRawUrls('')
+      // Immediately fetch the job status + start auto-polling
+      await fetchStatus(d.jobId)
+      startPolling(d.jobId)
+    } catch (e: any) {
+      setError(e.message)
+      toast.error('Failed to create batch')
+    } finally {
+      setCreating(false)
+    }
+  }
 
-    setProcessing(true)
-    setResults(urls.map((url) => ({ url, status: 'pending' as const })))
-
-    let savedCount = 0
-    let dupCount = 0
-    let errCount = 0
-
-    // Process sequentially — the fetch-job API uses AI (slow) and hitting it
-    // in parallel could blow the Vercel function timeout + overwhelm the AI
-    // provider's rate limit.
-    //
-    // We add a 5-second delay between each job to give the AI provider time
-    // to recover. Without this delay, jobs 2+ would hit 429 rate limit
-    // errors and fail with "All AI providers are rate limited".
-    const DELAY_BETWEEN_JOBS_MS = 5000 // 5 seconds
-
-    for (let i = 0; i < urls.length; i++) {
-      const url = urls[i]
-      setResults((prev) => prev.map((r, idx) => idx === i ? { ...r, status: 'fetching' } : r))
-
-      try {
-        // Save=true so we both fetch AND save in one call (no preview step —
-        // for bulk we trust the AI extraction and let the admin review later
-        // via Manage Jobs).
-        const r = await fetch('/api/admin/fetch-job?save=true', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url }),
-        })
-        const d = await r.json()
-        if (!r.ok) {
-          // Common error: "Job already exists" — count as duplicate, not error
-          const isDup = /already exists|duplicate/i.test(d.error || '')
-          setResults((prev) => prev.map((ridx, idx) => idx === i ? {
-            ...ridx,
-            status: isDup ? 'duplicate' : 'error',
-            error: d.error || 'Failed',
-          } : ridx))
-          if (isDup) dupCount++
-          else errCount++
-        } else if (d.ok && d.saved) {
-          setResults((prev) => prev.map((r, idx) => idx === i ? {
-            ...r,
-            status: 'saved',
-            title: d.job?.title,
-            company: d.job?.company?.name || d.job?.companyName,
-          } : r))
-          savedCount++
-        } else {
-          setResults((prev) => prev.map((r, idx) => idx === i ? {
-            ...r,
-            status: 'error',
-            error: 'Unexpected response',
-          } : r))
-          errCount++
+  // Fetch the latest status of a job
+  async function fetchStatus(jobId?: string) {
+    try {
+      const url = jobId
+        ? `/api/admin/bulk-fetch/status?id=${jobId}`
+        : '/api/admin/bulk-fetch/status'
+      const r = await fetch(url)
+      const d = await r.json()
+      if (r.ok && d.job) {
+        setActiveJob(d.job)
+        // If the job isn't complete yet, trigger a process call
+        if (d.job.status === 'pending' || d.job.status === 'processing') {
+          await triggerProcess(d.job.id)
         }
-      } catch (e: any) {
-        setResults((prev) => prev.map((r, idx) => idx === i ? {
-          ...r,
-          status: 'error',
-          error: e.message || 'Network error',
-        } : r))
-        errCount++
       }
-
-      // Delay before next job (skip after the last one)
-      if (i < urls.length - 1) {
-        await new Promise((r) => setTimeout(r, DELAY_BETWEEN_JOBS_MS))
-      }
-    }
-
-    setProcessing(false)
-    const msg = errCount > 0 && errCount === urls.length
-      ? `All ${errCount} jobs failed — AI provider may be rate limited. Wait 1-2 min and click "Retry failed".`
-      : `Done! ${savedCount} saved, ${dupCount} duplicates, ${errCount} errors`
-    if (errCount > 0) {
-      toast.error(msg)
-    } else {
-      toast.success(msg)
+    } catch (e) {
+      console.error('Status fetch error:', e)
     }
   }
 
-  async function retryFailed() {
-    const failedUrls = results
-      .filter((r) => r.status === 'error')
-      .map((r) => r.url)
-    if (failedUrls.length === 0) {
-      toast.info('No failed jobs to retry')
-      return
+  // Trigger the /process endpoint to handle the next batch of URLs
+  async function triggerProcess(jobId: string) {
+    if (polling) return // don't trigger multiple concurrent process calls
+    setPolling(true)
+    try {
+      await fetch('/api/admin/bulk-fetch/process', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jobId, batchSize: 2 }),
+      })
+      // Immediately refresh status after processing
+      await fetchStatus(jobId)
+    } catch (e) {
+      console.error('Process trigger error:', e)
+    } finally {
+      setPolling(false)
     }
-    setRawUrls(failedUrls.join('\n'))
-    setResults([])
-    // Wait a moment for state to update, then process
-    await new Promise((r) => setTimeout(r, 100))
-    await processAll()
   }
+
+  // Start auto-polling — every 15 seconds, fetch status + trigger next batch
+  function startPolling(jobId: string) {
+    if (pollIntervalRef.current) clearInterval(pollIntervalRef.current)
+    pollIntervalRef.current = setInterval(async () => {
+      // Re-fetch latest status from server
+      try {
+        const url = `/api/admin/bulk-fetch/status?id=${jobId}`
+        const r = await fetch(url)
+        const d = await r.json()
+        if (r.ok && d.job) {
+          setActiveJob(d.job)
+          // If complete, stop polling
+          if (d.job.status === 'completed') {
+            if (pollIntervalRef.current) {
+              clearInterval(pollIntervalRef.current)
+              pollIntervalRef.current = null
+            }
+            return
+          }
+          // Trigger next batch (if not already processing)
+          if (!polling) {
+            await triggerProcess(jobId)
+          }
+        }
+      } catch (e) {
+        console.error('Poll error:', e)
+      }
+    }, 15000) // poll every 15 seconds
+  }
+
+  // Stop polling
+  function stopPolling() {
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current)
+      pollIntervalRef.current = null
+    }
+  }
+
+  // On mount, check if there's an existing job to resume
+  React.useEffect(() => {
+    fetchStatus()
+    return () => stopPolling()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Auto-stop polling when job completes
+  React.useEffect(() => {
+    if (activeJob?.status === 'completed') {
+      stopPolling()
+    }
+  }, [activeJob?.status])
 
   const urlCount = parseUrls(rawUrls).length
-  const savedCount = results.filter((r) => r.status === 'saved').length
-  const dupCount = results.filter((r) => r.status === 'duplicate').length
-  const errCount = results.filter((r) => r.status === 'error').length
+  const isJobActive = activeJob && (activeJob.status === 'pending' || activeJob.status === 'processing')
+  const progress = activeJob ? Math.round((activeJob.processedCount / activeJob.totalUrls) * 100) : 0
 
   return (
     <div className="space-y-5">
+      {/* URL input — only show when no active job OR allow creating another batch */}
       <div className="rounded-2xl border border-border bg-card p-5">
         <div className="flex items-start justify-between gap-3 mb-3">
           <div>
             <h2 className="text-lg font-bold">Bulk fetch jobs from URLs</h2>
             <p className="text-sm text-muted-foreground mt-1">
-              Paste multiple job posting URLs (one per line). The AI will fetch + extract + save each one automatically.
+              Paste up to 1000 job URLs. They&apos;ll be processed in the background — you can close this tab and check progress anytime.
             </p>
           </div>
           <div className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 text-primary text-xs font-bold">
@@ -465,139 +506,194 @@ function BulkFetchTab() {
           value={rawUrls}
           onChange={(e) => setRawUrls(e.target.value)}
           placeholder={`Paste job URLs here, one per line:\n\nhttps://www.linkedin.com/jobs/view/1234567890\nhttps://www.naukri.com/job-listings-12345\nhttps://jobs.lever.co/companyname/1234-abc\nhttps://www.indeed.com/viewjob?jk=abcdef`}
-          rows={10}
-          disabled={processing}
+          rows={8}
+          disabled={creating}
           className="w-full p-3 rounded-xl border border-border bg-background text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/40 resize-y disabled:opacity-60"
         />
 
         <div className="flex flex-wrap items-center justify-between gap-3 mt-3">
           <p className="text-xs text-muted-foreground">
             Supports LinkedIn, Naukri, Indeed, Lever, Greenhouse, Ashby, and any public job page.
-            {urlCount > 0 && ` Each job takes ~10-15s + 5s delay between jobs (to avoid AI rate limits). Total: ~${Math.ceil((urlCount * 20) / 60)} min.`}
+            {urlCount > 0 && ` Estimated time: ~${Math.ceil((urlCount * 25) / 60)} min (2 URLs per batch × 15s each).`}
           </p>
           <div className="flex items-center gap-2">
             {rawUrls && (
               <button
-                onClick={() => { setRawUrls(''); setResults([]) }}
-                disabled={processing}
+                onClick={() => { setRawUrls(''); setError('') }}
+                disabled={creating}
                 className="px-4 py-2 rounded-xl border border-border bg-background hover:bg-muted text-sm font-semibold disabled:opacity-60"
               >
                 Clear
               </button>
             )}
             <button
-              onClick={processAll}
-              disabled={processing || urlCount === 0}
+              onClick={createBatch}
+              disabled={creating || urlCount === 0}
               className="inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-primary text-primary-foreground font-semibold hover:opacity-90 disabled:opacity-60"
             >
-              {processing ? (
+              {creating ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Processing…
+                  Creating batch…
                 </>
               ) : (
                 <>
                   <Sparkles className="w-4 h-4" />
-                  Fetch & save {urlCount > 0 && `(${urlCount})`}
+                  Create batch {urlCount > 0 && `(${urlCount})`}
                 </>
               )}
             </button>
           </div>
         </div>
+
+        {error && (
+          <div className="mt-3 flex items-start gap-2 p-3 rounded-lg bg-rose-500/10 text-rose-700 dark:text-rose-400 text-sm">
+            <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
       </div>
 
-      {/* Progress summary */}
-      {results.length > 0 && (
+      {/* Active job — progress + URL list */}
+      {activeJob && (
         <>
-          <div className="grid grid-cols-3 gap-3">
-            <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4">
-              <div className="text-2xl font-extrabold text-emerald-600">{savedCount}</div>
-              <div className="text-xs text-muted-foreground font-medium">Saved</div>
+          {/* Progress header */}
+          <div className="rounded-2xl border border-border bg-card p-5">
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-bold">Batch progress</h3>
+                  <span className={cn(
+                    'text-xs font-bold px-2 py-0.5 rounded-full',
+                    activeJob.status === 'completed' && 'bg-emerald-500/10 text-emerald-600',
+                    activeJob.status === 'processing' && 'bg-blue-500/10 text-blue-600',
+                    activeJob.status === 'pending' && 'bg-amber-500/10 text-amber-600',
+                  )}>
+                    {activeJob.status === 'completed' && '✓ Completed'}
+                    {activeJob.status === 'processing' && '● Processing'}
+                    {activeJob.status === 'pending' && '○ Queued'}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Job ID: <code className="bg-muted px-1.5 py-0.5 rounded text-[10px]">{activeJob.id}</code>
+                  {' · '}Created {new Date(activeJob.createdAt).toLocaleString()}
+                </p>
+              </div>
+              {isJobActive && (
+                <button
+                  onClick={() => triggerProcess(activeJob.id)}
+                  disabled={polling}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold disabled:opacity-60"
+                >
+                  {polling ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+                  {polling ? 'Processing…' : 'Process now'}
+                </button>
+              )}
             </div>
-            <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
-              <div className="text-2xl font-extrabold text-amber-600">{dupCount}</div>
-              <div className="text-xs text-muted-foreground font-medium">Duplicates</div>
+
+            {/* Progress bar */}
+            <div className="w-full h-2 rounded-full bg-muted overflow-hidden mb-3">
+              <div
+                className={cn(
+                  'h-full transition-all duration-500',
+                  activeJob.status === 'completed' ? 'bg-emerald-500' : 'bg-primary'
+                )}
+                style={{ width: `${progress}%` }}
+              />
             </div>
-            <div className="rounded-xl border border-rose-500/30 bg-rose-500/5 p-4">
-              <div className="text-2xl font-extrabold text-rose-600">{errCount}</div>
-              <div className="text-xs text-muted-foreground font-medium">Errors</div>
+
+            {/* Summary stats */}
+            <div className="grid grid-cols-5 gap-2">
+              <StatCard label="Total" value={activeJob.totalUrls} />
+              <StatCard label="Processed" value={activeJob.processedCount} />
+              <StatCard label="Saved" value={activeJob.savedCount} color="emerald" />
+              <StatCard label="Duplicates" value={activeJob.duplicateCount} color="amber" />
+              <StatCard label="Errors" value={activeJob.failedCount} color="rose" />
             </div>
+
+            {isJobActive && (
+              <p className="text-xs text-muted-foreground mt-3 italic">
+                💡 You can close this tab — processing continues server-side. Come back anytime to check progress.
+              </p>
+            )}
           </div>
 
-          {/* Rate-limit warning + retry button */}
-          {errCount > 0 && !processing && (
-            <div className="rounded-2xl border border-amber-500/40 bg-amber-500/5 p-4 flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <h4 className="font-bold text-sm text-amber-900 dark:text-amber-200">
-                  {errCount} job{errCount !== 1 && 's'} failed
-                </h4>
-                <p className="text-xs text-amber-800 dark:text-amber-300 mt-1 leading-relaxed">
-                  The AI provider (z-ai) likely rate-limited your requests. This is normal for bulk fetches —
-                  the provider allows ~1-2 jobs per minute on the free tier. Wait 1-2 minutes, then click
-                  "Retry failed" to re-attempt just the failed URLs.
-                </p>
-                <button
-                  onClick={retryFailed}
-                  className="mt-3 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-600 text-white text-sm font-semibold hover:bg-amber-700 transition-colors"
-                >
-                  <RefreshCw className="w-4 h-4" />
-                  Retry {errCount} failed job{errCount !== 1 && 's'}
-                </button>
-              </div>
+          {/* URL list */}
+          <div className="rounded-2xl border border-border bg-card overflow-hidden">
+            <div className="px-5 py-3 border-b border-border bg-muted/30 flex items-center justify-between">
+              <h3 className="font-bold text-sm">URLs in this batch ({activeJob.urls.length})</h3>
+              <button
+                onClick={() => fetchStatus(activeJob.id)}
+                disabled={polling}
+                className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
+              >
+                <RefreshCw className={cn('w-3 h-3', polling && 'animate-spin')} />
+                Refresh
+              </button>
             </div>
-          )}
+            <div className="divide-y divide-border max-h-[500px] overflow-y-auto">
+              {activeJob.urls.map((u) => (
+                <div key={u.id} className="px-5 py-3 flex items-start gap-3">
+                  <div className="shrink-0 mt-0.5">
+                    {u.status === 'pending' && <Clock className="w-4 h-4 text-muted-foreground" />}
+                    {u.status === 'processing' && <Loader2 className="w-4 h-4 animate-spin text-primary" />}
+                    {u.status === 'saved' && <CheckCircle2 className="w-4 h-4 text-emerald-500" />}
+                    {u.status === 'duplicate' && <AlertCircle className="w-4 h-4 text-amber-500" />}
+                    {u.status === 'error' && <AlertCircle className="w-4 h-4 text-rose-500" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium truncate">
+                      {u.title || u.url}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-0.5 truncate">
+                      {u.company && <span className="text-foreground">{u.company} · </span>}
+                      <a href={u.url} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                        {u.url}
+                      </a>
+                    </div>
+                    {u.error && (
+                      <div className="text-xs text-rose-600 mt-1">{u.error}</div>
+                    )}
+                  </div>
+                  <div className="shrink-0 text-xs font-bold uppercase tracking-wide">
+                    {u.status === 'pending' && <span className="text-muted-foreground">Pending</span>}
+                    {u.status === 'processing' && <span className="text-primary">Processing…</span>}
+                    {u.status === 'saved' && <span className="text-emerald-600">Saved</span>}
+                    {u.status === 'duplicate' && <span className="text-amber-600">Duplicate</span>}
+                    {u.status === 'error' && <span className="text-rose-600">Error</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </>
       )}
 
-      {/* Per-URL results */}
-      {results.length > 0 && (
-        <div className="rounded-2xl border border-border bg-card overflow-hidden">
-          <div className="px-5 py-3 border-b border-border bg-muted/30">
-            <h3 className="font-bold text-sm">Results</h3>
-          </div>
-          <div className="divide-y divide-border max-h-[400px] overflow-y-auto">
-            {results.map((r, idx) => (
-              <div key={idx} className="px-5 py-3 flex items-start gap-3">
-                <div className="shrink-0 mt-0.5">
-                  {r.status === 'pending' && <Clock className="w-4 h-4 text-muted-foreground" />}
-                  {r.status === 'fetching' && <Loader2 className="w-4 h-4 animate-spin text-primary" />}
-                  {r.status === 'saved' && <CheckCircle2 className="w-4 h-4 text-emerald-500" />}
-                  {r.status === 'duplicate' && <AlertCircle className="w-4 h-4 text-amber-500" />}
-                  {r.status === 'error' && <AlertCircle className="w-4 h-4 text-rose-500" />}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium truncate">
-                    {r.title || r.url}
-                  </div>
-                  <div className="text-xs text-muted-foreground mt-0.5 truncate">
-                    {r.company && <span className="text-foreground">{r.company} · </span>}
-                    <a href={r.url} target="_blank" rel="noopener noreferrer" className="hover:underline">
-                      {r.url}
-                    </a>
-                  </div>
-                  {r.error && (
-                    <div className="text-xs text-rose-600 mt-1">{r.error}</div>
-                  )}
-                  {r.status === 'duplicate' && (
-                    <div className="text-xs text-amber-600 mt-1">Already exists in the database</div>
-                  )}
-                  {r.status === 'saved' && (
-                    <div className="text-xs text-emerald-600 mt-1">Saved successfully</div>
-                  )}
-                </div>
-                <div className="shrink-0 text-xs font-bold uppercase tracking-wide">
-                  {r.status === 'pending' && <span className="text-muted-foreground">Pending</span>}
-                  {r.status === 'fetching' && <span className="text-primary">Fetching…</span>}
-                  {r.status === 'saved' && <span className="text-emerald-600">Saved</span>}
-                  {r.status === 'duplicate' && <span className="text-amber-600">Duplicate</span>}
-                  {r.status === 'error' && <span className="text-rose-600">Error</span>}
-                </div>
-              </div>
-            ))}
-          </div>
+      {/* No active job — show hint */}
+      {!activeJob && !creating && (
+        <div className="rounded-2xl border border-dashed border-border p-8 text-center">
+          <Layers className="w-10 h-10 mx-auto text-muted-foreground/40 mb-3" />
+          <p className="text-muted-foreground text-sm">
+            No active batches. Paste URLs above and click &quot;Create batch&quot; to start.
+          </p>
         </div>
       )}
+    </div>
+  )
+}
+
+function StatCard({ label, value, color }: { label: string; value: number; color?: 'emerald' | 'amber' | 'rose' }) {
+  const colorClass = color === 'emerald'
+    ? 'text-emerald-600'
+    : color === 'amber'
+    ? 'text-amber-600'
+    : color === 'rose'
+    ? 'text-rose-600'
+    : 'text-foreground'
+  return (
+    <div className="rounded-lg border border-border bg-muted/30 p-3 text-center">
+      <div className={cn('text-xl font-extrabold', colorClass)}>{value}</div>
+      <div className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide mt-0.5">{label}</div>
     </div>
   )
 }

@@ -1,0 +1,330 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { db } from '@/lib/db'
+import { getAdminUser } from '@/lib/admin-auth'
+import { chatComplete, pageRead } from '@/lib/multi-ai'
+import { cleanJobTitle } from '@/lib/seo-routes'
+import crypto from 'crypto'
+
+/**
+ * POST /api/admin/bulk-fetch/process
+ * Body: { jobId?: string, batchSize?: number }
+ *
+ * Picks the next N pending URLs from the specified job (or the oldest active
+ * job if no jobId given) and processes them sequentially. Each URL goes
+ * through the same AI extraction + save logic as /api/admin/fetch-job.
+ *
+ * Auth: admin OR x-cron-secret header (so cron-job.org can trigger it).
+ *
+ * Vercel Hobby function timeout is 60s. Each URL takes ~15-20s, so we cap
+ * at 2 URLs per call by default. Setting batchSize higher risks timeout.
+ *
+ * Returns: { processed: N, saved: X, duplicates: Y, errors: Z, jobId, isComplete }
+ */
+export async function POST(req: NextRequest) {
+  try {
+    // Auth: admin OR cron-secret
+    const admin = await getAdminUser()
+    const cronSecret = req.headers.get('x-cron-secret')
+    const validCronSecret = process.env.CRON_SECRET
+
+    if (!admin && !(cronSecret && validCronSecret && cronSecret === validCronSecret)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const body = await req.json().catch(() => ({}))
+    const batchSize = Math.min(body.batchSize || 2, 3) // hard cap at 3 (60s timeout)
+    const jobId = body.jobId
+
+    // Find the job to process
+    let where: any = { status: { in: ['pending', 'processing'] } }
+    if (jobId) where = { id: jobId, ...where }
+    const job = await db.bulkFetchJob.findFirst({
+      where,
+      orderBy: { createdAt: 'asc' },
+    })
+
+    if (!job) {
+      return NextResponse.json({
+        ok: true,
+        processed: 0,
+        isComplete: true,
+        message: 'No pending jobs to process',
+      })
+    }
+
+    // Mark job as 'processing' if it was 'pending'
+    if (job.status === 'pending') {
+      await db.bulkFetchJob.update({
+        where: { id: job.id },
+        data: { status: 'processing', startedAt: new Date() },
+      })
+    }
+
+    // Pick the next N pending URLs — atomically mark them as 'processing' so
+    // concurrent /process calls don't double-process them
+    const pendingUrls = await db.bulkFetchJobUrl.findMany({
+      where: { jobId: job.id, status: 'pending' },
+      orderBy: { id: 'asc' },
+      take: batchSize,
+    })
+
+    if (pendingUrls.length === 0) {
+      // No pending URLs left — check if job is complete
+      await updateJobCompletion(job.id)
+      const updated = await db.bulkFetchJob.findUnique({ where: { id: job.id } })
+      return NextResponse.json({
+        ok: true,
+        processed: 0,
+        isComplete: true,
+        jobId: job.id,
+        saved: updated?.savedCount || 0,
+        duplicates: updated?.duplicateCount || 0,
+        errors: updated?.failedCount || 0,
+      })
+    }
+
+    // Mark these URLs as 'processing' (claim them)
+    await db.bulkFetchJobUrl.updateMany({
+      where: { id: { in: pendingUrls.map((u) => u.id) } },
+      data: { status: 'processing' },
+    })
+
+    let savedCount = 0
+    let dupCount = 0
+    let errCount = 0
+
+    // Process each URL sequentially (parallel would blow AI rate limits)
+    for (const urlRow of pendingUrls) {
+      try {
+        const result = await processSingleUrl(urlRow.url)
+
+        await db.bulkFetchJobUrl.update({
+          where: { id: urlRow.id },
+          data: {
+            status: result.status,
+            title: result.title,
+            company: result.company,
+            error: result.error,
+            processedAt: new Date(),
+          },
+        })
+
+        if (result.status === 'saved') savedCount++
+        else if (result.status === 'duplicate') dupCount++
+        else errCount++
+      } catch (e: any) {
+        await db.bulkFetchJobUrl.update({
+          where: { id: urlRow.id },
+          data: {
+            status: 'error',
+            error: e.message?.slice(0, 200) || 'Unknown error',
+            processedAt: new Date(),
+          },
+        })
+        errCount++
+      }
+    }
+
+    // Update aggregate counts on the job
+    await db.bulkFetchJob.update({
+      where: { id: job.id },
+      data: {
+        processedCount: { increment: pendingUrls.length },
+        savedCount: { increment: savedCount },
+        duplicateCount: { increment: dupCount },
+        failedCount: { increment: errCount },
+      },
+    })
+
+    // Check if job is complete
+    await updateJobCompletion(job.id)
+
+    const updated = await db.bulkFetchJob.findUnique({ where: { id: job.id } })
+
+    return NextResponse.json({
+      ok: true,
+      jobId: job.id,
+      processed: pendingUrls.length,
+      saved: savedCount,
+      duplicates: dupCount,
+      errors: errCount,
+      isComplete: updated?.status === 'completed',
+      totals: {
+        saved: updated?.savedCount || 0,
+        duplicates: updated?.duplicateCount || 0,
+        errors: updated?.failedCount || 0,
+        processed: updated?.processedCount || 0,
+        total: updated?.totalUrls || 0,
+      },
+    })
+  } catch (e: any) {
+    console.error('[bulk-fetch/process] error:', e)
+    return NextResponse.json({ error: e.message }, { status: 500 })
+  }
+}
+
+/**
+ * Process a single URL — same logic as /api/admin/fetch-job, but inlined here
+ * to avoid the extra HTTP call. Returns the final status + extracted metadata.
+ */
+async function processSingleUrl(url: string): Promise<{
+  status: 'saved' | 'duplicate' | 'error'
+  title?: string
+  company?: string
+  error?: string
+}> {
+  // Step 1: Fetch the page content
+  let pageTitle = ''
+  let html = ''
+  let publishedTime: string | undefined
+  try {
+    const pageData = await pageRead(url)
+    pageTitle = pageData.title
+    html = pageData.html
+    publishedTime = pageData.publishedTime
+  } catch (e: any) {
+    return { status: 'error', error: 'Failed to fetch page: ' + (e.message?.slice(0, 100) || 'unknown') }
+  }
+
+  // Strip HTML to plain text
+  const text = html
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 12000)
+
+  if (text.length < 100) {
+    return { status: 'error', error: 'Page content too short to be a real job posting' }
+  }
+
+  // Step 2: AI extraction
+  const raw = await chatComplete([
+    {
+      role: 'system',
+      content: `You are an expert job post parser. Given the raw text of a job page (scraped from any URL), extract structured fields.
+
+Output STRICT JSON (no markdown fences) with this shape:
+{
+  "title": "<the job title>",
+  "company": "<the hiring company name>",
+  "location": "<city, country — extract from text; if remote, say 'Remote'>",
+  "description": "<a clean, well-formatted version of the job description, 3-6 paragraphs in Markdown with ## headings for sections like 'About the role', 'What you'll do', 'Required qualifications', 'Benefits'>",
+  "skills": ["<skill1>", "<skill2>", ...up to 8],
+  "experience": "<one of: '0 Years' | '0-2 Years' | '1-3 Years' | '3-5 Years' | '5-8 Years' | '8+ Years'>",
+  "category": "<one of: 'fresher' | 'internship' | 'experienced' | 'remote' | 'walk-in'>",
+  "employmentType": "<'Full-time' | 'Part-time' | 'Contract' | 'Internship'>",
+  "workMode": "<'Onsite' | 'Remote' | 'Hybrid'>",
+  "salaryMin": <number or null, in LPA × 10 (e.g. 8 LPA = 80)>,
+  "salaryMax": <number or null, in LPA × 10>
+}
+
+Rules:
+- If the job title contains 'intern' or 'internship', set category='internship' and employmentType='Internship'
+- If 'fresher', 'entry level', 'new grad', '0 years', or 'associate' appears, set category='fresher'
+- If location mentions 'remote' or 'work from anywhere', set workMode='Remote'
+- Convert any USD salary to INR LPA equivalent (1 USD ≈ ₹83, so $100k ≈ ₹83 LPA → 830)
+- If salary isn't mentioned, return null for both
+- Be conservative on skills — only include ones actually mentioned`,
+    },
+    {
+      role: 'user',
+      content: `PAGE TITLE: ${pageTitle}
+PAGE URL: ${url}
+PUBLISHED AT: ${publishedTime || 'unknown'}
+
+RAW PAGE TEXT:
+${text}
+
+Extract the structured job fields.`,
+    },
+  ])
+
+  let parsed: any
+  try {
+    const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+    parsed = JSON.parse(cleaned)
+  } catch {
+    return { status: 'error', error: 'AI returned unparseable JSON' }
+  }
+
+  // Step 3: Find or create the company
+  const companyName = parsed.company || 'Unknown'
+  const slug = companyName.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60)
+  let company = await db.company.findUnique({ where: { slug } })
+  if (!company) {
+    company = await db.company.create({
+      data: {
+        name: companyName,
+        slug,
+        hiringActivity: 'Medium',
+        sevenDayTrend: 0,
+        verified: true,
+      },
+    })
+  }
+
+  // Step 4: Dedup check by hash
+  const cleanTitle = cleanJobTitle(parsed.title, companyName)
+  const hash = crypto
+    .createHash('sha1')
+    .update(`${cleanTitle}|${company.id}|${(parsed.location || '').split(',')[0].trim()}`)
+    .digest('hex')
+
+  const existing = await db.job.findFirst({ where: { hash } })
+  if (existing) {
+    return { status: 'duplicate', title: cleanTitle, company: companyName }
+  }
+
+  // Step 5: Save the job
+  await db.job.create({
+    data: {
+      title: cleanTitle,
+      companyId: company.id,
+      category: parsed.category || 'experienced',
+      employmentType: parsed.employmentType || 'Full-time',
+      workMode: parsed.workMode || 'Onsite',
+      experience: parsed.experience || '0-2 Years',
+      salaryMin: parsed.salaryMin ?? null,
+      salaryMax: parsed.salaryMax ?? null,
+      salaryCurrency: 'INR',
+      location: parsed.location || 'Not specified',
+      skills: Array.isArray(parsed.skills) ? parsed.skills.join(', ') : '',
+      description: parsed.description || text.slice(0, 4000),
+      applyUrl: url,
+      source: 'admin-url',
+      sourceRef: url,
+      hash,
+      verified: true,
+      sourcePostedAt: publishedTime ? new Date(publishedTime) : null,
+    },
+  })
+
+  return { status: 'saved', title: cleanTitle, company: companyName }
+}
+
+/**
+ * Mark a job as completed if all its URLs have a non-pending status.
+ */
+async function updateJobCompletion(jobId: string) {
+  const pending = await db.bulkFetchJobUrl.count({
+    where: { jobId, status: 'pending' },
+  })
+  const processing = await db.bulkFetchJobUrl.count({
+    where: { jobId, status: 'processing' },
+  })
+
+  if (pending === 0 && processing === 0) {
+    await db.bulkFetchJob.update({
+      where: { id: jobId },
+      data: { status: 'completed', completedAt: new Date() },
+    })
+  }
+}
