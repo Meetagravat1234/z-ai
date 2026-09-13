@@ -40,6 +40,9 @@
     },
     "src/app/api/alerts/send/route.ts": {
       "maxDuration": 60
+    },
+    "src/app/api/payment/webhook/route.ts": {
+      "maxDuration": 30
     }
   },
   "crons": [

@@ -509,14 +509,19 @@ export function getParallelSources(): Array<{ adapter: () => Promise<FetchResult
       .sort(() => Math.random() - 0.5)
       .slice(0, 3)
       .map((c) => ({ adapter: () => fetchAshby(c), label: `ashby-${c}` })),
-    // Adzuna API (if user has provided ADZUNA_APP_ID + ADZUNA_APP_KEY in env)
-    // Free tier = 1000 requests/month. We use 2 per sync × 48 syncs/day = 96/day ≈ 2880/month
-    // That's over the limit. So we only do 1 Adzuna call per sync (fetches latest 20 India jobs)
-    ...(process.env.ADZUNA_APP_ID && process.env.ADZUNA_APP_KEY
-      ? [
-          { adapter: () => fetchAdzuna('all', 'India'), label: 'adzuna-latest' },
-        ]
-      : []),
+    // Adzuna API — DISABLED Sep 2026
+    // The Adzuna API has been returning HTTP 400 errors for several weeks
+    // even when ADZUNA_APP_ID and ADZUNA_APP_KEY are unset (likely the API
+    // was deprecated or our endpoint URL is outdated). Every 15-min sync
+    // was creating an error log entry, polluting the JobSync table.
+    // To re-enable: sign up at https://developer.adzuna.com/, set the env
+    // vars, and uncomment the block below. You'll also need to verify the
+    // fetchAdzuna() function still works against their current API.
+    // ...(process.env.ADZUNA_APP_ID && process.env.ADZUNA_APP_KEY
+    //   ? [
+    //       { adapter: () => fetchAdzuna('all', 'India'), label: 'adzuna-latest' },
+    //     ]
+    //   : []),
     // Careerjet API (if user has provided CAREERJET_AFFILIATE_ID in env)
     ...(process.env.CAREERJET_AFFILIATE_ID
       ? [
