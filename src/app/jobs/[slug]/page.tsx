@@ -44,7 +44,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       label: 'Fresher',
       title: 'Fresher Jobs in India (0 Years Experience) | Hirebase',
       description:
-        '300+ fresher jobs in India. Software, data, marketing, sales roles at TCS, Infosys, Wipro, Flipkart, Swiggy, and 100+ companies. Apply free — no signup required.',
+        '760+ fresher jobs in India. Software, data, marketing, sales roles at TCS, Infosys, Wipro, Flipkart, Swiggy, and 100+ companies. Apply free — no signup required.',
     },
     internship: {
       label: 'Internship',

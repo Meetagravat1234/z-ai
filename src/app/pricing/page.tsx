@@ -9,7 +9,7 @@ export const revalidate = 3600
 export const metadata: Metadata = {
   title: 'Pricing — Free for Job Seekers, Pro from ₹299/month | Hirebase',
   description:
-    'Hirebase is free for job seekers — browse 300+ jobs, search, apply. Upgrade to Pro for ₹299/month or ₹2,499/year to unlock 10x AI tool usage + premium features.',
+    'Hirebase is free for job seekers — browse 760+ jobs, search, apply. Upgrade to Pro for ₹299/month or ₹2,499/year to unlock 10x AI tool usage + premium features.',
   alternates: { canonical: 'https://www.hirebase.in/pricing' },
 }
 
@@ -208,7 +208,7 @@ export default function Page() {
                 href="/jobs"
                 className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-primary text-primary-foreground font-semibold text-sm shadow-lg shadow-primary/30 hover:opacity-90"
               >
-                Browse 300+ jobs <ArrowRight className="w-4 h-4" />
+                Browse 760+ jobs <ArrowRight className="w-4 h-4" />
               </Link>
               <Link
                 href="/upgrade"

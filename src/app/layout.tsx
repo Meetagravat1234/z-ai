@@ -17,8 +17,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Hirebase — India's AI-Powered Job Portal | 300+ Verified Jobs",
-  description: "Find verified jobs in India with AI-powered tools. Browse 300+ jobs from top companies, optimize your resume with AI, practice mock interviews, check ATS scores, and get email job alerts — all free on Hirebase.",
+  title: {
+    default: "Hirebase — India's AI-Powered Job Portal | 760+ Verified Jobs",
+    template: "%s | Hirebase",
+  },
+  description: "Find verified jobs in India with AI-powered tools. Browse 760+ jobs from top companies like Google, Amazon, Microsoft, Flipkart and TCS. Optimize your resume with AI, practice mock interviews, check ATS scores, and get email job alerts — all free on Hirebase.",
+  applicationName: "Hirebase",
   keywords: [
     "jobs in India",
     "fresher jobs India",
@@ -46,7 +50,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: "Hirebase — India's AI-Powered Job Portal",
-    description: "300+ verified jobs, AI resume tools, mock interviews, salary insights, company reviews, and email job alerts. Free for job seekers in India.",
+    description: "760+ verified jobs, AI resume tools, mock interviews, salary insights, company reviews, and email job alerts. Free for job seekers in India.",
     siteName: "Hirebase",
     type: "website",
     locale: "en_IN",
@@ -61,7 +65,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "Hirebase — India's AI-Powered Job Portal",
-    description: "300+ verified jobs, AI resume tools, mock interviews, and more. Free for Indian job seekers.",
+    description: "760+ verified jobs, AI resume tools, mock interviews, and more. Free for Indian job seekers.",
     images: ["/og-image.png"],
   },
   robots: {
@@ -75,23 +79,33 @@ export const metadata: Metadata = {
     },
   },
   verification: {
-    // Google Search Console verification code.
-    // Paste ONLY the code value (not "google-site-verification=...").
-    // Get it from https://search.google.com/search-console → Settings → Ownership verification → HTML tag
-    // Example value: "google1234567890abcdef.html" or just the alphanumeric code.
-    // Set via env var GOOGLE_SITE_VERIFICATION in your hosting dashboard so you don't need to redeploy.
     google: process.env.GOOGLE_SITE_VERIFICATION || process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION || "",
     other: {
-      // Optional: add Microsoft Clarity / Bing Webmaster verification here
       ...(process.env.MS_SITE_VERIFICATION ? { "msvalidate.01": process.env.MS_SITE_VERIFICATION } : {}),
     },
   },
   category: "jobs",
+  // Favicon configuration — provides all sizes Google + browsers expect.
+  // Google Search results use the 32x32 PNG for the small icon next to URLs.
+  // The .ico file is a multi-resolution fallback for older browsers.
   icons: {
-    icon: '/favicon.svg',
-    shortcut: '/favicon.svg',
-    apple: '/favicon.svg',
+    icon: [
+      { url: '/favicon.ico', sizes: 'any' },
+      { url: '/favicon.svg', type: 'image/svg+xml' },
+      { url: '/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
+      { url: '/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/favicon-48x48.png', sizes: '48x48', type: 'image/png' },
+      { url: '/favicon-96x96.png', sizes: '96x96', type: 'image/png' },
+      { url: '/favicon-192x192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/favicon-512x512.png', sizes: '512x512', type: 'image/png' },
+    ],
+    shortcut: '/favicon.ico',
+    apple: [
+      { url: '/apple-touch-icon.png', sizes: '180x180' },
+      { url: '/favicon-192x192.png', sizes: '192x192' },
+    ],
   },
+  manifest: '/site.webmanifest',
 };
 
 export const viewport = {
@@ -106,8 +120,52 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // WebSite + Organization structured data — tells Google:
+  // 1. The site name is "Hirebase" (shown in search results as the site name)
+  // 2. The logo is at /favicon-512x512.png (shown as the site logo in search results)
+  // 3. The search URL pattern (enables Google's sitelinks search box)
+  const websiteLd = {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: 'Hirebase',
+    alternateName: 'Hirebase India',
+    url: 'https://www.hirebase.in',
+    description: "India's AI-powered job portal with 760+ verified jobs, AI resume tools, mock interviews, and email job alerts.",
+    potentialAction: {
+      '@type': 'SearchAction',
+      target: {
+        '@type': 'EntryPoint',
+        urlTemplate: 'https://www.hirebase.in/jobs?q={search_term_string}',
+      },
+      'query-input': 'required name=search_term_string',
+    },
+  }
+  const orgLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: 'Hirebase',
+    url: 'https://www.hirebase.in',
+    logo: 'https://www.hirebase.in/favicon-512x512.png',
+    description: "India's AI-powered job portal with verified jobs, AI resume tools, mock interviews, salary insights, and company reviews.",
+    areaServed: 'IN',
+    sameAs: [
+      // Add social media URLs here when available — helps Google connect
+      // the brand across the web (improves brand entity recognition)
+    ],
+  }
+
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteLd) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(orgLd) }}
+        />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
       >
