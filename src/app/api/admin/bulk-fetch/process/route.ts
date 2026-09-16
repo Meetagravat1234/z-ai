@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getAdminUser } from '@/lib/admin-auth'
-import { chatComplete, pageRead } from '@/lib/multi-ai'
+import { chatComplete } from '@/lib/multi-ai'
 import { cleanJobTitle } from '@/lib/seo-routes'
+import { fetchJobPage } from '@/lib/job-page-fetcher'
 import crypto from 'crypto'
 
 /**
@@ -173,12 +174,12 @@ async function processSingleUrl(url: string): Promise<{
   company?: string
   error?: string
 }> {
-  // Step 1: Fetch the page content
+  // Step 1: Fetch the page content (with LinkedIn guest API fallback)
   let pageTitle = ''
   let html = ''
   let publishedTime: string | undefined
   try {
-    const pageData = await pageRead(url)
+    const pageData = await fetchJobPage(url)
     pageTitle = pageData.title
     html = pageData.html
     publishedTime = pageData.publishedTime

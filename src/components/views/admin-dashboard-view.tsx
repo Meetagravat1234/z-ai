@@ -615,8 +615,7 @@ function BulkFetchTab() {
                   </button>
                   <button
                     onClick={cancelJob}
-                    disabled={polling}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-rose-500/30 text-rose-600 hover:bg-rose-500/10 text-xs font-semibold disabled:opacity-60"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-rose-500/30 text-rose-600 hover:bg-rose-500/10 text-xs font-semibold"
                   >
                     <XCircle className="w-3 h-3" />
                     Cancel batch

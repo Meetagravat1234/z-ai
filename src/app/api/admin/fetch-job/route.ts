@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { chatComplete, pageRead } from '@/lib/multi-ai'
+import { chatComplete } from '@/lib/multi-ai'
+import { fetchJobPage } from '@/lib/job-page-fetcher'
 import { db } from '@/lib/db'
 import { getAdminUser } from '@/lib/admin-auth'
 import crypto from 'crypto'
@@ -18,12 +19,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'A valid URL (starting with http:// or https://) is required' }, { status: 400 })
     }
 
-    // Step 1: Fetch the page content using multi-provider (z-ai → Jina AI fallback)
+    // Step 1: Fetch the page content (with LinkedIn guest API fallback)
     let pageTitle = ''
     let html = ''
     let publishedTime: string | undefined
     try {
-      const pageData = await pageRead(url)
+      const pageData = await fetchJobPage(url)
       pageTitle = pageData.title
       html = pageData.html
       publishedTime = pageData.publishedTime
