@@ -8,13 +8,13 @@ export async function GET() {
   const body = `User-agent: *
 Allow: /
 
-# Sitemap
+# Sitemaps (split into multiple files for crawl efficiency)
 Sitemap: ${baseUrl}/sitemap.xml
 
 # Block all API routes (generic — don't reveal specific endpoint names)
 Disallow: /api/
 
-# Block user-only pages from being indexed
+# Block user-only pages from being indexed (these require login + have no SEO value)
 Disallow: /admin
 Disallow: /sync-status
 Disallow: /profile
@@ -23,8 +23,10 @@ Disallow: /tracker
 Disallow: /alerts
 Disallow: /auth
 Disallow: /upgrade
+Disallow: /ground-truth
+Disallow: /debug
 
-# Crawl rate
+# Crawl rate (1 request per second — friendly to the server)
 Crawl-delay: 1
 `
   return new NextResponse(body, { headers: { 'Content-Type': 'text/plain' } })
