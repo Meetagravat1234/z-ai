@@ -140,8 +140,8 @@ export function JobCard({ job, compact = false }: { job: Job; compact?: boolean 
         </span>
       )}
       <div className="flex items-start gap-2.5 sm:gap-3">
-        <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-br from-muted to-muted/50 flex items-center justify-center text-lg sm:text-xl shrink-0 border border-border">
-          {job.company.logo || <Building2 className="w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground" />}
+        <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-br from-primary/15 to-accent/15 border border-border flex items-center justify-center shrink-0">
+          <Building2 className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-start gap-2 justify-between">

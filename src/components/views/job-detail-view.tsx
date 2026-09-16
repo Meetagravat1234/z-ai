@@ -290,8 +290,8 @@ export function JobDetailView({
         <div className="h-2 bg-gradient-to-r from-primary via-violet-500 to-accent" />
         <div className="p-6 sm:p-8">
           <div className="flex items-start gap-4">
-            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-muted to-muted/50 border border-border flex items-center justify-center text-3xl sm:text-4xl shrink-0">
-              {job.company.logo || <Building2 className="w-8 h-8 text-muted-foreground" />}
+            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-primary/15 to-accent/15 border border-border flex items-center justify-center shrink-0">
+              <Building2 className="w-8 h-8 text-primary" />
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
@@ -583,8 +583,8 @@ export function JobDetailView({
         <aside className="space-y-4">
           <div className="rounded-2xl border border-border bg-card p-5 sticky top-20">
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 rounded-xl bg-muted border border-border flex items-center justify-center text-2xl">
-                {job.company.logo || <Building2 className="w-6 h-6 text-muted-foreground" />}
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary/15 to-accent/15 border border-border flex items-center justify-center shrink-0">
+                <Building2 className="w-6 h-6 text-primary" />
               </div>
               <div className="min-w-0">
                 <button

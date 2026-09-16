@@ -73,6 +73,11 @@ export function CompaniesView() {
         <div className="flex justify-center py-12">
           <Loader2 className="w-6 h-6 animate-spin text-primary" />
         </div>
+      ) : filtered.length === 0 ? (
+        <div className="text-center py-12 rounded-2xl border border-dashed border-border">
+          <Building2 className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
+          <p className="text-muted-foreground">No companies match your search.</p>
+        </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map((c) => {
@@ -92,16 +97,16 @@ export function CompaniesView() {
                 onClick={() => openCompany(c.slug)}
               >
                 <div className="flex items-start gap-3">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-muted to-muted/50 border border-border flex items-center justify-center text-2xl">
-                    {c.logo || <Building2 className="w-6 h-6 text-muted-foreground" />}
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary/15 to-accent/15 border border-border flex items-center justify-center shrink-0">
+                    <Building2 className="w-6 h-6 text-primary" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-bold truncate">{c.name}</h3>
-                    </div>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {c.industry || 'Industry not specified'}
-                    </p>
+                    <h3 className="font-bold truncate">{c.name}</h3>
+                    {/* Only show industry if we actually have one — avoids
+                        the misleading 'Industry not specified' on every card */}
+                    {c.industry && (
+                      <p className="text-xs text-muted-foreground truncate">{c.industry}</p>
+                    )}
                     <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
                       {c.hq && (
                         <span className="inline-flex items-center gap-1">

@@ -126,8 +126,8 @@ export function CompanyDetailView({
         <div className="h-2 bg-gradient-to-r from-primary via-violet-500 to-accent" />
         <div className="p-6 sm:p-8">
           <div className="flex items-start gap-4">
-            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-muted to-muted/50 border border-border flex items-center justify-center text-3xl sm:text-4xl shrink-0">
-              {company.logo || <Building2 className="w-8 h-8 text-muted-foreground" />}
+            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-primary/15 to-accent/15 border border-border flex items-center justify-center shrink-0">
+              <Building2 className="w-8 h-8 text-primary" />
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
@@ -264,7 +264,7 @@ export function CompanyDetailView({
         <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
           <span>⭐ Reviews & Salaries</span>
         </h2>
-        <ReviewsSection companyId={company.id} companyName={company.name} companyLogo={company.logo} />
+        <ReviewsSection companyId={company.id} companyName={company.name} companyLogo={null} />
       </section>
 
       {/* External link CTA */}

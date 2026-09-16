@@ -62,8 +62,15 @@ export const useNav = create<NavState>((set) => ({
     set({ view, jobFilter: jobFilter || {}, sidebarOpen: false }),
   openJob: (jobId) =>
     set({ view: 'job-detail', selectedJobId: jobId, sidebarOpen: false }),
-  openCompany: (slug) =>
-    set({ view: 'company-detail', selectedCompanySlug: slug, sidebarOpen: false }),
+  openCompany: (slug) => {
+    // Use real URL navigation so the SSR /companies/[slug] page loads.
+    // The old Zustand-only navigation didn't change the URL, so the company
+    // detail page never rendered after we converted to URL-based routing.
+    if (typeof window !== 'undefined') {
+      window.location.href = `/companies/${slug}`
+    }
+    set({ selectedCompanySlug: slug, sidebarOpen: false })
+  },
   commandOpen: false,
   setCommandOpen: (commandOpen) => set({ commandOpen }),
   sidebarOpen: false,
