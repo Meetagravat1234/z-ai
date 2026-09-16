@@ -9,8 +9,13 @@
  *   job HTML without the Cloudflare challenge:
  *   https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/<jobId>
  *
- * This module detects LinkedIn URLs and uses the guest API instead of the
- * normal page reader. For all other URLs, falls back to the normal chain.
+ * Fallback chain for LinkedIn URLs:
+ *   1. Try LinkedIn guest API (cleanest, fastest — no Cloudflare)
+ *   2. Try guest API with different User-Agent (in case LinkedIn blocks one)
+ *   3. Try z-ai page_reader (runs on Alibaba's network — different IP range)
+ *   4. Try Jina AI reader (different IP range, free, no key)
+ *
+ * For all other URLs: just use the normal page reader (z-ai → Jina).
  */
 
 import { pageRead } from '@/lib/multi-ai'
@@ -22,13 +27,20 @@ export interface PageContent {
   publishedTime?: string
 }
 
+const USER_AGENTS = [
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15',
+  'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
+]
+
 /**
  * Fetch a job page, with special handling for LinkedIn URLs.
  *
  * For LinkedIn URLs (linkedin.com/jobs/view/<id>):
  *   1. Extract the job ID
- *   2. Try the LinkedIn guest API first (returns clean HTML, no Cloudflare)
- *   3. Fall back to the normal page reader if guest API fails
+ *   2. Try the LinkedIn guest API with multiple User-Agents
+ *   3. Fall back to z-ai page_reader (Alibaba's network — different IP)
+ *   4. Fall back to Jina AI (different IP range)
  *
  * For all other URLs: just use the normal page reader (z-ai → Jina).
  */
@@ -38,13 +50,22 @@ export async function fetchJobPage(url: string): Promise<PageContent> {
     const match = url.match(/linkedin\.com\/jobs\/view\/(\d+)/i)
     if (match && match[1]) {
       const jobId = match[1]
-      try {
-        const guestContent = await fetchLinkedInGuestApi(jobId)
-        if (guestContent) return guestContent
-      } catch (e: any) {
-        console.log(`[fetchJobPage] LinkedIn guest API failed for ${jobId}: ${e.message?.slice(0, 80)}`)
-        // Fall through to the normal page reader as a fallback
+
+      // Try guest API with each User-Agent in turn
+      for (let i = 0; i < USER_AGENTS.length; i++) {
+        try {
+          const guestContent = await fetchLinkedInGuestApi(jobId, USER_AGENTS[i])
+          if (guestContent) {
+            console.log(`[fetchJobPage] LinkedIn guest API succeeded for ${jobId} (UA #${i + 1})`)
+            return guestContent
+          }
+        } catch (e: any) {
+          console.log(`[fetchJobPage] LinkedIn guest API failed for ${jobId} (UA #${i + 1}): ${e.message?.slice(0, 80)}`)
+          // Try next User-Agent
+        }
       }
+      // Fall through to the normal page reader as a final fallback
+      console.log(`[fetchJobPage] All guest API attempts failed for ${jobId}, falling back to page reader`)
     }
   }
 
@@ -70,16 +91,18 @@ export async function fetchJobPage(url: string): Promise<PageContent> {
  *
  * Returns null if the fetch fails or returns an empty/invalid response.
  */
-async function fetchLinkedInGuestApi(jobId: string): Promise<PageContent | null> {
+export async function fetchLinkedInGuestApi(jobId: string, userAgent?: string): Promise<PageContent | null> {
   const guestUrl = `https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/${jobId}`
+  const ua = userAgent || USER_AGENTS[0]
 
   const response = await fetch(guestUrl, {
     headers: {
       // LinkedIn's guest API works without auth but expects a browser-like UA
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'User-Agent': ua,
       'Accept': 'text/html,application/xhtml+xml',
       'Accept-Language': 'en-US,en;q=0.9',
     },
+    redirect: 'follow',
   })
 
   if (!response.ok) {
@@ -135,3 +158,4 @@ function stripHtml(html: string): string {
     .replace(/\s+/g, ' ')
     .trim()
 }
+
