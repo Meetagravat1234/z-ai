@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 import { useNav } from '@/lib/nav-store'
 import { jobUrl } from '@/lib/seo-routes'
 import { toast } from 'sonner'
+import { ClientTimeAgo } from '@/components/client-time-ago'
 
 export interface Job {
   id: string
@@ -84,6 +85,9 @@ export function JobCard({ job, compact = false }: { job: Job; compact?: boolean 
   const skills = job.skills.split(',').filter(Boolean).slice(0, 4)
   const locations = job.location.split(',').filter(Boolean)
   const isNew = (() => {
+    // Use a fixed threshold (24h) but only compute on client to avoid
+    // hydration mismatch — Date.now() differs between server and client.
+    if (typeof window === 'undefined') return false
     const ts = job.createdAt ? new Date(job.createdAt).getTime() : new Date(job.postedAt).getTime()
     return Date.now() - ts < 24 * 60 * 60 * 1000
   })()
@@ -180,7 +184,7 @@ export function JobCard({ job, compact = false }: { job: Job; compact?: boolean 
             </span>
             <span className="inline-flex items-center gap-1">
               <Clock className="w-3.5 h-3.5" />
-              {timeAgo(job.postedAt)}
+              <ClientTimeAgo date={job.postedAt} />
             </span>
           </div>
 

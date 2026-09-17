@@ -673,14 +673,12 @@ import { JobCard, type Job } from '@/components/jobs/job-card'
 
 function JobCardLink({ job }: { job: any }) {
   // Convert raw DB job (with Date objects) to the Job type expected by JobCard (with string dates)
+  // NOTE: JobCard already wraps itself in a <Link>, so we don't need to wrap it here.
+  // The old wrapper caused double-nested <a> tags (HTML spec violation).
   const jobForCard: Job = {
     ...job,
     postedAt: job.postedAt instanceof Date ? job.postedAt.toISOString() : job.postedAt,
     createdAt: job.createdAt instanceof Date ? job.createdAt.toISOString() : job.createdAt,
   } as Job
-  return (
-    <Link href={jobUrl(job)} className="block">
-      <JobCard job={jobForCard} />
-    </Link>
-  )
+  return <JobCard job={jobForCard} />
 }

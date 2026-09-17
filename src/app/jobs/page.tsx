@@ -183,15 +183,14 @@ export default async function AllJobsPage({ searchParams }: { searchParams: Prom
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                 {jobs.map((job) => (
-                  <Link key={job.id} href={jobUrl(job)} className="block">
-                    <JobCard
-                      job={{
-                        ...job,
-                        postedAt: job.postedAt instanceof Date ? job.postedAt.toISOString() : job.postedAt,
-                        createdAt: job.createdAt instanceof Date ? job.createdAt.toISOString() : job.createdAt,
-                      } as Job}
-                    />
-                  </Link>
+                  <JobCard
+                    key={job.id}
+                    job={{
+                      ...job,
+                      postedAt: job.postedAt instanceof Date ? job.postedAt.toISOString() : job.postedAt,
+                      createdAt: job.createdAt instanceof Date ? job.createdAt.toISOString() : job.createdAt,
+                    } as Job}
+                  />
                 ))}
               </div>
             )}

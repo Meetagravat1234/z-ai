@@ -329,7 +329,18 @@ export async function canUseAIToolWithAdGate(
     return { ...baseCheck, requiresAd: false, adWatched: false }
   }
 
-  // Otherwise, the user needs to watch an ad
+  // If user is unauthenticated or demo — DON'T show the "quota exhausted" modal.
+  // Instead, return the "please sign in" message from canUseAITool without
+  // setting requiresAd=true. The client will show the error message directly.
+  if (baseCheck.reason === 'unauthenticated' || baseCheck.reason === 'demo_user') {
+    return {
+      ...baseCheck,
+      requiresAd: false,  // Don't trigger ProUpsellModal — show error instead
+      adWatched: false,
+    }
+  }
+
+  // Otherwise, the user has used their free quota — show the ad/upgrade modal
   return {
     ...baseCheck,
     requiresAd: true,
