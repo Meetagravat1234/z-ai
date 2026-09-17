@@ -59,6 +59,25 @@ export async function ingestJobs(
         continue
       }
 
+      // Blocklist — skip jobs from aggregator sites that contradict our
+      // Ground Truth claim of "we do not automatically repost listings
+      // from other job boards". When we ingest from these companies, the
+      // jobs themselves are real, but the SOURCE is a job board aggregator.
+      // We exclude them to maintain platform integrity.
+      const companyNameLower = raw.company.toLowerCase()
+      const BLOCKED_COMPANIES = [
+        'jobright',        // jobright.ai — a job aggregator
+        'jobright.ai',
+        'simplyhired',     // another aggregator
+        'indeed',          // we don't repost from Indeed (we use their RSS for discovery only)
+        'glassdoor',       // aggregator
+        'linkedin jobs',   // LinkedIn Jobs portal itself (not companies posting ON linkedin)
+      ]
+      if (BLOCKED_COMPANIES.some(b => companyNameLower.includes(b))) {
+        errors.push(`Skipping blocked aggregator source: ${raw.company}`)
+        continue
+      }
+
       // Find or create the company
       const slug = slugify(raw.company)
       let company = await db.company.findUnique({ where: { slug } })

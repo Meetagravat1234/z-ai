@@ -266,6 +266,15 @@ Extract the structured job fields.`,
 
   // Step 3: Find or create the company
   const companyName = parsed.company || 'Unknown'
+  // Blocklist — same as ingest.ts: skip job aggregator sources to maintain
+  // Ground Truth integrity ("we do not repost from other job boards").
+  const companyNameLower = companyName.toLowerCase()
+  const BLOCKED_COMPANIES = [
+    'jobright', 'jobright.ai', 'simplyhired', 'glassdoor', 'linkedin jobs',
+  ]
+  if (BLOCKED_COMPANIES.some(b => companyNameLower.includes(b))) {
+    return { status: 'error', error: `Blocked aggregator source: ${companyName}` }
+  }
   const slug = companyName.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60)
   let company = await db.company.findUnique({ where: { slug } })
   if (!company) {

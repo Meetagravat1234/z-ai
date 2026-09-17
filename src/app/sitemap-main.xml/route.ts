@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { db } from '@/lib/db'
 
 // GET /sitemap-main.xml — static pages (homepage, AI tools, legal, etc.)
 // Only includes pages that are NOT blocked by robots.txt and are valuable
@@ -8,10 +9,24 @@ export async function GET() {
   const baseUrl = 'https://www.hirebase.in'
   const today = new Date().toISOString().split('T')[0]
 
+  // Count total jobs to know how many /jobs?page=N URLs to include
+  const totalJobs = await db.job.count({ where: { verified: true } })
+  const jobsPages = Math.ceil(totalJobs / 60) // 60 jobs per page
+
+  // Generate paginated /jobs URLs (/jobs, /jobs?page=2, /jobs?page=3...)
+  const jobsPagination: Array<{ loc: string; priority: string; changefreq: string }> = []
+  for (let p = 1; p <= Math.min(jobsPages, 50); p++) {
+    jobsPagination.push({
+      loc: p === 1 ? `${baseUrl}/jobs` : `${baseUrl}/jobs?page=${p}`,
+      priority: p === 1 ? '0.9' : '0.7',
+      changefreq: 'daily',
+    })
+  }
+
   const pages = [
     // Core pages (highest priority)
     { loc: `${baseUrl}/`, priority: '1.0', changefreq: 'daily' },
-    { loc: `${baseUrl}/jobs`, priority: '0.9', changefreq: 'daily' },
+    ...jobsPagination, // /jobs + /jobs?page=2 through /jobs?page=15
     { loc: `${baseUrl}/companies`, priority: '0.9', changefreq: 'daily' },
     { loc: `${baseUrl}/roles`, priority: '0.9', changefreq: 'weekly' },
     { loc: `${baseUrl}/insights`, priority: '0.9', changefreq: 'weekly' },

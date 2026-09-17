@@ -5,9 +5,14 @@ import type { Metadata } from 'next'
 import { estimateSalaryForJob } from '@/lib/salary-estimate'
 import { cleanJobTitle } from '@/lib/seo-routes'
 
-// Force dynamic rendering — always shows fresh jobs/companies to Google
-export const dynamic = 'force-dynamic'
-export const revalidate = 300 // 5 min ISR — fast but always fresh
+// ISR (Incremental Static Regeneration) — page is cached for 5 minutes,
+// then re-generated in the background. This fixes the 504 timeout issue:
+// - With force-dynamic: every request hits the DB → 3-5s TTFB → 504 on cold start
+// - With ISR: first request builds the page, subsequent requests get the cached
+//   version (instant), and it refreshes every 5 minutes.
+// Trade-off: jobs added via admin appear on homepage after max 5 min (not instantly).
+// This is acceptable — the /jobs page still uses force-dynamic for real-time updates.
+export const revalidate = 300 // 5 min ISR
 
 // Page-specific metadata (the layout.tsx has the defaults; this overrides per-page)
 export const metadata: Metadata = {
