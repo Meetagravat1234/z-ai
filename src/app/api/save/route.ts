@@ -47,15 +47,37 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const { jobId } = await req.json()
+    if (!jobId || typeof jobId !== 'string') {
+      return NextResponse.json({ error: 'jobId is required' }, { status: 400 })
+    }
+
+    // Sanitize: if the jobId contains a slug suffix (e.g. "abc123-job-title"),
+    // extract just the ID part (everything before the first hyphen).
+    // CUIDs are 24+ lowercase alphanumeric chars starting with 'c'.
+    const cleanJobId = jobId.includes('-')
+      ? jobId.split('-')[0]
+      : jobId
+
+    // Verify the job exists before trying to save it — prevents foreign key
+    // constraint violations that crash the API with a 500 error.
+    const job = await db.job.findUnique({
+      where: { id: cleanJobId },
+      select: { id: true },
+    })
+    if (!job) {
+      return NextResponse.json({ error: 'Job not found' }, { status: 404 })
+    }
+
     const user = await getCurrentUser()
     const saved = await db.savedJob.upsert({
-      where: { userId_jobId: { userId: user.id, jobId } },
+      where: { userId_jobId: { userId: user.id, jobId: cleanJobId } },
       update: {},
-      create: { userId: user.id, jobId },
+      create: { userId: user.id, jobId: cleanJobId },
     })
     return NextResponse.json({ saved, isDemo: user.email === DEMO_USER_EMAIL })
   } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 })
+    console.error('[api/save] POST error:', e.message)
+    return NextResponse.json({ error: 'Failed to save job' }, { status: 500 })
   }
 }
 
@@ -63,12 +85,19 @@ export async function POST(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
-    const jobId = searchParams.get('jobId')
-    if (!jobId) return NextResponse.json({ error: 'jobId required' }, { status: 400 })
+    const rawJobId = searchParams.get('jobId')
+    if (!rawJobId) return NextResponse.json({ error: 'jobId required' }, { status: 400 })
+
+    // Sanitize: strip slug suffix if present (same as POST handler)
+    const cleanJobId = rawJobId.includes('-')
+      ? rawJobId.split('-')[0]
+      : rawJobId
+
     const user = await getCurrentUser()
-    await db.savedJob.deleteMany({ where: { userId: user.id, jobId } })
+    await db.savedJob.deleteMany({ where: { userId: user.id, jobId: cleanJobId } })
     return NextResponse.json({ ok: true })
   } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 })
+    console.error('[api/save] DELETE error:', e.message)
+    return NextResponse.json({ error: 'Failed to remove job' }, { status: 500 })
   }
 }

@@ -88,6 +88,7 @@ export default async function AllJobsPage({ searchParams }: { searchParams: Prom
     'walk-in': 'Walk-in Jobs',
     hidden: 'Hidden Jobs',
     experienced: 'Experienced Jobs',
+    remote: 'Remote Jobs',
   }
 
   const breadcrumbLd = {

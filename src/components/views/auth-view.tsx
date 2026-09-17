@@ -247,7 +247,15 @@ export function AuthView() {
                 {mode === 'signup' ? (
                   <>By signing up you agree to our Terms & Privacy Policy.</>
                 ) : (
-                  <>Forgot your password? <button type="button" className="text-primary hover:underline">Reset it</button></>
+                  <>Forgot your password?{' '}
+                    <button
+                      type="button"
+                      onClick={() => toast.info('Password reset coming soon. Email contact@hirebase.in to reset your password.')}
+                      className="text-primary font-semibold hover:underline"
+                    >
+                      Reset it
+                    </button>
+                  </>
                 )}
               </p>
             </form>

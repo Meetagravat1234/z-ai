@@ -96,23 +96,29 @@ export function JobCard({ job, compact = false }: { job: Job; compact?: boolean 
 
   async function toggleSave(e: React.MouseEvent) {
     e.stopPropagation()
+    e.preventDefault()
     setSaving(true)
     try {
       if (saved) {
-        await fetch(`/api/save?jobId=${job.id}`, { method: 'DELETE' })
+        const res = await fetch(`/api/save?jobId=${job.id}`, { method: 'DELETE' })
+        if (!res.ok) throw new Error('Failed to remove')
         setSaved(false)
         toast.success('Removed from saved')
       } else {
-        await fetch('/api/save', {
+        const res = await fetch('/api/save', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ jobId: job.id }),
         })
+        if (!res.ok) {
+          const d = await res.json().catch(() => ({}))
+          throw new Error(d.error || 'Failed to save')
+        }
         setSaved(true)
         toast.success('Saved to your list')
       }
-    } catch {
-      toast.error('Could not update saved jobs')
+    } catch (e: any) {
+      toast.error(e.message || 'Could not update saved jobs')
     } finally {
       setSaving(false)
     }

@@ -166,7 +166,7 @@ export function SalaryDashboardView() {
 
         {/* Data table */}
         <section className="rounded-2xl border border-border bg-card p-5">
-          <h2 className="text-lg font-bold mb-4">Top {view}s by avg salary</h2>
+          <h2 className="text-lg font-bold mb-4">Top {view === 'company' ? 'companies' : view + 's'} by avg salary</h2>
           <div className="space-y-2 max-h-[280px] overflow-y-auto">
             {currentData.map((d, i) => (
               <div
