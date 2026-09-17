@@ -174,6 +174,16 @@ async function processSingleUrl(url: string): Promise<{
   company?: string
   error?: string
 }> {
+  // Step 0: Validate that this looks like a single job posting URL, not a
+  // homepage or search results page. Bulk fetch is designed for individual
+  // job pages — feeding it homepages like "naukri.com" or search pages like
+  // "naukri.com/software-fresher-jobs" causes the AI to fail because those
+  // pages contain 20+ jobs mixed together.
+  const validationError = validateJobUrl(url)
+  if (validationError) {
+    return { status: 'error', error: validationError }
+  }
+
   // Step 1: Fetch the page content (with LinkedIn guest API fallback)
   let pageTitle = ''
   let html = ''
@@ -326,6 +336,83 @@ Extract the structured job fields.`,
   })
 
   return { status: 'saved', title: cleanTitle, company: companyName }
+}
+
+/**
+ * Validate that a URL looks like a single job posting, not a homepage or
+ * search results page. Returns an error message string if invalid, or
+ * null if the URL looks like a real job posting.
+ *
+ * Why this exists:
+ * - Users sometimes paste 75 URLs like "naukri.com", "indeed.com", "glassdoor.co.in"
+ *   expecting the bulk fetch to extract jobs from those homepages.
+ * - But the AI extraction expects a SINGLE job posting page. When fed a
+ *   homepage with 20+ jobs mixed together, it fails with "All AI providers
+ *   are rate limited" (because the page content is too long/complex and the
+ *   AI burns through tokens trying to parse it).
+ * - This validation catches the problem BEFORE making any AI calls, giving
+ *   the user a clear actionable error.
+ */
+function validateJobUrl(url: string): string | null {
+  try {
+    const parsed = new URL(url)
+    const path = parsed.pathname.toLowerCase()
+    const host = parsed.hostname.toLowerCase()
+
+    // Known patterns for individual job postings — these PASS validation:
+    const isLinkedInJob = host.includes('linkedin.com') && path.includes('/jobs/view/')
+    const isNaukriJob = host.includes('naukri.com') && path.includes('/job-listings/')
+    const isIndeedJob = host.includes('indeed.com') && (path.includes('/viewjob') || path.includes('/rc/clk'))
+    const isGlassdoorJob = host.includes('glassdoor.') && path.includes('/job-listing')
+    const isInternshalaJob = host.includes('internshala.com') && (path.includes('/job/') || path.includes('/internship/'))
+    const isGreenhouseJob = host.includes('greenhouse.io') && path.includes('/jobs/')
+    const isLeverJob = host.includes('lever.co') && path.includes('/')
+    const isAshbyJob = host.includes('ashbyhq.com') && path.includes('/')
+    const isGoogleJob = host.includes('jobs.google.com') && path.length > 10
+    // Generic: URL path has a long slug (likely a specific job posting)
+    const hasLongSlug = path.length > 30 && /\d{5,}/.test(path) // contains 5+ digit ID
+
+    const isValidJobUrl =
+      isLinkedInJob ||
+      isNaukriJob ||
+      isIndeedJob ||
+      isGlassdoorJob ||
+      isInternshalaJob ||
+      isGreenhouseJob ||
+      isLeverJob ||
+      isAshbyJob ||
+      isGoogleJob ||
+      hasLongSlug
+
+    if (isValidJobUrl) {
+      return null // looks like a real job posting
+    }
+
+    // If we get here, this looks like a homepage or search page. Build a
+    // helpful error message explaining what went wrong.
+    const isHomepage = path === '/' || path === ''
+    const isSearchPage = /jobs|search|results|listings/.test(path)
+
+    if (isHomepage) {
+      return `This is a homepage, not a job posting. Paste the URL of a specific job — e.g. ${getExampleUrl(host)}`
+    }
+    if (isSearchPage) {
+      return `This is a search results page, not a single job. Click into a job and paste that URL instead.`
+    }
+    return `This URL doesn't look like a single job posting. Make sure you're pasting the URL of a specific job listing, not a homepage or search page.`
+  } catch {
+    return 'Invalid URL'
+  }
+}
+
+/** Generate an example job URL for the error message based on the domain. */
+function getExampleUrl(host: string): string {
+  if (host.includes('linkedin.com')) return 'https://linkedin.com/jobs/view/1234567890'
+  if (host.includes('naukri.com')) return 'https://naukri.com/job-listings-12345'
+  if (host.includes('indeed.com')) return 'https://indeed.com/viewjob?jk=abcdef'
+  if (host.includes('glassdoor')) return 'https://glassdoor.com/job-listing/...-12345'
+  if (host.includes('internshala.com')) return 'https://internshala.com/job/software-engineer-...'
+  return `https://${host}/jobs/view/12345`
 }
 
 /**

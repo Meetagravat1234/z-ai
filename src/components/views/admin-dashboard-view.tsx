@@ -418,7 +418,7 @@ function BulkFetchTab() {
       await fetch('/api/admin/bulk-fetch/process', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jobId, batchSize: 2 }),
+        body: JSON.stringify({ jobId, batchSize: 1 }), // 1 URL per call = less rate limiting
       })
       // Immediately refresh status after processing
       await fetchStatus(jobId)
@@ -527,7 +527,7 @@ function BulkFetchTab() {
         <textarea
           value={rawUrls}
           onChange={(e) => setRawUrls(e.target.value)}
-          placeholder={`Paste job URLs here, one per line:\n\nhttps://www.linkedin.com/jobs/view/1234567890\nhttps://www.naukri.com/job-listings-12345\nhttps://jobs.lever.co/companyname/1234-abc\nhttps://www.indeed.com/viewjob?jk=abcdef`}
+          placeholder={`Paste INDIVIDUAL JOB POSTING URLs here (one per line):\n\n✅ GOOD — individual jobs:\nhttps://www.linkedin.com/jobs/view/1234567890\nhttps://www.naukri.com/job-listings-java-developer-12345\nhttps://jobs.lever.co/stripe/1234-abc\n\n❌ BAD — homepages/search pages (will be rejected):\nhttps://www.naukri.com/software-engineer-jobs\nhttps://www.indeed.com/\nhttps://www.glassdoor.co.in/`}
           rows={8}
           disabled={creating}
           className="w-full p-3 rounded-xl border border-border bg-background text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/40 resize-y disabled:opacity-60"
@@ -536,7 +536,8 @@ function BulkFetchTab() {
         <div className="flex flex-wrap items-center justify-between gap-3 mt-3">
           <p className="text-xs text-muted-foreground">
             Supports LinkedIn, Naukri, Indeed, Lever, Greenhouse, Ashby, and any public job page.
-            {urlCount > 0 && ` Estimated time: ~${Math.ceil((urlCount * 25) / 60)} min (2 URLs per batch × 15s each).`}
+            <strong className="text-foreground"> Paste individual job URLs, not homepages or search pages.</strong>
+            {urlCount > 0 && ` Estimated time: ~${Math.ceil((urlCount * 20) / 60)} min (1 job per batch × 20s each).`}
           </p>
           <div className="flex items-center gap-2">
             {rawUrls && (
