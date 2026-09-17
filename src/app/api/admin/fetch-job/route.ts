@@ -103,7 +103,9 @@ Extract the structured job fields.`
         location: 'Not specified',
         description: text.slice(0, 4000),
         skills: [],
-        experience: '0-2 Years',
+        // Don't default to "0-2 Years" — that's misleading for senior roles.
+        // Use "Not specified" so the experience filter doesn't break.
+        experience: 'Not specified',
         category: 'experienced',
         employmentType: 'Full-time',
         workMode: 'Onsite',
@@ -152,7 +154,7 @@ Extract the structured job fields.`
           category: parsed.category || 'experienced',
           employmentType: parsed.employmentType || 'Full-time',
           workMode: parsed.workMode || 'Onsite',
-          experience: parsed.experience || '0-2 Years',
+          experience: parsed.experience || 'Not specified',
           salaryMin: parsed.salaryMin ?? null,
           salaryMax: parsed.salaryMax ?? null,
           salaryCurrency: 'INR',

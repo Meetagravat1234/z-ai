@@ -224,7 +224,7 @@ function AdContent({ tool }: { tool: string }) {
     },
     {
       icon: Wallet,
-      title: 'Browse 760+ verified jobs in Bengaluru',
+      title: 'Browse 860+ verified jobs in Bengaluru',
       desc: 'Software, data, product, design roles at Google, Microsoft, Amazon, Flipkart, Swiggy + more.',
       cta: 'Browse jobs →',
       href: '/jobs/bengaluru',

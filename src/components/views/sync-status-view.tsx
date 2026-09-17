@@ -124,7 +124,7 @@ export function SyncStatusView() {
 
   async function triggerDeepCrawl() {
     setTriggering(true)
-    toast.info('🚀 Deep Crawl started — running 30+ sources (all APIs + 12 web-search queries + 8 career pages). This takes 3-5 minutes.')
+    toast.info('🚀 Deep Crawl started — running 14+ sources (all APIs + 12 web-search queries + 8 career pages). This takes 3-5 minutes.')
     try {
       const r = await fetch('/api/sync/deep-crawl', { method: 'GET' })
       const d = await r.json()
@@ -409,7 +409,7 @@ export function SyncStatusView() {
           </li>
           <li className="flex gap-2">
             <span className="font-bold text-primary">6.</span>
-            <span><strong>"🚀 Deep Crawl"</strong>: runs ALL 30+ sources at once (all APIs + 12 web-search queries + 8 career-page crawlers) — adds 100-200 new jobs in 3-5 minutes. Use this for the most comprehensive coverage.</span>
+            <span><strong>"🚀 Deep Crawl"</strong>: runs ALL 14+ sources at once (all APIs + 12 web-search queries + 8 career-page crawlers) — adds 100-200 new jobs in 3-5 minutes. Use this for the most comprehensive coverage.</span>
           </li>
         </ol>
         <p className="text-xs text-muted-foreground mt-3 italic">

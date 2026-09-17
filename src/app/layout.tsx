@@ -18,10 +18,13 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "Hirebase — India's AI-Powered Job Portal | 760+ Verified Jobs",
-    template: "%s | Hirebase",
+    default: "Hirebase — India's AI-Powered Job Portal | 860+ Verified Jobs",
+    // NOTE: template is ` %s ` (just the page name) — do NOT append "| Hirebase"
+    // here. Pages that set their own title like "All Verified Jobs in India | Hirebase"
+    // would otherwise render as "...| Hirebase | Hirebase" (duplicate suffix).
+    template: "%s",
   },
-  description: "Find verified jobs in India with AI-powered tools. Browse 760+ jobs from top companies like Google, Amazon, Microsoft, Flipkart and TCS. Optimize your resume with AI, practice mock interviews, check ATS scores, and get email job alerts — all free on Hirebase.",
+  description: "Find verified jobs in India with AI-powered tools. Browse 860+ jobs from top companies like Google, Amazon, Microsoft, Flipkart and TCS. Optimize your resume with AI, practice mock interviews, check ATS scores, and get email job alerts — all free on Hirebase.",
   applicationName: "Hirebase",
   keywords: [
     "jobs in India",
@@ -50,7 +53,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: "Hirebase — India's AI-Powered Job Portal",
-    description: "760+ verified jobs, AI resume tools, mock interviews, salary insights, company reviews, and email job alerts. Free for job seekers in India.",
+    description: "860+ verified jobs, AI resume tools, mock interviews, salary insights, company reviews, and email job alerts. Free for job seekers in India.",
     siteName: "Hirebase",
     type: "website",
     locale: "en_IN",
@@ -65,7 +68,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "Hirebase — India's AI-Powered Job Portal",
-    description: "760+ verified jobs, AI resume tools, mock interviews, and more. Free for Indian job seekers.",
+    description: "860+ verified jobs, AI resume tools, mock interviews, and more. Free for Indian job seekers.",
     images: ["/og-image.png"],
   },
   robots: {
@@ -130,7 +133,7 @@ export default function RootLayout({
     name: 'Hirebase',
     alternateName: 'Hirebase India',
     url: 'https://www.hirebase.in',
-    description: "India's AI-powered job portal with 760+ verified jobs, AI resume tools, mock interviews, and email job alerts.",
+    description: "India's AI-powered job portal with 860+ verified jobs, AI resume tools, mock interviews, and email job alerts.",
     potentialAction: {
       '@type': 'SearchAction',
       target: {

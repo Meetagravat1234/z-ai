@@ -52,7 +52,7 @@ export function GroundTruthView() {
       <section className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
           { icon: ShieldCheck, label: 'Verified', value: '100%', desc: 'Of published jobs are reviewed' },
-          { icon: Database, label: 'Sources', value: '30+', desc: 'Channels monitored for new openings' },
+          { icon: Database, label: 'Sources', value: '14+', desc: 'Channels monitored for new openings' },
           { icon: Search, label: 'Avg. time to publish', value: '< 24h', desc: 'From discovery to listing' },
         ].map((s) => {
           const Icon = s.icon

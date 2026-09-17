@@ -12,12 +12,12 @@ export const revalidate = 300
 export const metadata: Metadata = {
   title: 'All Verified Jobs in India | Hirebase',
   description:
-    'Browse 760+ verified jobs in India. Filter by role, location, salary, experience level, and work mode. Software, data, product, design, marketing roles at top companies. Free to apply — no signup required.',
+    'Browse 860+ verified jobs in India. Filter by role, location, salary, experience level, and work mode. Software, data, product, design, marketing roles at top companies. Free to apply — no signup required.',
   alternates: { canonical: 'https://www.hirebase.in/jobs' },
   openGraph: {
     title: 'All Verified Jobs in India | Hirebase',
     description:
-      'Browse 760+ verified jobs in India. Filter by role, location, salary, experience. Free to apply.',
+      'Browse 860+ verified jobs in India. Filter by role, location, salary, experience. Free to apply.',
     url: 'https://www.hirebase.in/jobs',
   },
 }

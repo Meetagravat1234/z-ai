@@ -162,7 +162,8 @@ export function HomeView({ initialData }: { initialData?: HomeInitialData }) {
             AI-powered career intelligence
           </div>
           <h1 className="text-[26px] leading-[1.15] sm:text-4xl lg:text-5xl font-extrabold tracking-tight">
-            Find <span className="gradient-text">verified jobs</span>,<br className="hidden sm:block" />
+            Find <span className="gradient-text">verified jobs</span>
+            <br className="hidden sm:block" />
             research companies, and tailor your resume with AI.
           </h1>
           <p className="mt-3 sm:mt-4 text-sm sm:text-base lg:text-lg text-muted-foreground max-w-2xl">

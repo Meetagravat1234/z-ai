@@ -9,7 +9,7 @@ export const revalidate = 3600
 export const metadata: Metadata = {
   title: 'Pricing — Free for Job Seekers, Pro from ₹299/month | Hirebase',
   description:
-    'Hirebase is free for job seekers — browse 760+ jobs, search, apply. Upgrade to Pro for ₹299/month or ₹2,499/year to unlock 10x AI tool usage + premium features.',
+    'Hirebase is free for job seekers — browse 860+ jobs, search, apply. Upgrade to Pro for ₹299/month or ₹2,499/year to unlock 10x AI tool usage + premium features.',
   alternates: { canonical: 'https://www.hirebase.in/pricing' },
 }
 
@@ -154,7 +154,7 @@ export default function Page() {
           <section className="rounded-2xl border border-border bg-card p-6 sm:p-8">
             <h2 className="text-xl sm:text-2xl font-bold mb-2">What&rsquo;s included in the AI tools?</h2>
             <p className="text-sm text-muted-foreground mb-6 max-w-2xl">
-              Every Pro plan includes unlimited access to all six AI-powered career tools. Free tier users get 1 use per tool per month.
+              Every Pro plan includes 10-50 uses of each AI tool per month (see plan cards above). Free tier users get 1 use per tool per month.
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {[
@@ -185,7 +185,7 @@ export default function Page() {
                 ['Is Hirebase really free?', 'Yes. Browsing jobs, searching, and applying will always be free. No credit card required. AI tools have a free monthly quota — upgrade to Pro for 10x more.'],
                 ['Do I need a credit card to use free tier?', 'No. Sign up with just your email — no card required. You only pay if you choose to upgrade to Pro.'],
                 ['How does Pro billing work?', 'One-time payment via Razorpay (UPI, card, net banking). No auto-renewal — you get an email reminder 3 days before expiry and can manually renew.'],
-                ['Can I cancel Pro?', 'Yes, anytime from your Profile page. Your Pro access continues until the end of the billing period, then reverts to Free automatically. No lock-in.'],
+                ['Can I cancel Pro?', 'Yes, anytime from your Profile page. Since Hirebase uses one-time payments (no auto-renewal), cancelling simply prevents renewal. Your current Pro access continues until the end of the paid period, then reverts to Free automatically.'],
               ].map(([q, a]) => (
                 <div key={q} className="rounded-2xl border border-border bg-card p-5">
                   <h3 className="font-bold text-sm mb-2">{q}</h3>
@@ -208,7 +208,7 @@ export default function Page() {
                 href="/jobs"
                 className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-primary text-primary-foreground font-semibold text-sm shadow-lg shadow-primary/30 hover:opacity-90"
               >
-                Browse 760+ jobs <ArrowRight className="w-4 h-4" />
+                Browse 860+ jobs <ArrowRight className="w-4 h-4" />
               </Link>
               <Link
                 href="/upgrade"

@@ -11,9 +11,9 @@ export const revalidate = 300 // 5 min ISR — fast but always fresh
 
 // Page-specific metadata (the layout.tsx has the defaults; this overrides per-page)
 export const metadata: Metadata = {
-  title: 'Hirebase — India\'s AI-Powered Job Portal | 760+ Verified Jobs',
+  title: 'Hirebase — India\'s AI-Powered Job Portal | 860+ Verified Jobs',
   description:
-    'Find verified jobs in India with AI-powered tools. Browse 760+ jobs from top companies like Google, Amazon, Microsoft, Flipkart and TCS. Optimize your resume with AI, practice mock interviews, check ATS scores, and get email job alerts — all free on Hirebase.',
+    'Find verified jobs in India with AI-powered tools. Browse 860+ jobs from top companies like Google, Amazon, Microsoft, Flipkart and TCS. Optimize your resume with AI, practice mock interviews, check ATS scores, and get email job alerts — all free on Hirebase.',
   alternates: { canonical: 'https://www.hirebase.in' },
 }
 
@@ -215,7 +215,7 @@ export default async function Page() {
     name: 'Hirebase',
     url: 'https://www.hirebase.in',
     description:
-      "India's AI-powered job portal with 760+ verified jobs, AI resume tools, mock interviews, and company reviews.",
+      "India's AI-powered job portal with 860+ verified jobs, AI resume tools, mock interviews, and company reviews.",
     potentialAction: {
       '@type': 'SearchAction',
       target: {

@@ -10,11 +10,11 @@ export const revalidate = 300
 export const metadata: Metadata = {
   title: 'Top Companies Hiring in India | Hirebase',
   description:
-    'Browse 100+ verified companies hiring in India. See open roles, hiring velocity, 7-day trends, industry, HQ, and direct application links. Google, Amazon, Microsoft, Flipkart, Swiggy, and more.',
+    'Browse 500+ verified companies hiring in India. See open roles, hiring velocity, 7-day trends, industry, HQ, and direct application links. Google, Amazon, Microsoft, Flipkart, Swiggy, and more.',
   alternates: { canonical: 'https://www.hirebase.in/companies' },
   openGraph: {
     title: 'Top Companies Hiring in India | Hirebase',
-    description: 'Browse 100+ verified companies hiring in India. See open roles, hiring velocity, 7-day trends.',
+    description: 'Browse 500+ verified companies hiring in India. See open roles, hiring velocity, 7-day trends.',
     url: 'https://www.hirebase.in/companies',
   },
 }
@@ -78,8 +78,11 @@ export default async function CompaniesPage() {
                   className="text-left rounded-2xl border border-border bg-card p-4 card-lift"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center text-xl shrink-0">
-                      {c.logo || '🏢'}
+                    <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary/15 to-accent/15 border border-border flex items-center justify-center shrink-0">
+                      <svg className="w-5 h-5 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4"/>
+                        <path d="M9 9v.01M9 12v.01M9 15v.01M9 18v.01"/>
+                      </svg>
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="font-semibold text-sm truncate">{c.name}</div>

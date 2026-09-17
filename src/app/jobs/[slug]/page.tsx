@@ -44,7 +44,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       label: 'Fresher',
       title: 'Fresher Jobs in India (0 Years Experience) | Hirebase',
       description:
-        '760+ fresher jobs in India. Software, data, marketing, sales roles at TCS, Infosys, Wipro, Flipkart, Swiggy, and 100+ companies. Apply free — no signup required.',
+        '860+ fresher jobs in India. Software, data, marketing, sales roles at TCS, Infosys, Wipro, Flipkart, Swiggy, and 100+ companies. Apply free — no signup required.',
     },
     internship: {
       label: 'Internship',
@@ -99,6 +99,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     // page title (keyword stuffing + looks automated).
     const cleanTitle = cleanJobTitle(job.title, job.company.name)
     const title = `${cleanTitle} at ${job.company.name} — ${job.location.split(',')[0]} | Hirebase`
+    // Description uses the actual location string — no longer appends ", India" to US jobs
     const description = `${cleanTitle} role at ${job.company.name} in ${job.location}. ${job.employmentType}, ${job.workMode}. Apply free on Hirebase — verified job listing.`
     return {
       title,
@@ -240,11 +241,27 @@ async function JobDetailPage({ slug }: { slug: string }) {
   // All recommended fields included to avoid GSC "Improve item appearance" warnings
 
   // Parse location into structured address fields
-  // Job locations in our DB are like "Bengaluru, India" or "Remote" or "Hyderabad, Telangana, India"
+  // Job locations in our DB are like "Bengaluru, India" or "Remote" or "San Jose, USA"
   const locationParts = job.location.split(',').map(s => s.trim())
   const city = locationParts[0] || 'India'
   const stateOrRegion = locationParts[1] || ''
   const isRemote = /remote/i.test(job.location)
+
+  // Detect country from the location string — fixes the hardcoded ", India" bug
+  // where US jobs (e.g. "San Jose, USA") were being labeled as India in JSON-LD.
+  // Also affects the meta description which used to read
+  // "role at Company in Remote - US, India" (nonsensical).
+  const detectCountry = (location: string): { code: string; name: string } => {
+    const lower = location.toLowerCase()
+    if (/usa|united states|u\.s\.|, us\b|, usa\b/i.test(location)) return { code: 'US', name: 'United States' }
+    if (/canada/i.test(location)) return { code: 'CA', name: 'Canada' }
+    if (/\buk\b|united kingdom|england/i.test(location)) return { code: 'GB', name: 'United Kingdom' }
+    if (/germany|deutschland/i.test(location)) return { code: 'DE', name: 'Germany' }
+    if (/\bindia\b|bengaluru|bangalore|hyderabad|chennai|mumbai|pune|noida|gurugram|gurgaon|delhi|kolkata|kochi|ahmedabad|jaipur|chandigarh|coimbatore/i.test(lower)) return { code: 'IN', name: 'India' }
+    if (/\bremote\b/i.test(lower)) return { code: 'IN', name: 'India' } // default remote to India
+    return { code: 'IN', name: 'India' } // default
+  }
+  const country = detectCountry(job.location)
 
   // Strip "at <Company>" suffix from title before publishing (prevents
   // "Software Engineer at Stripe at Stripe" duplication in JSON-LD).
@@ -271,11 +288,11 @@ async function JobDetailPage({ slug }: { slug: string }) {
       '@type': 'Place',
       address: {
         '@type': 'PostalAddress',
-        streetAddress: '',  // We don't have exact street addresses, but field is required by GSC
+        streetAddress: '',
         addressLocality: city,
-        addressRegion: stateOrRegion || city,  // State or region (fallback to city)
-        postalCode: '',  // We don't have postal codes, but field is required by GSC
-        addressCountry: 'IN',
+        addressRegion: stateOrRegion || city,
+        postalCode: '',
+        addressCountry: country.code,  // detected from location — was hardcoded 'IN'
       },
     },
     employmentType: job.employmentType,
@@ -305,7 +322,7 @@ async function JobDetailPage({ slug }: { slug: string }) {
     // Additional recommended fields
     jobLocationType: isRemote ? 'TELECOMMUTE' : undefined,
     applicantLocationRequirements: isRemote
-      ? { '@type': 'Country', name: 'India' }
+      ? { '@type': 'Country', name: country.name }
       : undefined,
     experienceRequirements: job.experience || undefined,
     qualifications: job.skills || undefined,

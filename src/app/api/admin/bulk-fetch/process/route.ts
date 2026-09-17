@@ -219,13 +219,21 @@ Output STRICT JSON (no markdown fences) with this shape:
   "location": "<city, country — extract from text; if remote, say 'Remote'>",
   "description": "<a clean, well-formatted version of the job description, 3-6 paragraphs in Markdown with ## headings for sections like 'About the role', 'What you'll do', 'Required qualifications', 'Benefits'>",
   "skills": ["<skill1>", "<skill2>", ...up to 8],
-  "experience": "<one of: '0 Years' | '0-2 Years' | '1-3 Years' | '3-5 Years' | '5-8 Years' | '8+ Years'>",
+  "experience": "<one of: '0 Years' | '0-2 Years' | '1-3 Years' | '3-5 Years' | '5-8 Years' | '8+ Years' | 'Not specified'>",
   "category": "<one of: 'fresher' | 'internship' | 'experienced' | 'remote' | 'walk-in'>",
   "employmentType": "<'Full-time' | 'Part-time' | 'Contract' | 'Internship'>",
   "workMode": "<'Onsite' | 'Remote' | 'Hybrid'>",
   "salaryMin": <number or null, in LPA × 10 (e.g. 8 LPA = 80)>,
   "salaryMax": <number or null, in LPA × 10>
 }
+
+CRITICAL RULES for experience field:
+- If the description explicitly mentions years of experience (e.g. "3+ years", "5-7 years"), use that.
+- If the title contains "Senior", "Sr.", "Lead", "Staff", "Principal" → use '5-8 Years'
+- If the title contains "Manager", "Director", "VP", "Head of", "Chief" → use '8+ Years'
+- If the title contains "Junior", "Entry Level", "New Grad", "Associate", "Fresher", "Intern" → use '0 Years' or '0-2 Years'
+- If you genuinely can't determine experience from the title or description → return 'Not specified'
+- DO NOT default to '0-2 Years' when you're unsure — that breaks the fresher filter.
 
 Rules:
 - If the job title contains 'intern' or 'internship', set category='internship' and employmentType='Internship'
@@ -292,7 +300,7 @@ Extract the structured job fields.`,
       category: parsed.category || 'experienced',
       employmentType: parsed.employmentType || 'Full-time',
       workMode: parsed.workMode || 'Onsite',
-      experience: parsed.experience || '0-2 Years',
+      experience: parsed.experience || inferExperienceFromTitle(parsed.title || ''),
       salaryMin: parsed.salaryMin ?? null,
       salaryMax: parsed.salaryMax ?? null,
       salaryCurrency: 'INR',
@@ -328,4 +336,38 @@ async function updateJobCompletion(jobId: string) {
       data: { status: 'completed', completedAt: new Date() },
     })
   }
+}
+
+/**
+ * Infer experience level from job title when the AI didn't extract it.
+ *
+ * Pattern-based fallback — catches the common cases where the title itself
+ * signals the seniority (Senior, Manager, Director, Intern, etc.).
+ *
+ * Returns "Not specified" when no signal is found — never returns "0-2 Years"
+ * as a default, because that was breaking the fresher filter.
+ */
+function inferExperienceFromTitle(title: string): string {
+  if (!title) return 'Not specified'
+  const lower = title.toLowerCase()
+
+  // Executive/leadership — most senior
+  if (/\b(vp|vice president|chief|cto|ceo|cio|coo|cfo|director|head of)\b/i.test(lower)) {
+    return '8+ Years'
+  }
+  // Senior/lead/principal roles
+  if (/\b(senior|sr\.?|lead|staff|principal)\b/i.test(lower)) {
+    return '5-8 Years'
+  }
+  // Manager roles (not "Engineering Manager" which is leadership, but "Product Manager" etc.)
+  if (/\bmanager\b/i.test(lower) && !/engineering manager|tech manager/i.test(lower)) {
+    return '5-8 Years'
+  }
+  // Entry-level / junior roles
+  if (/\b(junior|jr\.?|entry level|entry-level|new grad|graduate|fresher|associate|intern)\b/i.test(lower)) {
+    return '0 Years'
+  }
+
+  // No signal — don't default to "0-2 Years" (that's the bug we're fixing)
+  return 'Not specified'
 }
