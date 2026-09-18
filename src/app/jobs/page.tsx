@@ -1,11 +1,13 @@
 import { db } from '@/lib/db'
 import { SiteShell } from '@/components/layout/site-shell'
 import { JobCard, type Job } from '@/components/jobs/job-card'
+import { JobsFilterBar } from '@/components/jobs/jobs-filter-bar'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { CITY_PAGES, jobUrl } from '@/lib/seo-routes'
 import { estimateSalaryForJob } from '@/lib/salary-estimate'
 import { getJobCountDisplay } from '@/lib/job-count'
+import { Suspense } from 'react'
 
 export const revalidate = 300 // 5 min ISR — pages are cached + revalidated
 
@@ -29,10 +31,79 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
   }
 }
 
-export default async function AllJobsPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
-  const { page: pageStr } = await searchParams
-  const page = Math.max(1, parseInt(pageStr || '1'))
+export default async function AllJobsPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
+  const params = await searchParams
+  const page = Math.max(1, parseInt(params.page || '1'))
   const skip = (page - 1) * JOBS_PER_PAGE
+
+  // Build search + filter conditions from URL params
+  const q = params.q?.toLowerCase()?.trim()
+  const experience = params.experience
+  const workMode = params.workMode
+  const location = params.location
+  const minSalary = params.minSalary
+  const sort = params.sort || 'recent'
+
+  // Build WHERE clause
+  const conditions: any[] = [{ verified: true }]
+
+  if (q) {
+    const words = q.split(/\s+/).filter((w) => w.length >= 2)
+    if (words.length <= 1) {
+      conditions.push({
+        OR: [
+          { title: { contains: q, mode: 'insensitive' } },
+          { skills: { contains: q, mode: 'insensitive' } },
+          { company: { name: { contains: q, mode: 'insensitive' } } },
+          { description: { contains: q, mode: 'insensitive' } },
+        ],
+      })
+    } else {
+      const wordConditions: any[] = []
+      for (const w of words) {
+        wordConditions.push(
+          { title: { contains: w, mode: 'insensitive' } },
+          { skills: { contains: w, mode: 'insensitive' } },
+          { company: { name: { contains: w, mode: 'insensitive' } } },
+          { description: { contains: w, mode: 'insensitive' } },
+        )
+      }
+      conditions.push({ OR: wordConditions })
+    }
+  }
+
+  if (experience && experience !== 'all') {
+    if (experience === '0') {
+      conditions.push({ OR: [{ experience: { contains: '0 Year' } }, { experience: { contains: 'fresher' } }, { experience: { contains: '0-1' } }] })
+    } else if (experience === '8') {
+      conditions.push({ experience: { contains: '8' } })
+    } else {
+      conditions.push({ experience: { contains: experience, mode: 'insensitive' } })
+    }
+  }
+
+  if (workMode && workMode !== 'all') {
+    conditions.push({ workMode })
+  }
+
+  if (location && location !== 'all') {
+    if (location === 'Remote') {
+      conditions.push({ location: { contains: 'Remote', mode: 'insensitive' } })
+    } else {
+      conditions.push({ location: { contains: location, mode: 'insensitive' } })
+    }
+  }
+
+  if (minSalary) {
+    conditions.push({ salaryMin: { gte: parseInt(minSalary) } })
+  }
+
+  const where: any = conditions.length > 1 ? { AND: conditions } : { verified: true }
+
+  // Build ORDER BY
+  let orderBy: any = { postedAt: 'desc' }
+  if (sort === 'salary-high') orderBy = { salaryMax: 'desc' }
+  if (sort === 'salary-low') orderBy = { salaryMin: 'asc' }
 
   let jobs: any[] = []
   let total = 0
@@ -41,13 +112,13 @@ export default async function AllJobsPage({ searchParams }: { searchParams: Prom
   try {
     const [allJobs, totalCount, categoryGroups] = await Promise.all([
       db.job.findMany({
-        where: { verified: true },
+        where,
         include: { company: true },
-        orderBy: { postedAt: 'desc' },
+        orderBy,
         take: JOBS_PER_PAGE,
         skip,
       }),
-      db.job.count({ where: { verified: true } }),
+      db.job.count({ where }),
       db.job.groupBy({
         by: ['category'],
         where: { verified: true },
@@ -150,6 +221,13 @@ export default async function AllJobsPage({ searchParams }: { searchParams: Prom
             </div>
           </section>
 
+          {/* Search + Filters */}
+          <section>
+            <Suspense fallback={<div className="h-12 rounded-xl bg-muted animate-pulse" />}>
+              <JobsFilterBar />
+            </Suspense>
+          </section>
+
           {/* Filter chips by city */}
           <section>
             <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-3">
@@ -171,16 +249,21 @@ export default async function AllJobsPage({ searchParams }: { searchParams: Prom
           <section>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl sm:text-2xl font-bold tracking-tight">
-                Latest verified jobs
+                {q ? `Results for "${q}"` : 'Latest verified jobs'}
                 {page > 1 && <span className="text-muted-foreground text-sm font-normal ml-2">— Page {page} of {totalPages}</span>}
               </h2>
               <span className="text-xs text-muted-foreground">
-                Showing {skip + 1}–{Math.min(skip + JOBS_PER_PAGE, total)} of {total}
+                {total === 0 ? 'No jobs found' : `Showing ${skip + 1}–${Math.min(skip + JOBS_PER_PAGE, total)} of ${total}`}
               </span>
             </div>
             {jobs.length === 0 ? (
               <div className="text-center py-12 rounded-2xl border border-dashed border-border">
-                <p className="text-muted-foreground">No jobs found on this page. Try the previous page.</p>
+                <p className="text-muted-foreground">
+                  {q ? `No jobs found for "${q}". Try different keywords or clear filters.` : 'No jobs match your filters. Try removing some filters.'}
+                </p>
+                <Link href="/jobs" className="inline-flex items-center gap-1 mt-3 text-sm text-primary font-semibold hover:underline">
+                  ← Clear all filters
+                </Link>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
