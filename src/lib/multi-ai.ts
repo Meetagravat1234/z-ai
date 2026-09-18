@@ -1,32 +1,32 @@
 // Multi-provider AI system — tries z-ai first, falls back to free alternatives
 // when rate limited (429). No more "Too many requests" errors!
 //
-// Providers (in order):
+// Provider priority (in order):
 // 1. z-ai-web-dev-sdk (primary) — works in sandbox (Alibaba Cloud network)
-// 2. Groq (fallback 1) — free, fast, OpenAI-compatible. Needs GROQ_API_KEY env var
-// 3. Google Gemini (fallback 2) — free, generous 1500 req/day. Needs GEMINI_API_KEY env var
+// 2. OpenRouter (fallback 1) — free, 50+ models, OpenAI-compatible. Needs OPENROUTER_API_KEY
+// 3. Groq (fallback 2) — free, fast. Needs GROQ_API_KEY
+// 4. Google Gemini (fallback 3) — free, 1500 req/day. Needs GEMINI_API_KEY
 //
 // For web_search and page_reader, falls back to Jina AI (free, no key needed).
 
 import ZAI from 'z-ai-web-dev-sdk'
 
 // Track rate limit status so we don't keep trying a rate-limited provider.
-// Reduced from 5 min to 1 min — z-ai's rate limit window is much shorter
-// than that, and 5 min made bulk fetches unusable (1 job → 5 min lockout).
 let zaiRateLimitedUntil: number = 0
+let openRouterRateLimitedUntil: number = 0
 let groqRateLimitedUntil: number = 0
 let geminiRateLimitedUntil: number = 0
 
-const RATE_LIMIT_COOLDOWN = 60 * 1000 // 1 minute (was 5 minutes)
+const RATE_LIMIT_COOLDOWN = 60 * 1000 // 1 minute
 
 // ============================================================================
-// CHAT COMPLETIONS — multi-provider with retry
+// CHAT COMPLETIONS — multi-provider with retry (4 providers)
 // ============================================================================
 export async function chatComplete(
   messages: Array<{ role: string; content: string }>,
   options?: { thinking?: { type: string } }
 ): Promise<string> {
-  // Try z-ai first (if not rate limited)
+  // Provider 1: z-ai (primary)
   if (Date.now() > zaiRateLimitedUntil) {
     try {
       const zai = await getZai()
@@ -40,9 +40,7 @@ export async function chatComplete(
       }
     } catch (e: any) {
       if (e.message?.includes('429') || e.message?.includes('Too many requests') || e.message?.includes('rate limit')) {
-        console.log('[multi-ai] z-ai rate limited — waiting 10s and retrying once before fallback')
-        // Wait 10 seconds and retry once — often the rate limit window is short
-        // and a brief pause is enough to get the next request through.
+        console.log('[multi-ai] z-ai rate limited — waiting 10s and retrying')
         await new Promise((r) => setTimeout(r, 10000))
         try {
           const zai = await getZai()
@@ -53,12 +51,12 @@ export async function chatComplete(
             })
             const content = completion.choices[0]?.message?.content || ''
             if (content) {
-              console.log('[multi-ai] retry succeeded after 10s wait')
+              console.log('[multi-ai] z-ai retry succeeded')
               return content
             }
           }
-        } catch (e2: any) {
-          console.log('[multi-ai] retry also failed — setting 1-min cooldown and falling back to Groq')
+        } catch {
+          console.log('[multi-ai] z-ai retry failed — falling back to OpenRouter')
           zaiRateLimitedUntil = Date.now() + RATE_LIMIT_COOLDOWN
         }
       } else {
@@ -67,14 +65,29 @@ export async function chatComplete(
     }
   }
 
-  // Fallback 1: Groq (free, OpenAI-compatible)
+  // Provider 2: OpenRouter (free, 50+ models)
+  if (Date.now() > openRouterRateLimitedUntil) {
+    try {
+      const result = await openRouterChatComplete(messages)
+      if (result) return result
+    } catch (e: any) {
+      if (e.message?.includes('429') || e.message?.includes('rate_limit')) {
+        console.log('[multi-ai] OpenRouter rate limited — falling back to Groq')
+        openRouterRateLimitedUntil = Date.now() + RATE_LIMIT_COOLDOWN
+      } else {
+        console.log('[multi-ai] OpenRouter error:', e.message?.slice(0, 80))
+      }
+    }
+  }
+
+  // Provider 3: Groq (free, fast, OpenAI-compatible)
   if (Date.now() > groqRateLimitedUntil) {
     try {
       const result = await groqChatComplete(messages)
       if (result) return result
     } catch (e: any) {
       if (e.message?.includes('429') || e.message?.includes('rate_limit')) {
-        console.log('[multi-ai] Groq rate limited too — falling back to Gemini')
+        console.log('[multi-ai] Groq rate limited — falling back to Gemini')
         groqRateLimitedUntil = Date.now() + RATE_LIMIT_COOLDOWN
       } else {
         console.log('[multi-ai] Groq error:', e.message?.slice(0, 80))
@@ -82,14 +95,14 @@ export async function chatComplete(
     }
   }
 
-  // Fallback 2: Google Gemini (free, generous tier — 15 RPM, 1500/day)
+  // Provider 4: Google Gemini (free, generous tier)
   if (Date.now() > geminiRateLimitedUntil) {
     try {
       const result = await geminiChatComplete(messages)
       if (result) return result
     } catch (e: any) {
       if (e.message?.includes('429') || e.message?.includes('rate_limit') || e.message?.includes('RESOURCE_EXHAUSTED')) {
-        console.log('[multi-ai] Gemini rate limited too — all providers exhausted')
+        console.log('[multi-ai] Gemini rate limited — all 4 providers exhausted')
         geminiRateLimitedUntil = Date.now() + RATE_LIMIT_COOLDOWN
       } else {
         console.log('[multi-ai] Gemini error:', e.message?.slice(0, 80))
@@ -97,7 +110,7 @@ export async function chatComplete(
     }
   }
 
-  throw new Error('All AI providers are rate limited. To fix: set GROQ_API_KEY (console.groq.com) OR GEMINI_API_KEY (aistudio.google.com) — both are free.')
+  throw new Error('All AI providers are rate limited. Wait 1-2 minutes and try again.')
 }
 
 // ============================================================================
@@ -210,6 +223,42 @@ async function getZai(): Promise<any | null> {
   } catch {
     return null
   }
+}
+
+// OpenRouter chat completions (free tier, 50+ models, OpenAI-compatible)
+// Sign up at https://openrouter.ai — free with generous limits.
+// Uses 'meta-llama/llama-3.1-8b-instruct:free' (free model, fast, good quality).
+async function openRouterChatComplete(
+  messages: Array<{ role: string; content: string }>
+): Promise<string> {
+  const apiKey = process.env.OPENROUTER_API_KEY
+  if (!apiKey) {
+    throw new Error('OPENROUTER_API_KEY not set — sign up at https://openrouter.ai for free')
+  }
+
+  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+      'HTTP-Referer': 'https://www.hirebase.in',
+      'X-Title': 'Hirebase',
+    },
+    body: JSON.stringify({
+      model: 'meta-llama/llama-3.1-8b-instruct:free',
+      messages: messages,
+      max_tokens: 4096,
+      temperature: 0.7,
+    }),
+  })
+
+  if (!response.ok) {
+    const errText = await response.text()
+    throw new Error(`OpenRouter API error: ${response.status} ${errText.slice(0, 100)}`)
+  }
+
+  const data = await response.json()
+  return data.choices[0]?.message?.content || ''
 }
 
 // Groq chat completions (free, OpenAI-compatible API)

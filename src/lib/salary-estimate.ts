@@ -305,10 +305,32 @@ async function getBenchmarkTable(): Promise<BenchmarkTable> {
   if (CACHE && Date.now() - CACHE.builtAt < CACHE_TTL_MS) {
     return CACHE
   }
+
+  // During Vercel build (ISR pre-rendering), the DB may not be accessible.
+  // Skip silently — the salary estimator will just return null and the UI
+  // will hide salary displays. This prevents the noisy "[salary-estimate]
+  // Failed to build benchmark table" errors in the build logs.
+  if (process.env.NEXT_PHASE === 'phase-production-build') {
+    if (!CACHE) {
+      CACHE = {
+        byRole: new Map(),
+        byRoleAndExp: new Map(),
+        byRoleAndCity: new Map(),
+        byCategory: new Map(),
+        overall: null,
+        builtAt: Date.now(),
+      }
+    }
+    return CACHE
+  }
+
   try {
     CACHE = await buildBenchmarkTable()
-  } catch (e) {
-    console.error('[salary-estimate] Failed to build benchmark table:', e)
+  } catch (e: any) {
+    // Only log once per minute (not on every job) to avoid flooding the logs
+    if (!CACHE || Date.now() - CACHE.builtAt > 60000) {
+      console.error('[salary-estimate] Failed to build benchmark table:', e?.message?.slice(0, 100) || 'unknown')
+    }
     if (!CACHE) {
       // Return an empty table rather than crashing — UI will just hide salaries
       CACHE = {
