@@ -6,8 +6,10 @@ import { toast } from 'sonner'
 import { ResumeUpload } from '@/components/resume-upload'
 import { DownloadButtons } from '@/components/download-buttons'
 import { ProUpsellModal } from '@/components/pro-upsell-modal'
+import { useAuth } from '@/lib/auth-context'
 
 export function AIResumeOptimizer() {
+  const { user } = useAuth()
   const [resume, setResume] = React.useState('')
   const [jd, setJd] = React.useState('')
   const [result, setResult] = React.useState('')
@@ -154,7 +156,7 @@ export function AIResumeOptimizer() {
                 <p className="text-[10px] text-muted-foreground mb-2 uppercase tracking-wide font-semibold">
                   Download your resume
                 </p>
-                <DownloadButtons markdown={result} baseFileName="hirebase-resume" />
+                <DownloadButtons markdown={result} baseFileName={user?.name ? `${user.name.split(' ').join('-')}-Resume` : 'Resume'} />
               </div>
             </>
           ) : (

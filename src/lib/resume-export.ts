@@ -39,7 +39,7 @@ export async function generatePdfFromMarkdown(markdown: string, fileName: string
 <html>
 <head>
 <meta charset="utf-8">
-<title>${fileName.replace(/\.pdf$/, '')}</title>
+<title>${fileName.replace(/\.(pdf|docx)$/, '')}</title>
 <style>
   @page {
     size: A4;
@@ -50,47 +50,50 @@ export async function generatePdfFromMarkdown(markdown: string, fileName: string
   }
   body {
     font-family: 'Calibri', 'Helvetica Neue', Arial, sans-serif;
-    font-size: 11pt;
-    line-height: 1.4;
+    font-size: 10.5pt;
+    line-height: 1.45;
     color: #1a1a1a;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+    margin: 0;
+    padding: 0;
   }
   h1 {
-    font-size: 18pt;
+    font-size: 20pt;
     font-weight: 700;
-    margin: 0 0 8pt 0;
-    color: #0f1a1f;
-    border-bottom: 1.5pt solid #10b981;
-    padding-bottom: 4pt;
+    margin: 0 0 6pt 0;
+    color: #0f1729;
+    border-bottom: 2pt solid #10b981;
+    padding-bottom: 5pt;
+    letter-spacing: -0.3pt;
   }
   h2 {
-    font-size: 13pt;
+    font-size: 12pt;
     font-weight: 700;
-    margin: 16pt 0 4pt 0;
+    margin: 14pt 0 4pt 0;
     color: #1a1a1a;
     text-transform: uppercase;
-    letter-spacing: 0.5pt;
+    letter-spacing: 0.8pt;
     border-bottom: 0.5pt solid #d1d5db;
     padding-bottom: 2pt;
   }
   h3 {
-    font-size: 11.5pt;
+    font-size: 11pt;
     font-weight: 700;
-    margin: 12pt 0 3pt 0;
+    margin: 10pt 0 3pt 0;
     color: #374151;
   }
   p {
-    margin: 0 0 6pt 0;
-    line-height: 1.45;
+    margin: 0 0 5pt 0;
+    line-height: 1.5;
   }
   ul, ol {
-    margin: 0 0 6pt 0;
-    padding-left: 18pt;
+    margin: 0 0 5pt 0;
+    padding-left: 16pt;
   }
   li {
-    margin-bottom: 3pt;
-    line-height: 1.4;
+    margin-bottom: 2pt;
+    line-height: 1.45;
   }
   strong {
     font-weight: 700;
@@ -101,15 +104,19 @@ export async function generatePdfFromMarkdown(markdown: string, fileName: string
   hr {
     border: none;
     border-top: 0.5pt solid #d1d5db;
-    margin: 12pt 0;
+    margin: 10pt 0;
   }
   a {
     color: #0563C1;
     text-decoration: underline;
   }
   /* Prevent page breaks inside sections */
-  h2, h3, li {
+  h1, h2, h3, li {
     page-break-inside: avoid;
+  }
+  /* First page — no extra top margin */
+  body > h1:first-child {
+    margin-top: 0;
   }
 </style>
 </head>

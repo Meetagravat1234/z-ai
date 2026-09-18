@@ -6,8 +6,10 @@ import { toast } from 'sonner'
 import { ResumeUpload } from '@/components/resume-upload'
 import { DownloadButtons } from '@/components/download-buttons'
 import { ProUpsellModal } from '@/components/pro-upsell-modal'
+import { useAuth } from '@/lib/auth-context'
 
 export function AICoverLetter() {
+  const { user } = useAuth()
   const [resume, setResume] = React.useState('')
   const [jd, setJd] = React.useState('')
   const [company, setCompany] = React.useState('')
@@ -156,7 +158,7 @@ export function AICoverLetter() {
                 <p className="text-[10px] text-muted-foreground mb-2 uppercase tracking-wide font-semibold">
                   Download your cover letter
                 </p>
-                <DownloadButtons markdown={result} baseFileName="hirebase-cover-letter" />
+                <DownloadButtons markdown={result} baseFileName={user?.name ? `${user.name.split(' ').join('-')}-Cover-Letter` : 'Cover-Letter'} />
               </div>
             </>
           ) : (
