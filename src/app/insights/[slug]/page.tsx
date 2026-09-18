@@ -176,7 +176,7 @@ export default async function ArticlePage({ params }: PageProps) {
             Ready to take the next step?
           </h2>
           <p className="mt-2 text-sm text-muted-foreground max-w-xl mx-auto">
-            Browse 860+ verified job openings and use our free AI tools to land your next role.
+            Browse verified job openings and use our free AI tools to land your next role.
           </p>
           <div className="mt-5 flex flex-wrap justify-center gap-3">
             <Link

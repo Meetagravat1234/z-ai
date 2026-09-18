@@ -5,6 +5,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { CITY_PAGES, jobUrl } from '@/lib/seo-routes'
 import { estimateSalaryForJob } from '@/lib/salary-estimate'
+import { getJobCountDisplay } from '@/lib/job-count'
 
 export const revalidate = 300 // 5 min ISR — pages are cached + revalidated
 
@@ -15,9 +16,10 @@ const JOBS_PER_PAGE = 60
 export async function generateMetadata({ searchParams }: { searchParams: Promise<{ page?: string }> }): Promise<Metadata> {
   const { page: pageStr } = await searchParams
   const page = Math.max(1, parseInt(pageStr || '1'))
+  const jobCount = await getJobCountDisplay()
   const baseTitle = 'All Verified Jobs in India'
   const title = page === 1 ? `${baseTitle} | Hirebase` : `${baseTitle} — Page ${page} | Hirebase`
-  const description = `Browse 860+ verified jobs in India. Filter by role, location, salary, experience level, and work mode. Page ${page}.`
+  const description = `Browse ${jobCount} verified jobs in India. Filter by role, location, salary, experience level, and work mode. Page ${page}.`
   const canonical = page === 1 ? 'https://www.hirebase.in/jobs' : `https://www.hirebase.in/jobs?page=${page}`
   return {
     title,
@@ -196,7 +198,7 @@ export default async function AllJobsPage({ searchParams }: { searchParams: Prom
             )}
 
             {/* Server-side pagination — every page has its own URL, so Google
-                can crawl all 860+ jobs, not just the first 60. */}
+                can crawl all verified jobs, not just the first 60. */}
             {(hasNextPage || hasPrevPage) && (
               <nav className="mt-8 flex items-center justify-center gap-2" aria-label="Pagination">
                 {hasPrevPage ? (

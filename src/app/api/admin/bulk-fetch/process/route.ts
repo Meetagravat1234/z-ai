@@ -276,6 +276,12 @@ Extract the structured job fields.`,
 
   // Step 3: Find or create the company
   const companyName = parsed.company || 'Unknown'
+  const rawTitle = (parsed.title || '').trim()
+  // Reject jobs with empty titles — these produce broken pages with empty <h1>
+  // and misleading metadata. Better to fail here than publish a broken page.
+  if (!rawTitle || rawTitle === 'Untitled' || rawTitle.length < 2) {
+    return { status: 'error', error: 'Job has no valid title — skipping to avoid broken page' }
+  }
   // Blocklist — same as ingest.ts: skip job aggregator sources to maintain
   // Ground Truth integrity ("we do not repost from other job boards").
   const companyNameLower = companyName.toLowerCase()

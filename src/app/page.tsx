@@ -4,22 +4,20 @@ import type { HomeInitialData } from '@/lib/home-types'
 import type { Metadata } from 'next'
 import { estimateSalaryForJob } from '@/lib/salary-estimate'
 import { cleanJobTitle } from '@/lib/seo-routes'
+import { getJobCountDisplay } from '@/lib/job-count'
 
 // ISR (Incremental Static Regeneration) — page is cached for 5 minutes,
-// then re-generated in the background. This fixes the 504 timeout issue:
-// - With force-dynamic: every request hits the DB → 3-5s TTFB → 504 on cold start
-// - With ISR: first request builds the page, subsequent requests get the cached
-//   version (instant), and it refreshes every 5 minutes.
-// Trade-off: jobs added via admin appear on homepage after max 5 min (not instantly).
-// This is acceptable — the /jobs page still uses force-dynamic for real-time updates.
+// then re-generated in the background. This fixes the 504 timeout issue.
 export const revalidate = 300 // 5 min ISR
 
-// Page-specific metadata (the layout.tsx has the defaults; this overrides per-page)
-export const metadata: Metadata = {
-  title: 'Hirebase — India\'s AI-Powered Job Portal | 860+ Verified Jobs',
-  description:
-    'Find verified jobs in India with AI-powered tools. Browse 860+ jobs from top companies like Google, Amazon, Microsoft, Flipkart and TCS. Optimize your resume with AI, practice mock interviews, check ATS scores, and get email job alerts — all free on Hirebase.',
-  alternates: { canonical: 'https://www.hirebase.in' },
+// Dynamic metadata — job count fetched from DB, never hardcoded again.
+export async function generateMetadata(): Promise<Metadata> {
+  const jobCount = await getJobCountDisplay()
+  return {
+    title: `Hirebase — India's AI-Powered Job Portal | ${jobCount} Verified Jobs`,
+    description: `Find verified jobs in India with AI-powered tools. Browse ${jobCount} jobs from top companies like Google, Amazon, Microsoft, Flipkart and TCS. Optimize your resume with AI, practice mock interviews, check ATS scores, and get email job alerts — all free on Hirebase.`,
+    alternates: { canonical: 'https://www.hirebase.in' },
+  }
 }
 
 // Server-side data fetch — runs on the server so the initial HTML includes jobs + companies.
@@ -220,7 +218,7 @@ export default async function Page() {
     name: 'Hirebase',
     url: 'https://www.hirebase.in',
     description:
-      "India's AI-powered job portal with 860+ verified jobs, AI resume tools, mock interviews, and company reviews.",
+      "India's AI-powered job portal with verified jobs, AI resume tools, mock interviews, and company reviews.",
     potentialAction: {
       '@type': 'SearchAction',
       target: {

@@ -377,14 +377,27 @@ export function JobDetailView({
 
           {/* Action buttons */}
           <div className="mt-6 flex flex-wrap gap-3">
-            <button
-              onClick={handleApply}
-              disabled={applying}
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-primary text-primary-foreground font-semibold shadow-lg shadow-primary/30 hover:opacity-90 transition-opacity disabled:opacity-60"
-            >
-              {applying ? <Loader2 className="w-4 h-4 animate-spin" /> : <ExternalLink className="w-4 h-4" />}
-              {applying ? 'Opening…' : 'Apply now'}
-            </button>
+            {job.applyUrl ? (
+              <a
+                href={job.applyUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={handleApply}
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-primary text-primary-foreground font-semibold shadow-lg shadow-primary/30 hover:opacity-90 transition-opacity"
+              >
+                <ExternalLink className="w-4 h-4" />
+                Apply now
+              </a>
+            ) : (
+              <button
+                onClick={handleApply}
+                disabled={applying}
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-primary text-primary-foreground font-semibold shadow-lg shadow-primary/30 hover:opacity-90 transition-opacity disabled:opacity-60"
+              >
+                {applying ? <Loader2 className="w-4 h-4 animate-spin" /> : <ExternalLink className="w-4 h-4" />}
+                {applying ? 'Opening…' : 'Apply now'}
+              </button>
+            )}
             <button
               onClick={toggleSave}
               disabled={saving}
@@ -557,14 +570,27 @@ export function JobDetailView({
             <p className="text-sm text-muted-foreground mt-1.5 mb-4 max-w-md mx-auto">
               Clicking apply will open the official {job.company.name} application page in a new tab and add this role to your Application Tracker.
             </p>
-            <button
-              onClick={handleApply}
-              disabled={applying}
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-primary text-primary-foreground font-semibold shadow-lg shadow-primary/30 hover:opacity-90 disabled:opacity-60"
-            >
-              {applying ? <Loader2 className="w-4 h-4 animate-spin" /> : <ExternalLink className="w-4 h-4" />}
-              {applying ? 'Opening…' : `Apply on ${job.company.name} →`}
-            </button>
+            {job.applyUrl ? (
+              <a
+                href={job.applyUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={handleApply}
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-primary text-primary-foreground font-semibold shadow-lg shadow-primary/30 hover:opacity-90 transition-opacity"
+              >
+                <ExternalLink className="w-4 h-4" />
+                Apply on {job.company.name} →
+              </a>
+            ) : (
+              <button
+                onClick={handleApply}
+                disabled={applying}
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-primary text-primary-foreground font-semibold shadow-lg shadow-primary/30 hover:opacity-90 disabled:opacity-60"
+              >
+                {applying ? <Loader2 className="w-4 h-4 animate-spin" /> : <ExternalLink className="w-4 h-4" />}
+                {applying ? 'Opening…' : `Apply on ${job.company.name} →`}
+              </button>
+            )}
           </section>
 
           {/* Report */}
