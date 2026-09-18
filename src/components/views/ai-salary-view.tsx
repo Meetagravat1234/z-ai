@@ -155,29 +155,31 @@ export function AISalaryPredictor() {
           ) : result ? (
             <div className="space-y-4">
               {result.predictedRange && (
-                <div className="text-center py-4">
-                  <div className="text-3xl font-extrabold text-primary">
-                    ₹{result.predictedRange.min} - ₹{result.predictedRange.max} {result.predictedRange.unit}
+                <div className="text-center py-6">
+                  <div className="text-4xl font-extrabold text-primary">
+                    ₹{formatLpa(result.predictedRange.min)} – ₹{formatLpa(result.predictedRange.max)} LPA
                   </div>
-                  <div className="text-xs text-muted-foreground mt-1">Predicted {result.confidence || ''} range</div>
+                  <div className="text-xs text-muted-foreground mt-2">
+                    Predicted {result.confidence || ''} range for this role
+                  </div>
                 </div>
               )}
-              {result.baseSalary && (
+              {result.baseSalary != null && (
                 <div className="grid grid-cols-3 gap-3 text-center">
                   <div className="rounded-xl bg-muted p-3">
-                    <div className="text-xs text-muted-foreground">Base</div>
-                    <div className="font-bold text-sm">₹{result.baseSalary} LPA</div>
+                    <div className="text-xs text-muted-foreground">Base Salary</div>
+                    <div className="font-bold text-sm">₹{formatLpa(result.baseSalary)} LPA</div>
                   </div>
-                  {result.bonus !== undefined && (
+                  {result.bonus != null && (
                     <div className="rounded-xl bg-muted p-3">
                       <div className="text-xs text-muted-foreground">Bonus</div>
-                      <div className="font-bold text-sm">₹{result.bonus} LPA</div>
+                      <div className="font-bold text-sm">₹{formatLpa(result.bonus)} LPA</div>
                     </div>
                   )}
-                  {result.stock !== undefined && (
+                  {result.stock != null && (
                     <div className="rounded-xl bg-muted p-3">
                       <div className="text-xs text-muted-foreground">Stock</div>
-                      <div className="font-bold text-sm">₹{result.stock} LPA</div>
+                      <div className="font-bold text-sm">₹{formatLpa(result.stock)} LPA</div>
                     </div>
                   )}
                 </div>
@@ -224,4 +226,19 @@ export function AISalaryPredictor() {
       />
     </div>
   )
+}
+
+/**
+ * Format a salary number for clean display.
+ * Handles: integers (12), decimals (12.5), and large numbers (1250000).
+ * Always returns a clean string like "12" or "12.5".
+ */
+function formatLpa(value: number | string | undefined | null): string {
+  if (value == null) return '—'
+  const n = typeof value === 'string' ? parseFloat(value) : value
+  if (isNaN(n)) return String(value)
+  // If the number is > 1000, it's probably in rupees (not LPA) — convert
+  if (n > 1000) return (n / 100000).toFixed(1).replace(/\.0$/, '')
+  if (Number.isInteger(n)) return String(n)
+  return n.toFixed(1)
 }
