@@ -16,6 +16,10 @@ export interface CurrentUser {
   minSalary: number | null
   bio: string | null
   createdAt: string
+  // Subscription fields — included so the UI can check Pro status
+  // without casting to `any`. Used by the sidebar badge + AI tool modals.
+  subscriptionTier: string  // 'free' | 'pro' | 'recruiter'
+  subscriptionEndsAt: string | null  // ISO date string or null
 }
 
 interface AuthContextValue {
@@ -36,6 +40,20 @@ const AuthContext = React.createContext<AuthContextValue>({
 
 export function useAuth() {
   return React.useContext(AuthContext)
+}
+
+/**
+ * Check if the current user has an active Pro subscription.
+ * Client-safe version of isProUser() from subscription.ts — works with
+ * the ISO date strings stored in the auth context (not Date objects).
+ */
+export function useIsPro(): boolean {
+  const { user } = useAuth()
+  if (!user) return false
+  if (user.subscriptionTier !== 'pro' && user.subscriptionTier !== 'recruiter') return false
+  if (!user.subscriptionEndsAt) return false
+  if (new Date(user.subscriptionEndsAt) < new Date()) return false
+  return true
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {

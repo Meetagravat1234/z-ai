@@ -38,7 +38,7 @@ import {
 import { useTheme } from 'next-themes'
 import { useNav, type ViewId } from '@/lib/nav-store'
 import { cn } from '@/lib/utils'
-import { useAuth } from '@/lib/auth-context'
+import { useAuth, useIsPro } from '@/lib/auth-context'
 
 // Maps each sidebar nav item to its real URL.
 // This is what makes the URL bar update when you click sidebar items.
@@ -128,6 +128,7 @@ const navGroups: Array<{
 export function Sidebar() {
   const { view, go, sidebarOpen, setSidebarOpen } = useNav()
   const { user, isDemo } = useAuth()
+  const isPro = useIsPro()
   const pathname = usePathname()
   const isAdmin = user?.role === 'admin'
   const groups = isAdmin
@@ -249,7 +250,7 @@ export function Sidebar() {
         </nav>
 
         {/* Pro upgrade CTA — only for non-Pro users */}
-        {(!user || isDemo || !((user as any).subscriptionTier === 'pro' || (user as any).subscriptionTier === 'recruiter') || !((user as any).subscriptionEndsAt && new Date((user as any).subscriptionEndsAt) > new Date())) && (
+        {!isPro && (
           <div className="m-3 mt-0 p-4 rounded-2xl bg-gradient-to-br from-violet-500/15 to-primary/15 border border-violet-500/30">
             <div className="flex items-center gap-2 mb-1">
               <Crown className="w-4 h-4 text-violet-300" />
@@ -269,13 +270,15 @@ export function Sidebar() {
         )}
 
         {/* Pro badge — show this instead of upgrade CTA when user is Pro */}
-        {user && !isDemo && ((user as any).subscriptionTier === 'pro' || (user as any).subscriptionTier === 'recruiter') && ((user as any).subscriptionEndsAt && new Date((user as any).subscriptionEndsAt) > new Date()) && (
+        {isPro && (
           <div className="m-3 mt-0 p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-2">
             <Crown className="w-4 h-4 text-emerald-400 shrink-0" />
             <div className="min-w-0 flex-1">
               <div className="text-xs font-bold text-emerald-300">Pro Active</div>
               <div className="text-[10px] text-sidebar-foreground/60 truncate">
-                Until {new Date((user as any).subscriptionEndsAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                {user?.subscriptionEndsAt
+                  ? `Until ${new Date(user.subscriptionEndsAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`
+                  : 'Active subscription'}
               </div>
             </div>
           </div>
@@ -308,6 +311,7 @@ export function TopNav() {
   const { setSidebarOpen, setCommandOpen } = useNav()
   const { theme, setTheme } = useTheme()
   const { user, loading, isDemo } = useAuth()
+  const isPro = useIsPro()
   const [mounted, setMounted] = React.useState(false)
   React.useEffect(() => setMounted(true), [])
 
@@ -356,15 +360,27 @@ export function TopNav() {
       ) : user && !isDemo ? (
         <Link
           href="/profile"
-          className="inline-flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-muted transition-colors"
+          className="inline-flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-muted transition-colors relative"
           title={`${user.email} — view profile`}
         >
-          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white text-xs font-bold shrink-0">
-            {(user.name || user.email)[0].toUpperCase()}
+          <div className="relative shrink-0">
+            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white text-xs font-bold">
+              {(user.name || user.email)[0].toUpperCase()}
+            </div>
+            {isPro && (
+              <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center border-2 border-background">
+                <Crown className="w-2.5 h-2.5 text-white" />
+              </span>
+            )}
           </div>
           <span className="hidden sm:inline text-sm font-medium max-w-[100px] truncate">
             {user.name || 'Profile'}
           </span>
+          {isPro && (
+            <span className="hidden sm:inline text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-gradient-to-r from-amber-400/20 to-amber-600/20 text-amber-600 border border-amber-500/30">
+              Pro
+            </span>
+          )}
         </Link>
       ) : (
         <Link
