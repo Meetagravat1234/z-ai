@@ -303,7 +303,10 @@ async function groqChatComplete(
 
 // Google Gemini chat completions (free, generous tier — 15 RPM, 1500 req/day)
 // Sign up at https://aistudio.google.com/app/apikey to get a free API key.
-// Uses the gemini-1.5-flash model (fast, free, supports up to 1M tokens input).
+// Tries multiple model names: gemini-2.0-flash → gemini-flash-latest → gemini-1.5-flash
+// NOTE: Gemini API may return "User location is not supported" if the Vercel
+// function runs in a restricted region (e.g. Hong Kong). In that case, Gemini
+// silently fails and the fallback chain continues to the next provider.
 async function geminiChatComplete(
   messages: Array<{ role: string; content: string }>
 ): Promise<string> {
@@ -312,9 +315,6 @@ async function geminiChatComplete(
     throw new Error('GEMINI_API_KEY not set — sign up at https://aistudio.google.com for free')
   }
 
-  // Convert OpenAI-style messages to Gemini's format.
-  // Gemini uses 'contents' with 'parts' (text), and a separate 'systemInstruction' field.
-  // Our messages array is typically [{role: 'system', content: '...'}, {role: 'user', content: '...'}]
   const systemMessage = messages.find((m) => m.role === 'system')
   const userMessages = messages.filter((m) => m.role !== 'system')
 
@@ -334,25 +334,44 @@ async function geminiChatComplete(
     body.systemInstruction = { parts: [{ text: systemMessage.content }] }
   }
 
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    }
-  )
+  // Try multiple model names — Google keeps renaming them
+  const models = ['gemini-2.0-flash', 'gemini-flash-latest', 'gemini-1.5-flash']
+  let lastError = ''
 
-  if (!response.ok) {
-    const errText = await response.text()
-    throw new Error(`Gemini API error: ${response.status} ${errText.slice(0, 100)}`)
+  for (const model of models) {
+    try {
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        }
+      )
+
+      if (!response.ok) {
+        const errText = await response.text()
+        if (response.status === 404 || errText.includes('not found')) {
+          lastError = `Model ${model} not found`
+          continue
+        }
+        if (errText.includes('location is not supported')) {
+          throw new Error('Gemini API: User location is not supported for API use')
+        }
+        throw new Error(`Gemini API error: ${response.status} ${errText.slice(0, 100)}`)
+      }
+
+      const data = await response.json()
+      const candidate = data.candidates?.[0]
+      const text = candidate?.content?.parts?.map((p: any) => p.text).join('') || ''
+      return text
+    } catch (e: any) {
+      lastError = e.message
+      if (e.message?.includes('location is not supported')) break
+    }
   }
 
-  const data = await response.json()
-  // Gemini returns candidates[].content.parts[].text
-  const candidate = data.candidates?.[0]
-  const text = candidate?.content?.parts?.map((p: any) => p.text).join('') || ''
-  return text
+  throw new Error(lastError || 'Gemini API failed')
 }
 
 // Jina AI Search (free, no key needed)
