@@ -335,7 +335,7 @@ async function geminiChatComplete(
   }
 
   // Try multiple model names — Google keeps renaming them
-  const models = ['gemini-2.0-flash', 'gemini-flash-latest', 'gemini-1.5-flash']
+  const models = ['gemini-flash-latest', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-2.0-flash-001', 'gemini-flash-2.0-001']
   let lastError = ''
 
   for (const model of models) {
