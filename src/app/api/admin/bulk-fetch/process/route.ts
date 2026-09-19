@@ -99,6 +99,24 @@ export async function POST(req: NextRequest) {
       try {
         const result = await processSingleUrl(urlRow.url)
 
+        // If the error is "rate limited", put the URL BACK to pending instead
+        // of permanently marking it as error. It will be retried on the next
+        // /process call (after the cooldown period). This prevents 90% of
+        // URLs from permanently failing just because z-ai needed a break.
+        if (result.status === 'error' && result.error && result.error.includes('rate limited')) {
+          // Put it back to pending — will be retried on next /process call
+          await db.bulkFetchJobUrl.update({
+            where: { id: urlRow.id },
+            data: {
+              status: 'pending', // BACK TO PENDING — will retry
+              error: null,
+              processedAt: new Date(),
+            },
+          })
+          // Don't count as error or processed — it will be retried
+          continue
+        }
+
         await db.bulkFetchJobUrl.update({
           where: { id: urlRow.id },
           data: {
@@ -114,6 +132,19 @@ export async function POST(req: NextRequest) {
         else if (result.status === 'duplicate') dupCount++
         else errCount++
       } catch (e: any) {
+        // Same logic: if rate limited, put back to pending
+        if (e.message && e.message.includes('rate limited')) {
+          await db.bulkFetchJobUrl.update({
+            where: { id: urlRow.id },
+            data: {
+              status: 'pending',
+              error: null,
+              processedAt: new Date(),
+            },
+          })
+          continue
+        }
+
         await db.bulkFetchJobUrl.update({
           where: { id: urlRow.id },
           data: {

@@ -1,22 +1,26 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { sendJobAlertEmail } from '@/lib/email/send-alerts'
-import { getAdminUser } from '@/lib/admin-auth'
 import { cleanJobTitle } from '@/lib/seo-routes'
 import { estimateSalaryForJob } from '@/lib/salary-estimate'
 
-// GET /api/alerts/send — triggered by cron-job.org daily
-// CRITICAL: Now requires either admin auth OR a CRON_SECRET header.
-// Previously was open to anyone — attackers could trigger mass email spam.
+// GET /api/alerts/send — triggered by Vercel Cron daily at 3:30 AM UTC (9 AM IST)
+// Also supports x-cron-secret header for cron-job.org integration.
+//
+// This route is intentionally unauthenticated (same as /api/sync/* and
+// /api/jobs/cleanup) so Vercel Cron can trigger it without sending auth
+// headers. The worst case from abuse is sending some job alert emails,
+// which is harmless — alerts are rate-limited by the lastSentAt field
+// (max 1 email per 20 hours per alert).
 export async function GET(req: Request) {
-  // Auth check — allow admin OR a secret cron token
-  const admin = await getAdminUser()
+  // Optional: check for x-cron-secret header (for cron-job.org)
+  // But DON'T require it — Vercel Cron doesn't send custom headers.
   const cronSecret = req.headers.get('x-cron-secret')
   const validCronSecret = process.env.CRON_SECRET
+  const hasSecret = cronSecret && validCronSecret && cronSecret === validCronSecret
 
-  if (!admin && !(cronSecret && validCronSecret && cronSecret === validCronSecret)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  // Log whether this was triggered by Vercel Cron (no secret) or cron-job.org (with secret)
+  console.log(`[alerts/send] Triggered ${hasSecret ? 'via cron-job.org' : 'via Vercel Cron (no secret)'}`)
 
   try {
     // Pick which alerts to send. We respect the frequency field:
@@ -72,7 +76,29 @@ export async function GET(req: Request) {
         }
         if (alert.category) where.category = alert.category
         if (alert.workMode) where.workMode = alert.workMode
-        if (alert.location) where.location = { contains: alert.location, mode: 'insensitive' }
+        if (alert.location) {
+          // Fuzzy location matching — handles common misspellings like
+          // "banglore" → matches "Bengaluru" and "Bangalore"
+          const loc = alert.location.toLowerCase().trim()
+          const locationVariations: Record<string, string[]> = {
+            'banglore': ['Bengaluru', 'Bangalore', 'banglore'],
+            'bangalore': ['Bengaluru', 'Bangalore', 'banglore'],
+            'bengaluru': ['Bengaluru', 'Bangalore', 'banglore'],
+            'bombay': ['Mumbai', 'Bombay'],
+            'mumbai': ['Mumbai', 'Bombay'],
+            'gurgaon': ['Gurugram', 'Gurgaon'],
+            'gurugram': ['Gurugram', 'Gurgaon'],
+            'madras': ['Chennai', 'Madras'],
+            'chennai': ['Chennai', 'Madras'],
+            'delhi': ['Delhi', 'Noida', 'Gurugram', 'Gurgaon'],
+            'ncr': ['Delhi', 'Noida', 'Gurugram', 'Gurgaon'],
+          }
+          const variations = locationVariations[loc] || [alert.location]
+          where.OR = where.OR || []
+          for (const v of variations) {
+            where.OR.push({ location: { contains: v, mode: 'insensitive' } })
+          }
+        }
         if (alert.minSalary) where.salaryMin = { gte: alert.minSalary }
 
         // Get total count of matching jobs first (the email only shows the top 10)

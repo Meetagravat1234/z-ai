@@ -17,7 +17,7 @@ let openRouterRateLimitedUntil: number = 0
 let groqRateLimitedUntil: number = 0
 let geminiRateLimitedUntil: number = 0
 
-const RATE_LIMIT_COOLDOWN = 60 * 1000 // 1 minute
+const RATE_LIMIT_COOLDOWN = 30 * 1000 // 30 seconds (was 60s — too long caused cascade failures)
 
 // ============================================================================
 // CHAT COMPLETIONS — multi-provider with retry (4 providers)
