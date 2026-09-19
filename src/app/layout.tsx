@@ -17,17 +17,17 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-// generateMetadata — async version that fetches the REAL job count from the DB.
-// This replaces the old hardcoded "${jobCount}" — now the count updates automatically
-// as jobs are added or expired. Cached for 5 minutes via getVerifiedJobCount().
+// generateMetadata — uses a STABLE title (no job count) so Google doesn't
+// show stale numbers. The job count appears in the meta description instead,
+// which Google refreshes more frequently.
 export async function generateMetadata(): Promise<Metadata> {
   const jobCount = await getJobCountDisplay() // e.g. "720+"
   return {
     title: {
-      default: `Hirebase — India's AI-Powered Job Portal | ${jobCount} Verified Jobs`,
+      default: "Hirebase — India's AI-Powered Job Portal | Verified Jobs, AI Resume Tools & Mock Interviews",
       template: "%s",
     },
-    description: `Find verified jobs in India with AI-powered tools. Browse ${jobCount} jobs from top companies like Google, Amazon, Microsoft, Flipkart and TCS. Optimize your resume with AI, practice mock interviews, check ATS scores, and get email job alerts — all free on Hirebase.`,
+    description: `Find ${jobCount} verified jobs in India. Browse jobs from Google, Amazon, Microsoft, Flipkart, TCS + more. Free AI resume optimizer, ATS score checker, mock interviews & job alerts — all free on Hirebase.`,
     applicationName: "Hirebase",
   keywords: [
     "jobs in India",
@@ -56,7 +56,7 @@ export async function generateMetadata(): Promise<Metadata> {
   },
   openGraph: {
     title: "Hirebase — India's AI-Powered Job Portal",
-    description: `${jobCount} verified jobs, AI resume tools, mock interviews, salary insights, company reviews, and email job alerts. Free for job seekers in India.`,
+    description: `${jobCount} verified jobs in India. Free AI resume optimizer, ATS score checker, mock interviews, salary predictor & job alerts. Browse jobs from Google, Amazon, Flipkart, TCS + more.`,
     siteName: "Hirebase",
     type: "website",
     locale: "en_IN",
@@ -71,7 +71,7 @@ export async function generateMetadata(): Promise<Metadata> {
   twitter: {
     card: "summary_large_image",
     title: "Hirebase — India's AI-Powered Job Portal",
-    description: `${jobCount} verified jobs, AI resume tools, mock interviews, and more. Free for Indian job seekers.`,
+    description: `${jobCount} verified jobs in India. Free AI resume optimizer, ATS checker, mock interviews & job alerts.`,
     images: ["/og-image.png"],
   },
   robots: {

@@ -14,8 +14,8 @@ export const revalidate = 300 // 5 min ISR
 export async function generateMetadata(): Promise<Metadata> {
   const jobCount = await getJobCountDisplay()
   return {
-    title: `Hirebase — India's AI-Powered Job Portal | ${jobCount} Verified Jobs`,
-    description: `Find verified jobs in India with AI-powered tools. Browse ${jobCount} jobs from top companies like Google, Amazon, Microsoft, Flipkart and TCS. Optimize your resume with AI, practice mock interviews, check ATS scores, and get email job alerts — all free on Hirebase.`,
+    title: "Hirebase — India's AI-Powered Job Portal | Verified Jobs, AI Resume Tools & Mock Interviews",
+    description: `Find ${jobCount} verified jobs in India. Browse jobs from Google, Amazon, Microsoft, Flipkart, TCS + more. Free AI resume optimizer, ATS score checker, mock interviews, salary predictor & job alerts — all free on Hirebase.`,
     alternates: { canonical: 'https://www.hirebase.in' },
   }
 }
