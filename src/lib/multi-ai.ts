@@ -26,7 +26,7 @@ export async function chatComplete(
   messages: Array<{ role: string; content: string }>,
   options?: { thinking?: { type: string } }
 ): Promise<string> {
-  // Provider 1: z-ai (primary)
+  // Provider 1: z-ai (primary) — with exponential backoff retry
   if (Date.now() > zaiRateLimitedUntil) {
     try {
       const zai = await getZai()
@@ -40,42 +40,50 @@ export async function chatComplete(
       }
     } catch (e: any) {
       if (e.message?.includes('429') || e.message?.includes('Too many requests') || e.message?.includes('rate limit')) {
-        console.log('[multi-ai] z-ai rate limited — waiting 10s and retrying')
-        await new Promise((r) => setTimeout(r, 10000))
-        try {
-          const zai = await getZai()
-          if (zai) {
-            const completion = await zai.chat.completions.create({
-              messages: messages as any,
-              thinking: options?.thinking || { type: 'disabled' },
-            })
-            const content = completion.choices[0]?.message?.content || ''
-            if (content) {
-              console.log('[multi-ai] z-ai retry succeeded')
-              return content
+        // Exponential backoff: wait 15s, then 30s, then give up
+        for (const waitMs of [15000, 30000]) {
+          console.log(`[multi-ai] z-ai rate limited — waiting ${waitMs / 1000}s before retry`)
+          await new Promise((r) => setTimeout(r, waitMs))
+          try {
+            const zai = await getZai()
+            if (zai) {
+              const completion = await zai.chat.completions.create({
+                messages: messages as any,
+                thinking: options?.thinking || { type: 'disabled' },
+              })
+              const content = completion.choices[0]?.message?.content || ''
+              if (content) {
+                console.log(`[multi-ai] z-ai retry succeeded after ${waitMs / 1000}s`)
+                return content
+              }
             }
+          } catch {
+            // Continue to next wait interval
           }
-        } catch {
-          console.log('[multi-ai] z-ai retry failed — falling back to OpenRouter')
-          zaiRateLimitedUntil = Date.now() + RATE_LIMIT_COOLDOWN
         }
+        console.log('[multi-ai] z-ai exhausted retries — falling back to OpenRouter')
+        zaiRateLimitedUntil = Date.now() + RATE_LIMIT_COOLDOWN
       } else {
         console.log('[multi-ai] z-ai error:', e.message?.slice(0, 80))
       }
     }
   }
 
-  // Provider 2: OpenRouter (free, 50+ models)
+  // Provider 2: OpenRouter (free, 50+ models) — with retry
   if (Date.now() > openRouterRateLimitedUntil) {
-    try {
-      const result = await openRouterChatComplete(messages)
-      if (result) return result
-    } catch (e: any) {
-      if (e.message?.includes('429') || e.message?.includes('rate_limit')) {
-        console.log('[multi-ai] OpenRouter rate limited — falling back to Groq')
-        openRouterRateLimitedUntil = Date.now() + RATE_LIMIT_COOLDOWN
-      } else {
-        console.log('[multi-ai] OpenRouter error:', e.message?.slice(0, 80))
+    for (const attempt of [1, 2]) {
+      try {
+        const result = await openRouterChatComplete(messages)
+        if (result) return result
+      } catch (e: any) {
+        if (e.message?.includes('429') || e.message?.includes('rate_limit')) {
+          console.log(`[multi-ai] OpenRouter rate limited (attempt ${attempt}) — waiting 10s`)
+          if (attempt === 1) await new Promise((r) => setTimeout(r, 10000))
+          else openRouterRateLimitedUntil = Date.now() + RATE_LIMIT_COOLDOWN
+        } else {
+          console.log('[multi-ai] OpenRouter error:', e.message?.slice(0, 80))
+          break // Non-rate-limit error, don't retry
+        }
       }
     }
   }

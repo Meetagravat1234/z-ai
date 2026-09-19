@@ -451,7 +451,10 @@ function BulkFetchTab() {
     }
   }
 
-  // Start auto-polling — every 15 seconds, fetch status + trigger next batch
+  // Start auto-polling — every 25 seconds (was 15s).
+  // Increased to give z-ai more time to recover from rate limits.
+  // With exponential backoff (15s + 30s = 45s max per job), 25s poll interval
+  // means each job gets enough time to complete before the next one starts.
   function startPolling(jobId: string) {
     if (pollIntervalRef.current) clearInterval(pollIntervalRef.current)
     pollIntervalRef.current = setInterval(async () => {
@@ -478,7 +481,7 @@ function BulkFetchTab() {
       } catch (e) {
         console.error('Poll error:', e)
       }
-    }, 15000) // poll every 15 seconds
+    }, 25000) // poll every 25 seconds (was 15s)
   }
 
   // Stop polling
