@@ -56,7 +56,7 @@ export async function generateMetadata(): Promise<Metadata> {
   },
   openGraph: {
     title: "Hirebase — India's AI-Powered Job Portal",
-    description: "${jobCount} verified jobs, AI resume tools, mock interviews, salary insights, company reviews, and email job alerts. Free for job seekers in India.",
+    description: `${jobCount} verified jobs, AI resume tools, mock interviews, salary insights, company reviews, and email job alerts. Free for job seekers in India.`,
     siteName: "Hirebase",
     type: "website",
     locale: "en_IN",
@@ -71,7 +71,7 @@ export async function generateMetadata(): Promise<Metadata> {
   twitter: {
     card: "summary_large_image",
     title: "Hirebase — India's AI-Powered Job Portal",
-    description: "${jobCount} verified jobs, AI resume tools, mock interviews, and more. Free for Indian job seekers.",
+    description: `${jobCount} verified jobs, AI resume tools, mock interviews, and more. Free for Indian job seekers.`,
     images: ["/og-image.png"],
   },
   robots: {
@@ -137,7 +137,7 @@ export default function RootLayout({
     name: 'Hirebase',
     alternateName: 'Hirebase India',
     url: 'https://www.hirebase.in',
-    description: "India's AI-powered job portal with ${jobCount} verified jobs, AI resume tools, mock interviews, and email job alerts.",
+    description: `India's AI-powered job portal with verified jobs, AI resume tools, mock interviews, and email job alerts.`,
     potentialAction: {
       '@type': 'SearchAction',
       target: {
