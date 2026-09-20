@@ -451,10 +451,11 @@ function BulkFetchTab() {
     }
   }
 
-  // Start auto-polling — every 25 seconds (was 15s).
-  // Increased to give z-ai more time to recover from rate limits.
-  // With exponential backoff (15s + 30s = 45s max per job), 25s poll interval
-  // means each job gets enough time to complete before the next one starts.
+  // Start auto-polling — every 60 seconds (1 URL per minute).
+  // This gives z-ai plenty of time between jobs to recover from rate limits.
+  // With 60s between jobs, z-ai should almost NEVER get rate-limited
+  // (its rate limit is ~30 req/min, and we're only doing 1 req per 60s).
+  // For 100 URLs: ~100 minutes total. Slower but near-zero failures.
   function startPolling(jobId: string) {
     if (pollIntervalRef.current) clearInterval(pollIntervalRef.current)
     pollIntervalRef.current = setInterval(async () => {
@@ -481,7 +482,7 @@ function BulkFetchTab() {
       } catch (e) {
         console.error('Poll error:', e)
       }
-    }, 25000) // poll every 25 seconds (was 15s)
+    }, 60000) // poll every 60 seconds (1 URL per minute)
   }
 
   // Stop polling
@@ -540,7 +541,7 @@ function BulkFetchTab() {
           <p className="text-xs text-muted-foreground">
             Supports LinkedIn, Naukri, Indeed, Lever, Greenhouse, Ashby, and any public job page.
             <strong className="text-foreground"> Paste individual job URLs, not homepages or search pages.</strong>
-            {urlCount > 0 && ` Estimated time: ~${Math.ceil((urlCount * 20) / 60)} min (1 job per batch × 20s each).`}
+            {urlCount > 0 && ` Estimated time: ~${Math.ceil(urlCount * 1)} min (1 job per minute — slower but near-zero failures).`}
           </p>
           <div className="flex items-center gap-2">
             {rawUrls && (

@@ -17,7 +17,7 @@ let openRouterRateLimitedUntil: number = 0
 let groqRateLimitedUntil: number = 0
 let geminiRateLimitedUntil: number = 0
 
-const RATE_LIMIT_COOLDOWN = 30 * 1000 // 30 seconds (was 60s — too long caused cascade failures)
+const RATE_LIMIT_COOLDOWN = 45 * 1000 // 45 seconds — gives z-ai enough time to reset
 
 // ============================================================================
 // CHAT COMPLETIONS — multi-provider with retry (4 providers)
@@ -40,8 +40,9 @@ export async function chatComplete(
       }
     } catch (e: any) {
       if (e.message?.includes('429') || e.message?.includes('Too many requests') || e.message?.includes('rate limit')) {
-        // Exponential backoff: wait 15s, then 30s, then give up
-        for (const waitMs of [15000, 30000]) {
+        // Exponential backoff: wait 15s, then 25s, then give up
+        // Total: 40s of waiting before falling back to other providers
+        for (const waitMs of [15000, 25000]) {
           console.log(`[multi-ai] z-ai rate limited — waiting ${waitMs / 1000}s before retry`)
           await new Promise((r) => setTimeout(r, waitMs))
           try {
