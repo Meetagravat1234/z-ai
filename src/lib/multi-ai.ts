@@ -213,7 +213,9 @@ async function getZai(): Promise<any | null> {
 
 // OpenRouter chat completions (free tier, 50+ models, OpenAI-compatible)
 // Sign up at https://openrouter.ai — free with generous limits.
-// Uses 'meta-llama/llama-3.1-8b-instruct:free' (free model, fast, good quality).
+// Uses 'nvidia/nemotron-3-super-120b-a12b:free' (120B parameter model, free, reliable).
+// Previously used 'meta-llama/llama-3.1-8b-instruct:free' but that model was
+// moved to paid-only. NVIDIA Nemotron is actually a better (larger) model.
 async function openRouterChatComplete(
   messages: Array<{ role: string; content: string }>
 ): Promise<string> {
@@ -222,29 +224,56 @@ async function openRouterChatComplete(
     throw new Error('OPENROUTER_API_KEY not set — sign up at https://openrouter.ai for free')
   }
 
-  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
-      'HTTP-Referer': 'https://www.hirebase.in',
-      'X-Title': 'Hirebase',
-    },
-    body: JSON.stringify({
-      model: 'meta-llama/llama-3.1-8b-instruct:free',
-      messages: messages,
-      max_tokens: 4096,
-      temperature: 0.7,
-    }),
-  })
+  // Try multiple free models in case one is rate-limited upstream
+  const models = [
+    'nvidia/nemotron-3-super-120b-a12b:free',  // Best: 120B params, reliable
+    'qwen/qwen3.8-27b:free',                    // Backup: 27B params
+    'google/gemma-4-26b-a4b-it:free',           // Backup: 26B params
+    'meta-llama/llama-3.1-8b-instruct:free',   // Last resort: may be paid-only now
+  ]
 
-  if (!response.ok) {
-    const errText = await response.text()
-    throw new Error(`OpenRouter API error: ${response.status} ${errText.slice(0, 100)}`)
+  for (const model of models) {
+    try {
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+          'HTTP-Referer': 'https://www.hirebase.in',
+          'X-Title': 'Hirebase',
+        },
+        body: JSON.stringify({
+          model: model,
+          messages: messages,
+          max_tokens: 4096,
+          temperature: 0.7,
+        }),
+      })
+
+      if (!response.ok) {
+        const errText = await response.text()
+        // If model unavailable or rate-limited, try next model
+        if (response.status === 404 || response.status === 429) {
+          console.log(`[multi-ai] OpenRouter model ${model} unavailable, trying next...`)
+          continue
+        }
+        throw new Error(`OpenRouter API error: ${response.status} ${errText.slice(0, 100)}`)
+      }
+
+      const data = await response.json()
+      const content = data.choices?.[0]?.message?.content || ''
+      if (content) return content
+    } catch (e: any) {
+      // If rate-limited, try next model
+      if (e.message?.includes('429') || e.message?.includes('rate')) {
+        console.log(`[multi-ai] OpenRouter ${model} rate-limited, trying next...`)
+        continue
+      }
+      throw e
+    }
   }
 
-  const data = await response.json()
-  return data.choices[0]?.message?.content || ''
+  throw new Error('All OpenRouter free models were rate-limited or unavailable')
 }
 
 // Groq chat completions (free, OpenAI-compatible API)
