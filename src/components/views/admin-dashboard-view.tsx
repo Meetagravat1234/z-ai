@@ -451,11 +451,15 @@ function BulkFetchTab() {
     }
   }
 
-  // Start auto-polling — every 60 seconds (1 URL per minute).
-  // This gives z-ai plenty of time between jobs to recover from rate limits.
-  // With 60s between jobs, z-ai should almost NEVER get rate-limited
-  // (its rate limit is ~30 req/min, and we're only doing 1 req per 60s).
-  // For 100 URLs: ~100 minutes total. Slower but near-zero failures.
+  // Start auto-polling — every 40 seconds (1 URL per 40s).
+  // Sweet spot: fast enough to be useful, slow enough to avoid rate limits.
+  // z-ai rate limit: ~30 req/min → 1 req per 40s = 1.5 req/min (well under).
+  // If z-ai DOES get rate-limited, the retry-to-pending logic in
+  // /api/admin/bulk-fetch/process catches it — URL goes back to pending
+  // and retries on the next poll. So ALL valid URLs eventually succeed.
+  //
+  // For 100 URLs: ~67 minutes total. Slower than 25s but near-zero failures.
+  // Previous fallback: 60s per job (100 min for 100 URLs) — use if this fails.
   function startPolling(jobId: string) {
     if (pollIntervalRef.current) clearInterval(pollIntervalRef.current)
     pollIntervalRef.current = setInterval(async () => {
@@ -482,7 +486,7 @@ function BulkFetchTab() {
       } catch (e) {
         console.error('Poll error:', e)
       }
-    }, 60000) // poll every 60 seconds (1 URL per minute)
+    }, 40000) // poll every 40 seconds (sweet spot: fast + reliable)
   }
 
   // Stop polling
@@ -541,7 +545,7 @@ function BulkFetchTab() {
           <p className="text-xs text-muted-foreground">
             Supports LinkedIn, Naukri, Indeed, Lever, Greenhouse, Ashby, and any public job page.
             <strong className="text-foreground"> Paste individual job URLs, not homepages or search pages.</strong>
-            {urlCount > 0 && ` Estimated time: ~${Math.ceil(urlCount * 1)} min (1 job per minute — slower but near-zero failures).`}
+            {urlCount > 0 && ` Estimated time: ~${Math.ceil(urlCount * 0.67)} min (1 job per 40s — fast + reliable).`}
           </p>
           <div className="flex items-center gap-2">
             {rawUrls && (
