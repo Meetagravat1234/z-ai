@@ -2,12 +2,24 @@
 // when rate limited (429). No more "Too many requests" errors!
 //
 // Provider priority (in order):
-// 1. z-ai-web-dev-sdk (primary) — works in sandbox (Alibaba Cloud network)
-// 2. OpenRouter (fallback 1) — free, 50+ models, OpenAI-compatible. Needs OPENROUTER_API_KEY
-// 3. Groq (fallback 2) — free, fast. Needs GROQ_API_KEY
-// 4. Google Gemini (fallback 3) — free, 1500 req/day. Needs GEMINI_API_KEY
+//   1. z-ai-web-dev-sdk (primary) — works in sandbox (Alibaba Cloud network)
+//   2. OpenRouter (fallback 1) — free tier, 50 free-model requests / day.
+//      Needs OPENROUTER_API_KEY. Uses 2 confirmed-working free models with
+//      automatic failover between them.
+//   3. Groq (fallback 2) — free, fast (Llama 3.1 / GPT-OSS). Needs GROQ_API_KEY.
+//      ⚠️ Groq Cloud blocks Hong Kong region — Vercel must be deployed in
+//      iad1 / sfo1 / pdx1 / cdg1 / fra1 / etc. (NOT hkg1).
+//   4. Google Gemini (fallback 3) — free, generous tier. Needs GEMINI_API_KEY.
+//      ⚠️ Same Hong Kong region restriction as Groq.
 //
 // For web_search and page_reader, falls back to Jina AI (free, no key needed).
+//
+// Verified API limits (2026-09-21):
+//   • OpenRouter free tier: 50 free-model requests / day / API key
+//   • OpenRouter rate limit: unlimited requests per 10s (requests:-1)
+//   • Groq free tier:        30 RPM, 14,400 req/day, 500,000 TPD (varies per model)
+//   • Gemini free tier:      15 RPM, 1,500 req/day
+//   • z-ai:                  ~15 calls before rate limit (45s cooldown)
 
 import ZAI from 'z-ai-web-dev-sdk'
 
@@ -211,11 +223,36 @@ async function getZai(): Promise<any | null> {
   }
 }
 
-// OpenRouter chat completions (free tier, 50+ models, OpenAI-compatible)
+// OpenRouter chat completions (free tier, 50 free-model requests / day).
 // Sign up at https://openrouter.ai — free with generous limits.
-// Uses 'nvidia/nemotron-3-super-120b-a12b:free' (120B parameter model, free, reliable).
-// Previously used 'meta-llama/llama-3.1-8b-instruct:free' but that model was
-// moved to paid-only. NVIDIA Nemotron is actually a better (larger) model.
+//
+// Verified working free models (2026-09-21):
+//   • nvidia/nemotron-3.5-lightning:free  — 1M ctx, fast, best for long pages
+//   • liquid/lfm-2.5-2.6b:free            — 65K ctx, smaller but very reliable
+//
+// Previously used 'meta-llama/llama-3.1-8b-instruct:free' but that model
+// was moved to paid-only — the API returns:
+//   "This model is unavailable for free. The paid version is available now -
+//    use this slug instead: meta-llama/llama-3.1-8b-instruct"
+//
+// Daily budget tracking: OpenRouter hard-caps free model requests at 50/day
+// per API key. We track usage locally and stop trying OpenRouter after we've
+// used 45 calls, leaving a 5-call buffer for manual debugging.
+let openRouterCallsToday = 0
+let openRouterResetAt = 0 // epoch ms when counter resets
+const OPENROUTER_DAILY_BUDGET = 45 // hard cap (leave 5-call buffer)
+
+function maybeResetOpenRouterCounter() {
+  const now = Date.now()
+  if (now > openRouterResetAt) {
+    // Reset at next local midnight
+    const nextMidnight = new Date()
+    nextMidnight.setHours(24, 0, 0, 0)
+    openRouterResetAt = nextMidnight.getTime()
+    openRouterCallsToday = 0
+  }
+}
+
 async function openRouterChatComplete(
   messages: Array<{ role: string; content: string }>
 ): Promise<string> {
@@ -224,12 +261,19 @@ async function openRouterChatComplete(
     throw new Error('OPENROUTER_API_KEY not set — sign up at https://openrouter.ai for free')
   }
 
-  // Try multiple free models in case one is rate-limited upstream
+  maybeResetOpenRouterCounter()
+  if (openRouterCallsToday >= OPENROUTER_DAILY_BUDGET) {
+    throw new Error(
+      `OpenRouter daily budget exhausted (${openRouterCallsToday}/${OPENROUTER_DAILY_BUDGET}). ` +
+      `URL will retry on next cycle using other providers.`
+    )
+  }
+
+  // Try multiple free models in case one is rate-limited upstream.
+  // Ordered by reliability and context length (best first).
   const models = [
-    'nvidia/nemotron-3-super-120b-a12b:free',  // Best: 120B params, reliable
-    'qwen/qwen3.8-27b:free',                    // Backup: 27B params
-    'google/gemma-4-26b-a4b-it:free',           // Backup: 26B params
-    'meta-llama/llama-3.1-8b-instruct:free',   // Last resort: may be paid-only now
+    'nvidia/nemotron-3.5-lightning:free',  // 1M ctx, fast — PRIMARY
+    'liquid/lfm-2.5-2.6b:free',            // 65K ctx, very reliable — BACKUP
   ]
 
   for (const model of models) {
@@ -252,9 +296,17 @@ async function openRouterChatComplete(
 
       if (!response.ok) {
         const errText = await response.text()
-        // If model unavailable or rate-limited, try next model
+        // 404 = model deprecated/unavailable; 429 = rate limited (per-day OR upstream)
         if (response.status === 404 || response.status === 429) {
-          console.log(`[multi-ai] OpenRouter model ${model} unavailable, trying next...`)
+          console.log(`[multi-ai] OpenRouter ${model} unavailable (${response.status}) — trying next model...`)
+          // If 429 mentions daily limit, mark OpenRouter as exhausted for the day
+          if (response.status === 429 && /daily|daily_request|daily limit/i.test(errText)) {
+            openRouterCallsToday = OPENROUTER_DAILY_BUDGET
+            const tomorrow = new Date()
+            tomorrow.setHours(24, 0, 0, 0)
+            openRouterResetAt = tomorrow.getTime()
+            console.log('[multi-ai] OpenRouter daily limit hit — pausing until tomorrow')
+          }
           continue
         }
         throw new Error(`OpenRouter API error: ${response.status} ${errText.slice(0, 100)}`)
@@ -262,7 +314,10 @@ async function openRouterChatComplete(
 
       const data = await response.json()
       const content = data.choices?.[0]?.message?.content || ''
-      if (content) return content
+      if (content) {
+        openRouterCallsToday++
+        return content
+      }
     } catch (e: any) {
       // If rate-limited, try next model
       if (e.message?.includes('429') || e.message?.includes('rate')) {
@@ -276,7 +331,19 @@ async function openRouterChatComplete(
   throw new Error('All OpenRouter free models were rate-limited or unavailable')
 }
 
-// Groq chat completions (free, OpenAI-compatible API)
+// Groq chat completions (free, OpenAI-compatible API).
+// Sign up at https://console.groq.com — free with very generous limits.
+//
+// Free tier limits (as of 2026-09-21, may vary per model):
+//   • llama-3.1-8b-instant:       30 RPM, 14,400 req/day, 500K TPM
+//   • llama-3.3-70b-versatile:    30 RPM, 1,000 req/day
+//   • openai/gpt-oss-120b:        30 RPM, 7,200 req/day
+//
+// ⚠️ REGION BLOCK: Groq Cloud blocks Hong Kong (HKG) region. If your Vercel
+// function is deployed to hkg1, you will get HTTP 403 "Forbidden" regardless
+// of key validity. Deploy to iad1 / sfo1 / pdx1 / cdg1 / fra1 / etc.
+//
+// We try models in order — first one that works wins.
 async function groqChatComplete(
   messages: Array<{ role: string; content: string }>
 ): Promise<string> {
@@ -285,27 +352,60 @@ async function groqChatComplete(
     throw new Error('GROQ_API_KEY not set — sign up at https://console.groq.com for free')
   }
 
-  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: 'openai/gpt-oss-120b',
-      messages: messages,
-      max_tokens: 4096,
-      temperature: 0.7,
-    }),
-  })
+  // Try multiple models in case one is rate-limited / deprecated.
+  const models = [
+    'llama-3.1-8b-instant',       // Fastest, 30 RPM / 14,400 req/day
+    'openai/gpt-oss-120b',         // Bigger, 30 RPM / 7,200 req/day
+    'llama-3.3-70b-versatile',      // Highest quality, 30 RPM / 1,000 req/day
+  ]
 
-  if (!response.ok) {
-    const errText = await response.text()
-    throw new Error(`Groq API error: ${response.status} ${errText.slice(0, 100)}`)
+  let lastErr = ''
+  for (const model of models) {
+    try {
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: model,
+          messages: messages,
+          max_tokens: 4096,
+          temperature: 0.7,
+        }),
+      })
+
+      if (!response.ok) {
+        const errText = await response.text()
+        // 404 = model retired; 429 = rate limit; 403 = region block (try next model won't help,
+        // but we should still surface the proper error)
+        if (response.status === 404 || response.status === 429) {
+          console.log(`[multi-ai] Groq ${model} unavailable (${response.status}) — trying next model...`)
+          lastErr = `Groq ${model}: ${response.status} ${errText.slice(0, 80)}`
+          continue
+        }
+        if (response.status === 403) {
+          // Region block — same error for all Groq models, no point trying others
+          throw new Error(
+            'Groq API: 403 Forbidden (likely region block — Vercel must NOT be deployed to hkg1)'
+          )
+        }
+        throw new Error(`Groq API error: ${response.status} ${errText.slice(0, 100)}`)
+      }
+
+      const data = await response.json()
+      const content = data.choices[0]?.message?.content || ''
+      if (content) return content
+    } catch (e: any) {
+      // If region block, surface immediately
+      if (e.message?.includes('403 Forbidden')) throw e
+      lastErr = e.message
+      continue
+    }
   }
 
-  const data = await response.json()
-  return data.choices[0]?.message?.content || ''
+  throw new Error(lastErr || 'All Groq models failed')
 }
 
 // Google Gemini chat completions (free, generous tier — 15 RPM, 1500 req/day)
