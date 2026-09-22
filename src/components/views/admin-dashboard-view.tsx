@@ -418,7 +418,7 @@ function BulkFetchTab() {
       await fetch('/api/admin/bulk-fetch/process', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jobId, batchSize: 1 }), // 1 URL per call = less rate limiting
+        body: JSON.stringify({ jobId, batchSize: 2 }), // 2 URLs per call — fits 60s Vercel timeout
       })
       // Immediately refresh status after processing
       await fetchStatus(jobId)
@@ -479,15 +479,14 @@ function BulkFetchTab() {
     }
   }
 
-  // Start auto-polling — every 40 seconds (1 URL per 40s).
-  // Sweet spot: fast enough to be useful, slow enough to avoid rate limits.
-  // z-ai rate limit: ~30 req/min → 1 req per 40s = 1.5 req/min (well under).
-  // If z-ai DOES get rate-limited, the retry-to-pending logic in
-  // /api/admin/bulk-fetch/process catches it — URL goes back to pending
-  // and retries on the next poll. So ALL valid URLs eventually succeed.
+  // Start auto-polling — every 20 seconds (1 URL per 20s).
+  // Sweet spot: fast enough to show visible progress, slow enough to avoid
+  // rate limits. z-ai rate limit: ~30 req/min → 1 req per 20s = 3 req/min.
+  // The 4-provider fallback chain (z-ai → OpenRouter → Groq → Gemini) gives
+  // ~16,000 calls/day capacity, so 20s polling won't burn through limits.
   //
-  // For 100 URLs: ~67 minutes total. Slower than 25s but near-zero failures.
-  // Previous fallback: 60s per job (100 min for 100 URLs) — use if this fails.
+  // For 100 URLs: ~33 minutes total. With retry-to-pending logic, all
+  // valid URLs eventually succeed (no permanent failures).
   function startPolling(jobId: string) {
     if (pollIntervalRef.current) clearInterval(pollIntervalRef.current)
     pollIntervalRef.current = setInterval(async () => {
@@ -514,7 +513,7 @@ function BulkFetchTab() {
       } catch (e) {
         console.error('Poll error:', e)
       }
-    }, 40000) // poll every 40 seconds (sweet spot: fast + reliable)
+    }, 20000) // poll every 20 seconds (faster feedback)
   }
 
   // Stop polling

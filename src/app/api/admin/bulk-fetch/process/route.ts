@@ -278,11 +278,12 @@ async function processSingleUrl(url: string): Promise<{
     return { status: 'error', error: 'Page content too short to be a real job posting' }
   }
 
-  // Step 2: AI extraction
-  const raw = await chatComplete([
-    {
-      role: 'system',
-      content: `You are an expert job post parser. Given the raw text of a job page (scraped from any URL), extract structured fields.
+  // Step 2: AI extraction — with retry on non-JSON responses.
+  // If the first AI response isn't valid JSON (e.g. AI returned reasoning
+  // text, markdown, or a refusal), retry once with a stricter prompt.
+  // If still unparseable, mark as 'rate limited' so the URL retries next
+  // cycle instead of permanently failing.
+  const systemPrompt = `You are an expert job post parser. Given the raw text of a job page (scraped from any URL), extract structured fields.
 
 Output STRICT JSON (no markdown fences) with this shape:
 {
@@ -313,27 +314,87 @@ Rules:
 - If location mentions 'remote' or 'work from anywhere', set workMode='Remote'
 - Convert any USD salary to INR LPA equivalent (1 USD ≈ ₹83, so $100k ≈ ₹83 LPA → 830)
 - If salary isn't mentioned, return null for both
-- Be conservative on skills — only include ones actually mentioned`,
-    },
-    {
-      role: 'user',
-      content: `PAGE TITLE: ${pageTitle}
+- Be conservative on skills — only include ones actually mentioned
+
+RESPOND WITH ONLY THE JSON OBJECT. No introduction, no explanation, no markdown fences. The first character of your response MUST be '{' and the last MUST be '}'.`
+
+  const userPrompt = `PAGE TITLE: ${pageTitle}
 PAGE URL: ${url}
 PUBLISHED AT: ${publishedTime || 'unknown'}
 
 RAW PAGE TEXT:
 ${text}
 
-Extract the structured job fields.`,
-    },
-  ])
+Extract the structured job fields.`
 
   let parsed: any
-  try {
-    const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
-    parsed = JSON.parse(cleaned)
-  } catch {
-    return { status: 'error', error: 'AI returned unparseable JSON' }
+  let rawAiResponse = ''
+  let attempts = 0
+  const maxAttempts = 2 // first attempt + one retry with stricter prompt
+
+  while (attempts < maxAttempts) {
+    attempts++
+    try {
+      const messages = attempts === 1
+        ? [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt },
+          ]
+        : [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt },
+            { role: 'assistant', content: rawAiResponse.slice(0, 500) },
+            {
+              role: 'user',
+              content: 'Your previous response was NOT valid JSON. Please respond with ONLY the JSON object now. First character must be "{", last must be "}". No markdown, no explanation, no code fences.',
+            },
+          ]
+
+      rawAiResponse = await chatComplete(messages)
+      if (!rawAiResponse || rawAiResponse.trim().length === 0) {
+        console.log(`[bulk-fetch] AI returned empty response (attempt ${attempts}) for ${url.slice(0, 60)}`)
+        continue
+      }
+
+      // Aggressive cleaning: strip markdown fences, leading/trailing text, etc.
+      let cleaned = rawAiResponse
+        // Remove ```json ... ``` fences
+        .replace(/```json\s*\n?/gi, '')
+        .replace(/```\s*\n?/g, '')
+        // Remove any leading text before the first {
+        .replace(/^[^{]*/, '')
+        // Remove any trailing text after the last }
+        .replace(/[^}]*$/, '')
+        .trim()
+
+      if (cleaned.length === 0) {
+        console.log(`[bulk-fetch] AI response had no JSON object (attempt ${attempts}) for ${url.slice(0, 60)}`)
+        continue
+      }
+
+      parsed = JSON.parse(cleaned)
+      console.log(`[bulk-fetch] AI extraction OK on attempt ${attempts} for ${url.slice(0, 60)}`)
+      break // success
+    } catch (e: any) {
+      console.log(`[bulk-fetch] JSON parse failed (attempt ${attempts}) for ${url.slice(0, 60)}: ${(e.message || '').slice(0, 80)}`)
+      if (attempts >= maxAttempts) {
+        // Both attempts failed — treat as rate-limited so URL retries next cycle,
+        // instead of permanently failing the URL.
+        return {
+          status: 'error',
+          error: 'rate limited — AI returned non-JSON after retry, will retry next cycle',
+        }
+      }
+      // Otherwise loop again with the stricter retry prompt
+    }
+  }
+
+  if (!parsed) {
+    // Shouldn't reach here, but as a safety net
+    return {
+      status: 'error',
+      error: 'rate limited — AI returned non-JSON after retry, will retry next cycle',
+    }
   }
 
   // Step 3: Find or create the company
