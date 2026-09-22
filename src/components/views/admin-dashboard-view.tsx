@@ -418,7 +418,7 @@ function BulkFetchTab() {
       await fetch('/api/admin/bulk-fetch/process', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jobId, batchSize: 2 }), // 2 URLs per call — fits 60s Vercel timeout
+        body: JSON.stringify({ jobId, batchSize: 1 }), // 1 URL per call — fits 60s Vercel timeout
       })
       // Immediately refresh status after processing
       await fetchStatus(jobId)
@@ -513,7 +513,7 @@ function BulkFetchTab() {
       } catch (e) {
         console.error('Poll error:', e)
       }
-    }, 20000) // poll every 20 seconds (faster feedback)
+    }, 15000) // poll every 15 seconds (1 URL per call, fast feedback)
   }
 
   // Stop polling

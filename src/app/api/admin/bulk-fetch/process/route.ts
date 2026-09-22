@@ -37,24 +37,21 @@ export async function POST(req: NextRequest) {
     const jobId = body.jobId
 
     // 🚑 AUTO-RECOVERY: Reset stuck 'processing' URLs back to 'pending'.
-    // If a URL has been in 'processing' status for more than 5 minutes, it
+    // If a URL has been in 'processing' status for more than 90 seconds, it
     // almost certainly means the Vercel function timed out (60s) or crashed
-    // mid-processing. Without this recovery, those URLs stay stuck forever,
-    // and the whole bulk-fetch job appears frozen in "processing...".
+    // mid-processing. Without this recovery, those URLs stay stuck and the
+    // job appears frozen.
     //
-    // We reset stuck URLs BEFORE picking new ones, so they get re-processed
-    // in the same poll cycle.
-    //
-    // We match BOTH:
-    //   1. URLs with processedAt older than 5 min (new code sets processedAt when claiming)
-    //   2. URLs with processedAt = null (old code, pre-fix — they never had processedAt set)
-    const FIVE_MINUTES_AGO = new Date(Date.now() - 5 * 60 * 1000)
+    // 90s (not 5 min) because: Vercel timeout = 60s, plus 30s buffer for the
+    // function to be killed and the DB write to commit. Anything older than
+    // 90s is definitely stuck.
+    const STUCK_THRESHOLD = new Date(Date.now() - 90 * 1000) // 90 seconds ago
     const stuckUrls = await db.bulkFetchJobUrl.updateMany({
       where: {
         status: 'processing',
         OR: [
           { processedAt: null },
-          { processedAt: { lt: FIVE_MINUTES_AGO } },
+          { processedAt: { lt: STUCK_THRESHOLD } },
         ],
       },
       data: { status: 'pending', error: null, processedAt: null },
@@ -278,11 +275,13 @@ async function processSingleUrl(url: string): Promise<{
     return { status: 'error', error: 'Page content too short to be a real job posting' }
   }
 
-  // Step 2: AI extraction — with retry on non-JSON responses.
-  // If the first AI response isn't valid JSON (e.g. AI returned reasoning
-  // text, markdown, or a refusal), retry once with a stricter prompt.
-  // If still unparseable, mark as 'rate limited' so the URL retries next
-  // cycle instead of permanently failing.
+  // Step 2: AI extraction — single attempt, aggressive JSON cleaning.
+  // NOTE: We do NOT retry with a second AI call here. Each /process call has
+  // a 60s Vercel timeout. One AI call takes 5-20s. If we retry, 2 calls = 40s+
+  // per URL × 2 URLs per batch = 80s → Vercel timeout → URLs get stuck.
+  // Instead: if JSON parsing fails, we put the URL back to 'pending' (not
+  // 'error') so it retries on the NEXT /process cycle. This keeps each call
+  // fast and avoids the 60s timeout trap.
   const systemPrompt = `You are an expert job post parser. Given the raw text of a job page (scraped from any URL), extract structured fields.
 
 Output STRICT JSON (no markdown fences) with this shape:
@@ -318,83 +317,42 @@ Rules:
 
 RESPOND WITH ONLY THE JSON OBJECT. No introduction, no explanation, no markdown fences. The first character of your response MUST be '{' and the last MUST be '}'.`
 
-  const userPrompt = `PAGE TITLE: ${pageTitle}
+  const raw = await chatComplete([
+    { role: 'system', content: systemPrompt },
+    {
+      role: 'user',
+      content: `PAGE TITLE: ${pageTitle}
 PAGE URL: ${url}
 PUBLISHED AT: ${publishedTime || 'unknown'}
 
 RAW PAGE TEXT:
 ${text}
 
-Extract the structured job fields.`
+Extract the structured job fields.`,
+    },
+  ])
 
   let parsed: any
-  let rawAiResponse = ''
-  let attempts = 0
-  const maxAttempts = 2 // first attempt + one retry with stricter prompt
-
-  while (attempts < maxAttempts) {
-    attempts++
-    try {
-      const messages = attempts === 1
-        ? [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userPrompt },
-          ]
-        : [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userPrompt },
-            { role: 'assistant', content: rawAiResponse.slice(0, 500) },
-            {
-              role: 'user',
-              content: 'Your previous response was NOT valid JSON. Please respond with ONLY the JSON object now. First character must be "{", last must be "}". No markdown, no explanation, no code fences.',
-            },
-          ]
-
-      rawAiResponse = await chatComplete(messages)
-      if (!rawAiResponse || rawAiResponse.trim().length === 0) {
-        console.log(`[bulk-fetch] AI returned empty response (attempt ${attempts}) for ${url.slice(0, 60)}`)
-        continue
-      }
-
-      // Aggressive cleaning: strip markdown fences, leading/trailing text, etc.
-      let cleaned = rawAiResponse
-        // Remove ```json ... ``` fences
-        .replace(/```json\s*\n?/gi, '')
-        .replace(/```\s*\n?/g, '')
-        // Remove any leading text before the first {
-        .replace(/^[^{]*/, '')
-        // Remove any trailing text after the last }
-        .replace(/[^}]*$/, '')
-        .trim()
-
-      if (cleaned.length === 0) {
-        console.log(`[bulk-fetch] AI response had no JSON object (attempt ${attempts}) for ${url.slice(0, 60)}`)
-        continue
-      }
-
-      parsed = JSON.parse(cleaned)
-      console.log(`[bulk-fetch] AI extraction OK on attempt ${attempts} for ${url.slice(0, 60)}`)
-      break // success
-    } catch (e: any) {
-      console.log(`[bulk-fetch] JSON parse failed (attempt ${attempts}) for ${url.slice(0, 60)}: ${(e.message || '').slice(0, 80)}`)
-      if (attempts >= maxAttempts) {
-        // Both attempts failed — treat as rate-limited so URL retries next cycle,
-        // instead of permanently failing the URL.
-        return {
-          status: 'error',
-          error: 'rate limited — AI returned non-JSON after retry, will retry next cycle',
-        }
-      }
-      // Otherwise loop again with the stricter retry prompt
+  try {
+    // Aggressive cleaning: strip markdown fences, leading/trailing text.
+    // This handles AI responses like "Here is the JSON:\n```json\n{...}\n```"
+    // by extracting just the JSON object between { and }.
+    const cleaned = raw
+      .replace(/```json\s*\n?/gi, '')
+      .replace(/```\s*\n?/g, '')
+      .replace(/^[^{]*/, '') // strip everything before first {
+      .replace(/[^}]*$/, '') // strip everything after last }
+      .trim()
+    if (cleaned.length === 0) {
+      // AI returned no JSON at all — treat as rate-limited so URL retries
+      return { status: 'error', error: 'rate limited — AI returned empty/non-JSON, will retry next cycle' }
     }
-  }
-
-  if (!parsed) {
-    // Shouldn't reach here, but as a safety net
-    return {
-      status: 'error',
-      error: 'rate limited — AI returned non-JSON after retry, will retry next cycle',
-    }
+    parsed = JSON.parse(cleaned)
+  } catch {
+    // JSON parse failed — treat as rate-limited so URL retries next cycle
+    // instead of permanently failing. This is the KEY fix: non-JSON responses
+    // are usually transient (AI was overloaded, returned reasoning text, etc.)
+    return { status: 'error', error: 'rate limited — AI returned non-JSON, will retry next cycle' }
   }
 
   // Step 3: Find or create the company
