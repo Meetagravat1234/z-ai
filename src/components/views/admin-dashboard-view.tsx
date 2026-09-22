@@ -418,40 +418,12 @@ function BulkFetchTab() {
       await fetch('/api/admin/bulk-fetch/process', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jobId, batchSize: 1 }), // 1 URL per call — fits 60s Vercel timeout
+        body: JSON.stringify({ jobId, batchSize: 1 }), // 1 URL per call = less rate limiting
       })
       // Immediately refresh status after processing
       await fetchStatus(jobId)
     } catch (e) {
       console.error('Process trigger error:', e)
-    } finally {
-      setPolling(false)
-    }
-  }
-
-  // Manually recover stuck URLs — calls /process which now has auto-recovery
-  // logic that resets any URL stuck in 'processing' for >5 min back to 'pending'.
-  // Use this when the batch appears frozen (no progress despite "Processing..." badge).
-  async function recoverStuck() {
-    if (!activeJob) return
-    setPolling(true)
-    try {
-      toast.info('Resetting stuck URLs…')
-      // Calling /process triggers the auto-recovery at the top of the route handler
-      const r = await fetch('/api/admin/bulk-fetch/process', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jobId: activeJob.id, batchSize: 1 }),
-      })
-      const d = await r.json().catch(() => ({}))
-      await fetchStatus(activeJob.id)
-      if (d.ok) {
-        toast.success('Recovered stuck URLs — processing resumed')
-      } else {
-        toast.error(d.error || 'Recovery failed')
-      }
-    } catch (e: any) {
-      toast.error(e.message || 'Recovery failed')
     } finally {
       setPolling(false)
     }
@@ -479,14 +451,10 @@ function BulkFetchTab() {
     }
   }
 
-  // Start auto-polling — every 20 seconds (1 URL per 20s).
-  // Sweet spot: fast enough to show visible progress, slow enough to avoid
-  // rate limits. z-ai rate limit: ~30 req/min → 1 req per 20s = 3 req/min.
-  // The 4-provider fallback chain (z-ai → OpenRouter → Groq → Gemini) gives
-  // ~16,000 calls/day capacity, so 20s polling won't burn through limits.
-  //
-  // For 100 URLs: ~33 minutes total. With retry-to-pending logic, all
-  // valid URLs eventually succeed (no permanent failures).
+  // Start auto-polling — every 25 seconds (was 15s).
+  // Increased to give z-ai more time to recover from rate limits.
+  // With exponential backoff (15s + 30s = 45s max per job), 25s poll interval
+  // means each job gets enough time to complete before the next one starts.
   function startPolling(jobId: string) {
     if (pollIntervalRef.current) clearInterval(pollIntervalRef.current)
     pollIntervalRef.current = setInterval(async () => {
@@ -513,7 +481,7 @@ function BulkFetchTab() {
       } catch (e) {
         console.error('Poll error:', e)
       }
-    }, 15000) // poll every 15 seconds (1 URL per call, fast feedback)
+    }, 25000) // poll every 25 seconds (was 15s)
   }
 
   // Stop polling
@@ -572,7 +540,7 @@ function BulkFetchTab() {
           <p className="text-xs text-muted-foreground">
             Supports LinkedIn, Naukri, Indeed, Lever, Greenhouse, Ashby, and any public job page.
             <strong className="text-foreground"> Paste individual job URLs, not homepages or search pages.</strong>
-            {urlCount > 0 && ` Estimated time: ~${Math.ceil(urlCount * 0.67)} min (1 job per 40s — fast + reliable).`}
+            {urlCount > 0 && ` Estimated time: ~${Math.ceil((urlCount * 20) / 60)} min (1 job per batch × 20s each).`}
           </p>
           <div className="flex items-center gap-2">
             {rawUrls && (
@@ -648,15 +616,6 @@ function BulkFetchTab() {
                   >
                     {polling ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
                     {polling ? 'Processing…' : 'Process now'}
-                  </button>
-                  <button
-                    onClick={recoverStuck}
-                    disabled={polling}
-                    title="Reset all stuck 'processing' URLs back to 'pending'. Use this if the batch appears frozen — typically happens when the Vercel function timed out (60s)."
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-amber-500/30 text-amber-600 hover:bg-amber-500/10 text-xs font-semibold disabled:opacity-60"
-                  >
-                    <AlertCircle className="w-3 h-3" />
-                    Recover stuck
                   </button>
                   <button
                     onClick={cancelJob}

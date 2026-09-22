@@ -36,30 +36,6 @@ export async function POST(req: NextRequest) {
     const batchSize = Math.min(body.batchSize || 2, 3) // hard cap at 3 (60s timeout)
     const jobId = body.jobId
 
-    // 🚑 AUTO-RECOVERY: Reset stuck 'processing' URLs back to 'pending'.
-    // If a URL has been in 'processing' status for more than 90 seconds, it
-    // almost certainly means the Vercel function timed out (60s) or crashed
-    // mid-processing. Without this recovery, those URLs stay stuck and the
-    // job appears frozen.
-    //
-    // 90s (not 5 min) because: Vercel timeout = 60s, plus 30s buffer for the
-    // function to be killed and the DB write to commit. Anything older than
-    // 90s is definitely stuck.
-    const STUCK_THRESHOLD = new Date(Date.now() - 90 * 1000) // 90 seconds ago
-    const stuckUrls = await db.bulkFetchJobUrl.updateMany({
-      where: {
-        status: 'processing',
-        OR: [
-          { processedAt: null },
-          { processedAt: { lt: STUCK_THRESHOLD } },
-        ],
-      },
-      data: { status: 'pending', error: null, processedAt: null },
-    })
-    if (stuckUrls.count > 0) {
-      console.log(`[bulk-fetch/process] recovered ${stuckUrls.count} stuck URL(s) — reset to pending`)
-    }
-
     // Find the job to process
     let where: any = { status: { in: ['pending', 'processing'] } }
     if (jobId) where = { id: jobId, ...where }
@@ -108,14 +84,10 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    // Mark these URLs as 'processing' (claim them).
-    // We set processedAt to NOW so the auto-recovery logic above can detect
-    // stuck URLs (those where processedAt is older than 5 min but status is
-    // still 'processing').
-    const claimedAt = new Date()
+    // Mark these URLs as 'processing' (claim them)
     await db.bulkFetchJobUrl.updateMany({
       where: { id: { in: pendingUrls.map((u) => u.id) } },
-      data: { status: 'processing', processedAt: claimedAt },
+      data: { status: 'processing' },
     })
 
     let savedCount = 0
@@ -275,14 +247,11 @@ async function processSingleUrl(url: string): Promise<{
     return { status: 'error', error: 'Page content too short to be a real job posting' }
   }
 
-  // Step 2: AI extraction — single attempt, aggressive JSON cleaning.
-  // NOTE: We do NOT retry with a second AI call here. Each /process call has
-  // a 60s Vercel timeout. One AI call takes 5-20s. If we retry, 2 calls = 40s+
-  // per URL × 2 URLs per batch = 80s → Vercel timeout → URLs get stuck.
-  // Instead: if JSON parsing fails, we put the URL back to 'pending' (not
-  // 'error') so it retries on the NEXT /process cycle. This keeps each call
-  // fast and avoids the 60s timeout trap.
-  const systemPrompt = `You are an expert job post parser. Given the raw text of a job page (scraped from any URL), extract structured fields.
+  // Step 2: AI extraction
+  const raw = await chatComplete([
+    {
+      role: 'system',
+      content: `You are an expert job post parser. Given the raw text of a job page (scraped from any URL), extract structured fields.
 
 Output STRICT JSON (no markdown fences) with this shape:
 {
@@ -313,12 +282,8 @@ Rules:
 - If location mentions 'remote' or 'work from anywhere', set workMode='Remote'
 - Convert any USD salary to INR LPA equivalent (1 USD ≈ ₹83, so $100k ≈ ₹83 LPA → 830)
 - If salary isn't mentioned, return null for both
-- Be conservative on skills — only include ones actually mentioned
-
-RESPOND WITH ONLY THE JSON OBJECT. No introduction, no explanation, no markdown fences. The first character of your response MUST be '{' and the last MUST be '}'.`
-
-  const raw = await chatComplete([
-    { role: 'system', content: systemPrompt },
+- Be conservative on skills — only include ones actually mentioned`,
+    },
     {
       role: 'user',
       content: `PAGE TITLE: ${pageTitle}
@@ -334,25 +299,10 @@ Extract the structured job fields.`,
 
   let parsed: any
   try {
-    // Aggressive cleaning: strip markdown fences, leading/trailing text.
-    // This handles AI responses like "Here is the JSON:\n```json\n{...}\n```"
-    // by extracting just the JSON object between { and }.
-    const cleaned = raw
-      .replace(/```json\s*\n?/gi, '')
-      .replace(/```\s*\n?/g, '')
-      .replace(/^[^{]*/, '') // strip everything before first {
-      .replace(/[^}]*$/, '') // strip everything after last }
-      .trim()
-    if (cleaned.length === 0) {
-      // AI returned no JSON at all — treat as rate-limited so URL retries
-      return { status: 'error', error: 'rate limited — AI returned empty/non-JSON, will retry next cycle' }
-    }
+    const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
     parsed = JSON.parse(cleaned)
   } catch {
-    // JSON parse failed — treat as rate-limited so URL retries next cycle
-    // instead of permanently failing. This is the KEY fix: non-JSON responses
-    // are usually transient (AI was overloaded, returned reasoning text, etc.)
-    return { status: 'error', error: 'rate limited — AI returned non-JSON, will retry next cycle' }
+    return { status: 'error', error: 'AI returned unparseable JSON' }
   }
 
   // Step 3: Find or create the company
