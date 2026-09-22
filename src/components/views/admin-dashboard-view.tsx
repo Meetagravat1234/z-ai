@@ -429,6 +429,34 @@ function BulkFetchTab() {
     }
   }
 
+  // Manually recover stuck URLs — calls /process which now has auto-recovery
+  // logic that resets any URL stuck in 'processing' for >5 min back to 'pending'.
+  // Use this when the batch appears frozen (no progress despite "Processing..." badge).
+  async function recoverStuck() {
+    if (!activeJob) return
+    setPolling(true)
+    try {
+      toast.info('Resetting stuck URLs…')
+      // Calling /process triggers the auto-recovery at the top of the route handler
+      const r = await fetch('/api/admin/bulk-fetch/process', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jobId: activeJob.id, batchSize: 1 }),
+      })
+      const d = await r.json().catch(() => ({}))
+      await fetchStatus(activeJob.id)
+      if (d.ok) {
+        toast.success('Recovered stuck URLs — processing resumed')
+      } else {
+        toast.error(d.error || 'Recovery failed')
+      }
+    } catch (e: any) {
+      toast.error(e.message || 'Recovery failed')
+    } finally {
+      setPolling(false)
+    }
+  }
+
   // Cancel the active job — stops processing, marks pending URLs as cancelled
   async function cancelJob() {
     if (!activeJob) return
@@ -621,6 +649,15 @@ function BulkFetchTab() {
                   >
                     {polling ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
                     {polling ? 'Processing…' : 'Process now'}
+                  </button>
+                  <button
+                    onClick={recoverStuck}
+                    disabled={polling}
+                    title="Reset all stuck 'processing' URLs back to 'pending'. Use this if the batch appears frozen — typically happens when the Vercel function timed out (60s)."
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-amber-500/30 text-amber-600 hover:bg-amber-500/10 text-xs font-semibold disabled:opacity-60"
+                  >
+                    <AlertCircle className="w-3 h-3" />
+                    Recover stuck
                   </button>
                   <button
                     onClick={cancelJob}

@@ -36,6 +36,33 @@ export async function POST(req: NextRequest) {
     const batchSize = Math.min(body.batchSize || 2, 3) // hard cap at 3 (60s timeout)
     const jobId = body.jobId
 
+    // 🚑 AUTO-RECOVERY: Reset stuck 'processing' URLs back to 'pending'.
+    // If a URL has been in 'processing' status for more than 5 minutes, it
+    // almost certainly means the Vercel function timed out (60s) or crashed
+    // mid-processing. Without this recovery, those URLs stay stuck forever,
+    // and the whole bulk-fetch job appears frozen in "processing...".
+    //
+    // We reset stuck URLs BEFORE picking new ones, so they get re-processed
+    // in the same poll cycle.
+    //
+    // We match BOTH:
+    //   1. URLs with processedAt older than 5 min (new code sets processedAt when claiming)
+    //   2. URLs with processedAt = null (old code, pre-fix — they never had processedAt set)
+    const FIVE_MINUTES_AGO = new Date(Date.now() - 5 * 60 * 1000)
+    const stuckUrls = await db.bulkFetchJobUrl.updateMany({
+      where: {
+        status: 'processing',
+        OR: [
+          { processedAt: null },
+          { processedAt: { lt: FIVE_MINUTES_AGO } },
+        ],
+      },
+      data: { status: 'pending', error: null, processedAt: null },
+    })
+    if (stuckUrls.count > 0) {
+      console.log(`[bulk-fetch/process] recovered ${stuckUrls.count} stuck URL(s) — reset to pending`)
+    }
+
     // Find the job to process
     let where: any = { status: { in: ['pending', 'processing'] } }
     if (jobId) where = { id: jobId, ...where }
@@ -84,10 +111,14 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    // Mark these URLs as 'processing' (claim them)
+    // Mark these URLs as 'processing' (claim them).
+    // We set processedAt to NOW so the auto-recovery logic above can detect
+    // stuck URLs (those where processedAt is older than 5 min but status is
+    // still 'processing').
+    const claimedAt = new Date()
     await db.bulkFetchJobUrl.updateMany({
       where: { id: { in: pendingUrls.map((u) => u.id) } },
-      data: { status: 'processing' },
+      data: { status: 'processing', processedAt: claimedAt },
     })
 
     let savedCount = 0
