@@ -31,6 +31,46 @@ let geminiRateLimitedUntil: number = 0
 
 const RATE_LIMIT_COOLDOWN = 45 * 1000 // 45 seconds — gives z-ai enough time to reset
 
+// Per-provider timeout — ensures total time stays under Vercel's 60s limit.
+// If all 4 providers are tried sequentially with 15s each, total = 60s max.
+// Most calls complete in 3-8s, so 15s is generous.
+const PROVIDER_TIMEOUT_MS = 15_000
+
+/**
+ * Wrap a promise with a timeout. If the promise doesn't resolve within
+ * `timeoutMs`, reject with a timeout error.
+ *
+ * Uses AbortController when the underlying fetch supports it (OpenRouter,
+ * Groq, Gemini). For z-ai SDK (no AbortSignal support), uses Promise.race.
+ */
+async function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  providerName: string,
+  signal?: AbortSignal,
+): Promise<T> {
+  // If an external AbortSignal is already aborted, fail fast
+  if (signal?.aborted) {
+    throw new Error(`${providerName} aborted`)
+  }
+
+  let timeoutId: ReturnType<typeof setTimeout> | undefined
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error(`${providerName} timed out after ${timeoutMs / 1000}s`))
+    }, timeoutMs)
+  })
+
+  try {
+    const result = await Promise.race([promise, timeoutPromise]) as T
+    if (timeoutId) clearTimeout(timeoutId)
+    return result
+  } catch (e) {
+    if (timeoutId) clearTimeout(timeoutId)
+    throw e
+  }
+}
+
 // ============================================================================
 // CHAT COMPLETIONS — multi-provider with retry (4 providers)
 // ============================================================================
@@ -46,15 +86,22 @@ export async function chatComplete(
     try {
       const zai = await getZai()
       if (zai) {
-        const completion = await zai.chat.completions.create({
-          messages: messages as any,
-          thinking: options?.thinking || { type: 'disabled' },
-        })
+        // Wrap z-ai call in a 15s timeout to prevent 504 on Vercel
+        const completion: any = await withTimeout(
+          zai.chat.completions.create({
+            messages: messages as any,
+            thinking: options?.thinking || { type: 'disabled' },
+          }),
+          PROVIDER_TIMEOUT_MS,
+          'z-ai',
+        )
         const content = completion.choices[0]?.message?.content || ''
         if (content) return content
       }
     } catch (e: any) {
-      if (e.message?.includes('429') || e.message?.includes('Too many requests') || e.message?.includes('rate limit')) {
+      if (e.message?.includes('timed out')) {
+        console.log('[multi-ai] z-ai timed out — trying fallback providers')
+      } else if (e.message?.includes('429') || e.message?.includes('Too many requests') || e.message?.includes('rate limit')) {
         console.log('[multi-ai] z-ai rate limited — trying fallback providers immediately')
         zaiRateLimitedUntil = Date.now() + RATE_LIMIT_COOLDOWN
       } else {
@@ -66,10 +113,16 @@ export async function chatComplete(
   // Provider 2: OpenRouter (free, 50+ models)
   if (Date.now() > openRouterRateLimitedUntil) {
     try {
-      const result = await openRouterChatComplete(messages)
+      const result = await withTimeout(
+        openRouterChatComplete(messages),
+        PROVIDER_TIMEOUT_MS,
+        'OpenRouter',
+      )
       if (result) return result
     } catch (e: any) {
-      if (e.message?.includes('429') || e.message?.includes('rate_limit')) {
+      if (e.message?.includes('timed out')) {
+        console.log('[multi-ai] OpenRouter timed out — falling back to Groq')
+      } else if (e.message?.includes('429') || e.message?.includes('rate_limit')) {
         console.log('[multi-ai] OpenRouter rate limited — falling back to Groq')
         openRouterRateLimitedUntil = Date.now() + RATE_LIMIT_COOLDOWN
       } else {
@@ -81,10 +134,16 @@ export async function chatComplete(
   // Provider 3: Groq (free, fast, OpenAI-compatible)
   if (Date.now() > groqRateLimitedUntil) {
     try {
-      const result = await groqChatComplete(messages)
+      const result = await withTimeout(
+        groqChatComplete(messages),
+        PROVIDER_TIMEOUT_MS,
+        'Groq',
+      )
       if (result) return result
     } catch (e: any) {
-      if (e.message?.includes('429') || e.message?.includes('rate_limit')) {
+      if (e.message?.includes('timed out')) {
+        console.log('[multi-ai] Groq timed out — falling back to Gemini')
+      } else if (e.message?.includes('429') || e.message?.includes('rate_limit')) {
         console.log('[multi-ai] Groq rate limited — falling back to Gemini')
         groqRateLimitedUntil = Date.now() + RATE_LIMIT_COOLDOWN
       } else {
@@ -96,10 +155,16 @@ export async function chatComplete(
   // Provider 4: Google Gemini (free, generous tier)
   if (Date.now() > geminiRateLimitedUntil) {
     try {
-      const result = await geminiChatComplete(messages)
+      const result = await withTimeout(
+        geminiChatComplete(messages),
+        PROVIDER_TIMEOUT_MS,
+        'Gemini',
+      )
       if (result) return result
     } catch (e: any) {
-      if (e.message?.includes('429') || e.message?.includes('rate_limit') || e.message?.includes('RESOURCE_EXHAUSTED')) {
+      if (e.message?.includes('timed out')) {
+        console.log('[multi-ai] Gemini timed out — all 4 providers exhausted')
+      } else if (e.message?.includes('429') || e.message?.includes('rate_limit') || e.message?.includes('RESOURCE_EXHAUSTED')) {
         console.log('[multi-ai] Gemini rate limited — all 4 providers exhausted')
         geminiRateLimitedUntil = Date.now() + RATE_LIMIT_COOLDOWN
       } else {
@@ -108,7 +173,7 @@ export async function chatComplete(
     }
   }
 
-  throw new Error('All AI providers are rate limited. URL will retry on next cycle.')
+  throw new Error('All AI providers are rate limited. Wait 1-2 minutes and try again.')
 }
 
 // ============================================================================
