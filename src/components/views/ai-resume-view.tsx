@@ -36,19 +36,30 @@ export function AIResumeOptimizer() {
       const d = await r.json().catch(() => ({}))
       if (!r.ok) {
         // If user must sign in OR has exhausted quota → show Pro upsell modal
-        // (NOT a toast error — modal is more actionable)
         if (d.requiresUpgrade || d.requiresAd) {
           setShowAdGate(true)
           setLoading(false)
           return
         }
-        throw new Error(d.error || 'Request failed')
+        // Rate-limited (429) — show specific message
+        if (d.rateLimited) {
+          throw new Error(d.error || 'Rate limit reached. Try again in a few minutes.')
+        }
+        // Other errors — show the actual server error message
+        throw new Error(d.error || `Request failed (${r.status})`)
       }
       setResult(d.result)
       toast.success('Tailored resume ready!')
     } catch (e: any) {
-      setError(e.message)
-      toast.error('Failed to optimize resume')
+      // If the fetch itself failed (network error, timeout, CORS) — show specific message
+      const msg = e.message || 'Unknown error'
+      if (msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('timeout')) {
+        setError('Network error. The AI is taking too long to respond. Please try again, or paste a shorter resume.')
+        toast.error('Network error — please try again with a shorter resume')
+      } else {
+        setError(msg)
+        toast.error(msg)
+      }
     } finally {
       setLoading(false)
     }
