@@ -34,14 +34,14 @@ export function ResumeUpload({ onTextExtracted, currentText, label = 'Upload res
         body: formData,
       })
 
-      // Defensive JSON parsing — if server returns HTML (e.g. 404), show a friendly error
-      // instead of "Unexpected token '<' is not valid JSON"
+      // Defensive JSON parsing — if server returns HTML (shouldn't happen now),
+      // show a friendly error instead of "Unexpected token '<' is not valid JSON"
       let d: any
       try {
         d = await r.json()
       } catch (jsonErr) {
         throw new Error(
-          'File upload is temporarily unavailable. Please paste your resume manually in the text box below.'
+          'Upload failed. Please try again, or paste your resume manually in the text box below.'
         )
       }
 
@@ -52,7 +52,7 @@ export function ResumeUpload({ onTextExtracted, currentText, label = 'Upload res
       toast.success(`Extracted ${d.charCount} chars from ${d.fileName}${d.truncated ? ' (truncated to 15k)' : ''}`)
     } catch (e: any) {
       setError(e.message)
-      toast.error('File upload failed — you can paste your resume manually below.')
+      toast.error(e.message || 'Upload failed — you can paste your resume manually below.')
     } finally {
       setLoading(false)
     }
