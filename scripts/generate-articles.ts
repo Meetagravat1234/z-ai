@@ -4,9 +4,9 @@
  * Generates career-advice articles targeting Indian job-seeker keywords.
  * Uses z-ai (with OpenRouter fallback) to generate SEO-friendly content.
  *
- * Usage:
- *   npx tsx scripts/generate-articles.ts            # dry-run, shows topics
- *   npx tsx scripts/generate-articles.ts --apply    # actually generate + save
+ * Usage (run from project root):
+ *   DATABASE_URL="..." npx tsx scripts/generate-articles.ts            # dry-run
+ *   DATABASE_URL="..." npx tsx scripts/generate-articles.ts --apply    # generate + save
  *
  * Each article:
  *   - 800-1500 words, Markdown format
@@ -16,6 +16,7 @@
  */
 
 import { PrismaClient } from '@prisma/client'
+import ZAI from 'z-ai-web-dev-sdk'
 
 const prisma = new PrismaClient()
 
@@ -165,7 +166,9 @@ const ARTICLE_TOPICS = [
 ]
 
 async function generateArticle(topic: typeof ARTICLE_TOPICS[0]): Promise<string> {
-  const { chatComplete } = await import('../../src/lib/multi-ai')
+  // Use z-ai directly (the primary AI provider). If it's rate-limited, the
+  // user can wait a few minutes and re-run.
+  const zai = await ZAI.create()
 
   const prompt = `You are an expert career advisor and content writer for Indian job seekers. Write a comprehensive, SEO-optimized article.
 
@@ -193,12 +196,18 @@ OUTPUT FORMAT:
 
 Write the article now:`
 
-  const content = await chatComplete([
-    { role: 'system', content: 'You are an expert SEO content writer specializing in Indian career advice. You write engaging, well-structured articles that rank well on Google and genuinely help job seekers.' },
-    { role: 'user', content: prompt },
-  ])
+  const response = await zai.chat.completions.create({
+    messages: [
+      {
+        role: 'system',
+        content: 'You are an expert SEO content writer specializing in Indian career advice. You write engaging, well-structured articles that rank well on Google and genuinely help job seekers.',
+      },
+      { role: 'user', content: prompt },
+    ],
+    thinking: { type: 'disabled' },
+  })
 
-  return content || ''
+  return response.choices[0]?.message?.content || ''
 }
 
 function estimateReadMinutes(content: string): number {
