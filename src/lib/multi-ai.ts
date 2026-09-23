@@ -31,10 +31,20 @@ let geminiRateLimitedUntil: number = 0
 
 const RATE_LIMIT_COOLDOWN = 45 * 1000 // 45 seconds — gives z-ai enough time to reset
 
-// Per-provider timeout — ensures total time stays under Vercel's 60s limit.
-// If all 4 providers are tried sequentially with 15s each, total = 60s max.
-// Most calls complete in 3-8s, so 15s is generous.
-const PROVIDER_TIMEOUT_MS = 15_000
+// Per-provider timeout — ensures total time stays under Vercel's 50s limit.
+//
+// IMPORTANT: z-ai is the PRIMARY provider and needs MORE time because:
+//   - Long resumes (5-15K chars) take 10-15s to process
+//   - z-ai has no streaming, must wait for full response
+//   - Killing z-ai mid-processing = guaranteed failure
+//
+// Fallback providers get LESS time because:
+//   - They're only used when z-ai is rate-limited (rare)
+//   - We want to fail fast and let the user retry
+//
+// Total worst case: 30 (z-ai) + 8 (OpenRouter) + 6 (Groq) + 6 (Gemini) = 50s
+const ZAI_TIMEOUT_MS = 30_000           // z-ai: 30s (primary, needs room for long resumes)
+const FALLBACK_TIMEOUT_MS = 8_000      // OpenRouter/Groq/Gemini: 8s each (fail fast)
 
 /**
  * Wrap a promise with a timeout. If the promise doesn't resolve within
@@ -86,13 +96,13 @@ export async function chatComplete(
     try {
       const zai = await getZai()
       if (zai) {
-        // Wrap z-ai call in a 15s timeout to prevent 504 on Vercel
+        // Wrap z-ai call in a 30s timeout — long resumes need 10-15s, give it room
         const completion: any = await withTimeout(
           zai.chat.completions.create({
             messages: messages as any,
             thinking: options?.thinking || { type: 'disabled' },
           }),
-          PROVIDER_TIMEOUT_MS,
+          ZAI_TIMEOUT_MS,
           'z-ai',
         )
         const content = completion.choices[0]?.message?.content || ''
@@ -115,7 +125,7 @@ export async function chatComplete(
     try {
       const result = await withTimeout(
         openRouterChatComplete(messages),
-        PROVIDER_TIMEOUT_MS,
+        FALLBACK_TIMEOUT_MS,
         'OpenRouter',
       )
       if (result) return result
@@ -136,7 +146,7 @@ export async function chatComplete(
     try {
       const result = await withTimeout(
         groqChatComplete(messages),
-        PROVIDER_TIMEOUT_MS,
+        FALLBACK_TIMEOUT_MS,
         'Groq',
       )
       if (result) return result
@@ -157,7 +167,7 @@ export async function chatComplete(
     try {
       const result = await withTimeout(
         geminiChatComplete(messages),
-        PROVIDER_TIMEOUT_MS,
+        FALLBACK_TIMEOUT_MS,
         'Gemini',
       )
       if (result) return result
