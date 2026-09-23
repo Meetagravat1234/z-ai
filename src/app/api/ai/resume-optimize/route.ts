@@ -4,15 +4,29 @@ import { getCurrentUser } from '@/lib/auth-server'
 import { canUseAIToolWithAdGate as canUseAITool, incrementUsage } from '@/lib/subscription'
 import { applyRateLimit } from '@/lib/apply-rate-limit'
 import { recordAiUse } from '@/lib/rate-limit'
+import { isValidTemplate, getTemplate } from '@/lib/resume-templates'
 
 // POST /api/ai/resume-optimize
-// Body: { resume: string, jobDescription: string }
-// Returns tailored, ATS-friendly resume
+// Body: { resume: string, jobDescription: string, template?: string }
+// Returns tailored, ATS-friendly resume formatted in the selected template's style.
+//
+// The `template` parameter is optional. When provided:
+//   - Must be a valid template slug (validated against RESUME_TEMPLATES)
+//   - AI prompt is modified with template-specific formatting instructions
+//   - Response includes the template slug so the frontend knows which renderer to use
+//
+// When NOT provided, falls back to the original behavior (no template styling).
 export async function POST(req: NextRequest) {
   try {
-    const { resume, jobDescription } = await req.json()
+    const body = await req.json()
+    const { resume, jobDescription, template: templateSlug } = body
     if (!resume || !jobDescription) {
       return NextResponse.json({ error: 'Both resume and jobDescription are required' }, { status: 400 })
+    }
+
+    // Validate template slug if provided
+    if (templateSlug && !isValidTemplate(templateSlug)) {
+      return NextResponse.json({ error: 'Invalid template' }, { status: 400 })
     }
 
     // Paywall: check user is authenticated + has remaining usage (or valid ad token)
@@ -32,15 +46,27 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    // Template feature is Pro-only — if template is selected and user is not Pro, block
+    if (templateSlug && !usage.isPro) {
+      return NextResponse.json(
+        {
+          error: 'Resume templates are a Pro feature. Upgrade to Pro to use templates.',
+          requiresUpgrade: true,
+          requiresPro: true,
+        },
+        { status: 403 },
+      )
+    }
+
     // Rate limit: 10/hour free, 30/hour pro
     const rateLimitResponse = applyRateLimit(user, 'resumeOptimizations')
     if (rateLimitResponse) return rateLimitResponse
 
-    const raw = await chatComplete(
-      [
-        {
-          role: 'system',
-          content: `You are an expert ATS resume optimizer and professional resume writer. Given a candidate's current resume and a target job description, produce a tailored, ATS-friendly resume that:
+    // Build the system prompt — base prompt + template-specific modifier
+    const template = templateSlug ? getTemplate(templateSlug) : null
+    const templateModifier = template?.aiPromptModifier || ''
+
+    const systemPrompt = `You are an expert ATS resume optimizer and professional resume writer. Given a candidate's current resume and a target job description, produce a tailored, ATS-friendly resume that:
 
 FORMATTING RULES (CRITICAL):
 1. Start with the person's name as a # H1 heading (first line of output)
@@ -69,13 +95,21 @@ OUTPUT RULES:
 15. The resume should be ready to print/download as-is — no extra commentary
 16. Keep it to 1-2 pages max — be concise, not verbose
 17. Use bullet points (not paragraphs) for experience entries
-18. Each bullet should be 1-2 lines max — no walls of text`,
-        },
-        {
-          role: 'user',
-          content: `MY CURRENT RESUME:\n${resume}\n\n---\n\nTARGET JOB DESCRIPTION:\n${jobDescription}\n\n---\n\nPlease produce the tailored ATS-optimized resume in Markdown. Output ONLY the resume — no tailoring notes, no explanations, no metadata.`,
-        },
-      ])
+18. Each bullet should be 1-2 lines max — no walls of text${template ? `
+
+TEMPLATE-SPECIFIC FORMATTING (selected template: ${template.name}):
+${templateModifier}` : ''}`
+
+    const raw = await chatComplete([
+      {
+        role: 'system',
+        content: systemPrompt,
+      },
+      {
+        role: 'user',
+        content: `MY CURRENT RESUME:\n${resume}\n\n---\n\nTARGET JOB DESCRIPTION:\n${jobDescription}\n\n---\n\nPlease produce the tailored ATS-optimized resume in Markdown. Output ONLY the resume — no tailoring notes, no explanations, no metadata.`,
+      },
+    ])
 
     let content = raw || ''
 
@@ -106,6 +140,8 @@ OUTPUT RULES:
 
     return NextResponse.json({
       result: content,
+      template: templateSlug || null,
+      templateName: template?.name || null,
       usage: {
         used: usage.used + 1,
         limit: usage.limit,

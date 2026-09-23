@@ -6,11 +6,20 @@ import { toast } from 'sonner'
 import { ResumeUpload } from '@/components/resume-upload'
 import { DownloadButtons } from '@/components/download-buttons'
 import { ProUpsellModal } from '@/components/pro-upsell-modal'
+import { ResumeTemplatePicker } from '@/components/resume-template-picker'
+import { ResumeRenderer } from '@/components/resume-renderer'
+import { useAuth } from '@/lib/auth-context'
+import type { ResumeTemplate } from '@/lib/resume-templates'
 
 export function AIResumeOptimizer() {
+  const { user } = useAuth()
+  const isPro = user?.subscriptionTier === 'pro' || user?.subscriptionTier === 'recruiter' || user?.role === 'admin'
+
   const [resume, setResume] = React.useState('')
   const [jd, setJd] = React.useState('')
   const [result, setResult] = React.useState('')
+  const [resultTemplate, setResultTemplate] = React.useState<string | null>(null)
+  const [selectedTemplate, setSelectedTemplate] = React.useState<string | null>(null)
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState('')
   const [copied, setCopied] = React.useState(false)
@@ -18,7 +27,6 @@ export function AIResumeOptimizer() {
 
   // Direct API call — no hook, no Promise indirection.
   // If the API returns requiresAd or requiresUpgrade, we show the ProUpsell modal.
-  // When the user upgrades + signs in, they retry.
   async function optimize() {
     if (!resume.trim() || !jd.trim()) {
       setError('Both your resume and the target job description are required.')
@@ -27,11 +35,16 @@ export function AIResumeOptimizer() {
     setError('')
     setLoading(true)
     setResult('')
+    setResultTemplate(null)
     try {
       const r = await fetch('/api/ai/resume-optimize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ resume, jobDescription: jd }),
+        body: JSON.stringify({
+          resume,
+          jobDescription: jd,
+          template: selectedTemplate, // null if no template selected
+        }),
       })
       const d = await r.json().catch(() => ({}))
       if (!r.ok) {
@@ -49,9 +62,9 @@ export function AIResumeOptimizer() {
         throw new Error(d.error || `Request failed (${r.status})`)
       }
       setResult(d.result)
+      setResultTemplate(d.template || null)
       toast.success('Tailored resume ready!')
     } catch (e: any) {
-      // If the fetch itself failed (network error, timeout, CORS) — show specific message
       const msg = e.message || 'Unknown error'
       if (msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('timeout')) {
         setError('Network error. The AI is taking too long to respond. Please try again, or paste a shorter resume.')
@@ -65,10 +78,14 @@ export function AIResumeOptimizer() {
     }
   }
 
-  // Called when the user closes the upsell modal
   function handleAdGateClose() {
     setShowAdGate(false)
     setLoading(false)
+  }
+
+  // When a non-Pro user clicks a locked template, show the upsell modal
+  function handleLockedTemplateClick(_template: ResumeTemplate) {
+    setShowAdGate(true)
   }
 
   async function copyResult() {
@@ -94,6 +111,14 @@ export function AIResumeOptimizer() {
           Paste your current resume and the job description you want to target. Hirebase will produce an ATS-friendly, keyword-aligned version that highlights your most relevant experience.
         </p>
       </header>
+
+      {/* Template picker — 10 Pro templates */}
+      <ResumeTemplatePicker
+        selected={selectedTemplate}
+        onSelect={setSelectedTemplate}
+        isPro={isPro}
+        onLockedClick={handleLockedTemplateClick}
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <div className="space-y-4">
@@ -135,7 +160,14 @@ export function AIResumeOptimizer() {
 
         <div className="rounded-2xl border border-border bg-card p-5 min-h-[400px]">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold">Optimized Resume</h3>
+            <h3 className="font-bold">
+              Optimized Resume
+              {resultTemplate && (
+                <span className="ml-2 text-xs font-normal text-muted-foreground">
+                  ({resultTemplate})
+                </span>
+              )}
+            </h3>
             {result && (
               <button
                 onClick={copyResult}
@@ -153,8 +185,9 @@ export function AIResumeOptimizer() {
             </div>
           ) : result ? (
             <>
-              <div className="prose prose-sm dark:prose-invert max-w-none">
-                <MarkdownView text={result} />
+              {/* Use the new ResumeRenderer with the template slug */}
+              <div className="bg-white rounded-lg p-4 border border-border">
+                <ResumeRenderer content={result} templateSlug={resultTemplate} />
               </div>
               <div className="mt-4 pt-4 border-t border-border">
                 <p className="text-[10px] text-muted-foreground mb-2 uppercase tracking-wide font-semibold">
@@ -172,31 +205,14 @@ export function AIResumeOptimizer() {
         </div>
       </div>
 
-      {/* Ad Gate Modal — shown when free quota is used up */}
+      {/* Pro Upsell Modal — shown when free user tries to use a template OR exhausts quota */}
       <ProUpsellModal
         open={showAdGate}
-        toolLabel="AI Resume Optimizer"
+        toolLabel="AI Resume Optimizer + Templates"
         used={1}
         limit={1}
         onClose={handleAdGateClose}
       />
-    </div>
-  )
-}
-
-// Simple markdown renderer
-function MarkdownView({ text }: { text: string }) {
-  const lines = text.split('\n')
-  return (
-    <div className="text-sm">
-      {lines.map((line, i) => {
-        if (line.startsWith('### ')) return <h3 key={i} className="font-bold text-base mt-3">{line.slice(4)}</h3>
-        if (line.startsWith('## ')) return <h2 key={i} className="font-bold text-lg mt-4 mb-1">{line.slice(3)}</h2>
-        if (line.startsWith('# ')) return <h1 key={i} className="font-extrabold text-xl mt-4 mb-2">{line.slice(2)}</h1>
-        if (line.startsWith('- ') || line.startsWith('* ')) return <p key={i} className="ml-4 mb-1">• {line.slice(2)}</p>
-        if (line.trim() === '') return <div key={i} className="h-2" />
-        return <p key={i} className="mb-2 leading-relaxed">{line}</p>
-      })}
     </div>
   )
 }
