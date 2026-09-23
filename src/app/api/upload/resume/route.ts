@@ -172,15 +172,16 @@ async function extractFromPdf(file: File): Promise<string> {
   const result = await extractText(buffer, { mergePages: true })
   let text = result.text || ''
 
-  // Detect "R e s u l t s" pattern — at least 4 consecutive single-letter + space pairs.
-  // Normal English rarely has "I am" (2 letters), occasionally "a b c" (3 letters),
-  // but never 4+ in a row. 4 is the sweet spot.
-  // Originally tried 8 but that missed shorter acronyms like "U A R T" and "I ² C".
-  const brokenPattern = /[a-zA-Z](?: [a-zA-Z]){3,}/
+  // Detect "R e s u l t s" pattern — at least 3 consecutive single-character + space pairs.
+  // Normal English rarely has "I am" (2 chars), occasionally "a b c" (3 chars),
+  // but never 4+ in a row. 3 is the safe threshold.
+  // Include digits in the pattern because PDFs often break "LPC2129" into "L P C 2 1 2 9"
+  // and "ARM7" into "A R M 7".
+  const brokenPattern = /[a-zA-Z0-9](?: [a-zA-Z0-9]){3,}/
   if (brokenPattern.test(text)) {
-    // Find all runs of single-letter + space + single-letter and collapse them.
-    text = text.replace(/[a-zA-Z](?: [a-zA-Z])+/g, (match) => {
-      // Only collapse if the run is at least 4 letters (3 spaces + 4 chars = 7 chars min)
+    // Find all runs of single-char + space + single-char and collapse them.
+    text = text.replace(/[a-zA-Z0-9](?: [a-zA-Z0-9])+/g, (match) => {
+      // Only collapse if the run is at least 4 chars (3 spaces + 4 chars = 7 chars min).
       // This protects "I am" (3 chars) and "a b c" (5 chars) from being joined.
       if (match.length >= 7) {
         return match.replace(/ /g, '')
