@@ -40,7 +40,18 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const formData = await req.formData()
+    // Parse FormData — throws if body is not multipart/form-data.
+    // Wrap in try/catch so we return a friendly 400 instead of 500.
+    let formData: FormData
+    try {
+      formData = await req.formData()
+    } catch {
+      return NextResponse.json(
+        { error: 'No file uploaded. Please select a PDF, DOCX, or TXT file and try again.' },
+        { status: 400 },
+      )
+    }
+
     const file = formData.get('file') as File | null
 
     if (!file) {
@@ -64,6 +75,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: `Unsupported file type ".${ext}". Please upload a PDF, DOCX, or TXT file.` },
         { status: 400 },
+      )
+    }
+
+    // Reject empty files early (0 bytes — e.g. user selected file then emptied it)
+    if (file.size === 0) {
+      return NextResponse.json(
+        { error: 'The file is empty. Please select a valid resume file.' },
+        { status: 422 },
       )
     }
 
