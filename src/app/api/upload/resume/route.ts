@@ -172,19 +172,17 @@ async function extractFromPdf(file: File): Promise<string> {
   const result = await extractText(buffer, { mergePages: true })
   let text = result.text || ''
 
-  // Detect "R e s u l t s" pattern — at least 8 consecutive single-letter + space pairs
-  // Normal text never has "a b c d e f g h" — only broken PDF extraction does.
-  // Use lookahead to find runs of 8+ single letters separated by single spaces.
-  const brokenPattern = /[a-zA-Z](?: [a-zA-Z]){7,}/
+  // Detect "R e s u l t s" pattern — at least 4 consecutive single-letter + space pairs.
+  // Normal English rarely has "I am" (2 letters), occasionally "a b c" (3 letters),
+  // but never 4+ in a row. 4 is the sweet spot.
+  // Originally tried 8 but that missed shorter acronyms like "U A R T" and "I ² C".
+  const brokenPattern = /[a-zA-Z](?: [a-zA-Z]){3,}/
   if (brokenPattern.test(text)) {
     // Find all runs of single-letter + space + single-letter and collapse them.
-    // We do this by repeatedly replacing "X Y" → "XY" but ONLY when both X and Y
-    // are part of a longer broken run.
-    //
-    // Strategy: find each broken run with a regex, then collapse it.
     text = text.replace(/[a-zA-Z](?: [a-zA-Z])+/g, (match) => {
-      // Only collapse if the run is at least 8 letters (avoids joining "I am" etc.)
-      if (match.length >= 15) {
+      // Only collapse if the run is at least 4 letters (3 spaces + 4 chars = 7 chars min)
+      // This protects "I am" (3 chars) and "a b c" (5 chars) from being joined.
+      if (match.length >= 7) {
         return match.replace(/ /g, '')
       }
       return match
