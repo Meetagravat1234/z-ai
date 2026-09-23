@@ -160,12 +160,38 @@ export async function POST(req: NextRequest) {
 /**
  * Extract text from a PDF file using unpdf.
  * unpdf is a serverless-friendly PDF parser (no system deps).
+ *
+ * KNOWN ISSUE: Some PDFs (especially Google Docs / Word exports) store text
+ * with explicit per-character positioning, causing unpdf to return text
+ * like "R e s u l t s" instead of "Results". We detect this pattern and
+ * collapse the extra spaces.
  */
 async function extractFromPdf(file: File): Promise<string> {
   const { extractText } = await import('unpdf')
   const buffer = await file.arrayBuffer()
   const result = await extractText(buffer, { mergePages: true })
-  return result.text || ''
+  let text = result.text || ''
+
+  // Detect "R e s u l t s" pattern — at least 8 consecutive single-letter + space pairs
+  // Normal text never has "a b c d e f g h" — only broken PDF extraction does.
+  // Use lookahead to find runs of 8+ single letters separated by single spaces.
+  const brokenPattern = /[a-zA-Z](?: [a-zA-Z]){7,}/
+  if (brokenPattern.test(text)) {
+    // Find all runs of single-letter + space + single-letter and collapse them.
+    // We do this by repeatedly replacing "X Y" → "XY" but ONLY when both X and Y
+    // are part of a longer broken run.
+    //
+    // Strategy: find each broken run with a regex, then collapse it.
+    text = text.replace(/[a-zA-Z](?: [a-zA-Z])+/g, (match) => {
+      // Only collapse if the run is at least 8 letters (avoids joining "I am" etc.)
+      if (match.length >= 15) {
+        return match.replace(/ /g, '')
+      }
+      return match
+    })
+  }
+
+  return text
 }
 
 /**
