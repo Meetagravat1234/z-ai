@@ -27,7 +27,7 @@ export function ATSScoreView() {
   const [result, setResult] = React.useState<ATSResult | null>(null)
   const [showAdGate, setShowAdGate] = React.useState(false)
 
-  async function check(adToken?: string) {
+  async function check() {
     if (!resume.trim() || !jd.trim()) {
       setError('Both your resume and the target job description are required.')
       return
@@ -36,17 +36,14 @@ export function ATSScoreView() {
     setLoading(true)
     setResult(null)
     try {
-      const url = adToken
-        ? `/api/ai/ats-score?adToken=${encodeURIComponent(adToken)}`
-        : '/api/ai/ats-score'
-      const r = await fetch(url, {
+      const r = await fetch('/api/ai/ats-score', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ resume, jobDescription: jd }),
       })
       const d = await r.json().catch(() => ({}))
       if (!r.ok) {
-        if (d.requiresAd && !adToken) { setShowAdGate(true); setLoading(false); return }
+        if (d.requiresUpgrade || d.requiresAd) { setShowAdGate(true); setLoading(false); return }
         throw new Error(d.error || 'Failed')
       }
       setResult(d.result)
@@ -59,7 +56,6 @@ export function ATSScoreView() {
     }
   }
 
-  async function handleAdWatched(token: string) { setShowAdGate(false) }
   function handleAdGateClose() { setShowAdGate(false); setLoading(false) }
 
   function getScoreColor(score: number): string {

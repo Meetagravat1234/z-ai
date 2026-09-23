@@ -34,7 +34,7 @@ export function SkillGapView() {
   const [result, setResult] = React.useState<GapResult | null>(null)
   const [showAdGate, setShowAdGate] = React.useState(false)
 
-  async function analyze(adToken?: string) {
+  async function analyze() {
     if (!skills.trim() || !targetRole.trim()) {
       setError('Both your current skills and target role are required.')
       return
@@ -43,10 +43,7 @@ export function SkillGapView() {
     setLoading(true)
     setResult(null)
     try {
-      const url = adToken
-        ? `/api/ai/skill-gap?adToken=${encodeURIComponent(adToken)}`
-        : '/api/ai/skill-gap'
-      const r = await fetch(url, {
+      const r = await fetch('/api/ai/skill-gap', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -57,7 +54,7 @@ export function SkillGapView() {
       })
       const d = await r.json().catch(() => ({}))
       if (!r.ok) {
-        if (d.requiresAd && !adToken) { setShowAdGate(true); setLoading(false); return }
+        if (d.requiresUpgrade || d.requiresAd) { setShowAdGate(true); setLoading(false); return }
         throw new Error(d.error || 'Failed')
       }
       setResult(d.result)
@@ -70,7 +67,6 @@ export function SkillGapView() {
     }
   }
 
-  async function handleAdWatched(token: string) { setShowAdGate(false) }
   function handleAdGateClose() { setShowAdGate(false); setLoading(false) }
 
   return (

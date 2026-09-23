@@ -27,11 +27,8 @@ export function AIMockInterview() {
     }
   }, [messages])
 
-  async function callAPI(msgs: Msg[], adToken?: string) {
-    const url = adToken
-      ? `/api/ai/mock-interview?adToken=${encodeURIComponent(adToken)}`
-      : '/api/ai/mock-interview'
-    const r = await fetch(url, {
+  async function callAPI(msgs: Msg[]) {
+    const r = await fetch('/api/ai/mock-interview', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -42,7 +39,7 @@ export function AIMockInterview() {
     })
     const d = await r.json().catch(() => ({}))
     if (!r.ok) {
-      if (d.requiresAd && !adToken) {
+      if (d.requiresUpgrade || d.requiresAd) {
         setShowAdGate(true)
         setLoading(false)
         return null
@@ -52,14 +49,14 @@ export function AIMockInterview() {
     return d.result
   }
 
-  async function start(adToken?: string) {
+  async function start() {
     setError('')
     setLoading(true)
     setStarted(true)
     const initMsgs: Msg[] = [{ role: 'user', content: 'Hi, I am ready to begin.' }]
     setMessages(initMsgs)
     try {
-      const result = await callAPI(initMsgs, adToken)
+      const result = await callAPI(initMsgs)
       if (result) {
         setMessages((m) => [...m, { role: 'assistant', content: result }])
       }
@@ -90,7 +87,7 @@ export function AIMockInterview() {
     }
   }
 
-  async function handleAdWatched(token: string) { setShowAdGate(false) }
+  async function handleAdWatched() { setShowAdGate(false) }
 
   function handleAdGateClose() {
     setShowAdGate(false)

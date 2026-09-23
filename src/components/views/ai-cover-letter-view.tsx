@@ -18,7 +18,7 @@ export function AICoverLetter() {
   const [copied, setCopied] = React.useState(false)
   const [showAdGate, setShowAdGate] = React.useState(false)
 
-  async function generate(adToken?: string) {
+  async function generate() {
     if (!resume.trim() || !jd.trim()) {
       setError('Resume and job description are both required.')
       return
@@ -27,17 +27,14 @@ export function AICoverLetter() {
     setLoading(true)
     setResult('')
     try {
-      const url = adToken
-        ? `/api/ai/cover-letter?adToken=${encodeURIComponent(adToken)}`
-        : '/api/ai/cover-letter'
-      const r = await fetch(url, {
+      const r = await fetch('/api/ai/cover-letter', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ resume, jobDescription: jd, companyName: company, role }),
       })
       const d = await r.json().catch(() => ({}))
       if (!r.ok) {
-        if (d.requiresAd && !adToken) {
+        if (d.requiresUpgrade || d.requiresAd) {
           setShowAdGate(true)
           setLoading(false)
           return
@@ -53,8 +50,6 @@ export function AICoverLetter() {
       setLoading(false)
     }
   }
-
-  async function handleAdWatched(token: string) { setShowAdGate(false) }
 
   function handleAdGateClose() {
     setShowAdGate(false)

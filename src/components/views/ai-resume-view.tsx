@@ -17,9 +17,9 @@ export function AIResumeOptimizer() {
   const [showAdGate, setShowAdGate] = React.useState(false)
 
   // Direct API call — no hook, no Promise indirection.
-  // If the API returns requiresAd, we show the AdGate modal.
-  // When the ad is watched, we retry with the token.
-  async function optimize(adToken?: string) {
+  // If the API returns requiresAd or requiresUpgrade, we show the ProUpsell modal.
+  // When the user upgrades + signs in, they retry.
+  async function optimize() {
     if (!resume.trim() || !jd.trim()) {
       setError('Both your resume and the target job description are required.')
       return
@@ -28,18 +28,16 @@ export function AIResumeOptimizer() {
     setLoading(true)
     setResult('')
     try {
-      const url = adToken
-        ? `/api/ai/resume-optimize?adToken=${encodeURIComponent(adToken)}`
-        : '/api/ai/resume-optimize'
-      const r = await fetch(url, {
+      const r = await fetch('/api/ai/resume-optimize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ resume, jobDescription: jd }),
       })
       const d = await r.json().catch(() => ({}))
       if (!r.ok) {
-        // If the API says "watch an ad", show the modal — don't throw
-        if (d.requiresAd && !adToken) {
+        // If user must sign in OR has exhausted quota → show Pro upsell modal
+        // (NOT a toast error — modal is more actionable)
+        if (d.requiresUpgrade || d.requiresAd) {
           setShowAdGate(true)
           setLoading(false)
           return
@@ -56,10 +54,7 @@ export function AIResumeOptimizer() {
     }
   }
 
-  // Called when the user finishes watching the ad
-  async function handleAdWatched(token: string) { setShowAdGate(false) }
-
-  // Called when the user closes the ad gate without watching
+  // Called when the user closes the upsell modal
   function handleAdGateClose() {
     setShowAdGate(false)
     setLoading(false)

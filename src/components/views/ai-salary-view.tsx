@@ -28,7 +28,7 @@ export function AISalaryPredictor() {
   const [result, setResult] = React.useState<SalaryResult | null>(null)
   const [showAdGate, setShowAdGate] = React.useState(false)
 
-  async function predict(adToken?: string) {
+  async function predict() {
     if (!role.trim()) {
       setError('Please enter a role.')
       return
@@ -37,10 +37,7 @@ export function AISalaryPredictor() {
     setLoading(true)
     setResult(null)
     try {
-      const url = adToken
-        ? `/api/ai/salary-predict?adToken=${encodeURIComponent(adToken)}`
-        : '/api/ai/salary-predict'
-      const r = await fetch(url, {
+      const r = await fetch('/api/ai/salary-predict', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -53,7 +50,7 @@ export function AISalaryPredictor() {
       })
       const d = await r.json().catch(() => ({}))
       if (!r.ok) {
-        if (d.requiresAd && !adToken) { setShowAdGate(true); setLoading(false); return }
+        if (d.requiresUpgrade || d.requiresAd) { setShowAdGate(true); setLoading(false); return }
         throw new Error(d.error || 'Failed')
       }
       setResult(d.result)
@@ -64,7 +61,6 @@ export function AISalaryPredictor() {
     }
   }
 
-  async function handleAdWatched(token: string) { setShowAdGate(false) }
   function handleAdGateClose() { setShowAdGate(false); setLoading(false) }
 
   return (
