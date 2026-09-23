@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { chatComplete } from '@/lib/multi-ai'
 import { getCurrentUser } from '@/lib/auth-server'
 import { canUseAIToolWithAdGate as canUseAITool, incrementUsage } from '@/lib/subscription'
+import { applyRateLimit } from '@/lib/apply-rate-limit'
+import { recordAiUse } from '@/lib/rate-limit'
 
 // POST /api/ai/salary-predict
 // Body: { role, company?, location?, experienceYears, skills[] }
@@ -28,6 +30,10 @@ export async function POST(req: NextRequest) {
         { status: 403 },
       )
     }
+
+    // Rate limit: 10/hour free, 30/hour pro
+    const rateLimitResponse = applyRateLimit(user, 'salaryPredictions')
+    if (rateLimitResponse) return rateLimitResponse
 
     const raw = await chatComplete(
       [
@@ -72,6 +78,7 @@ Predict the salary.`,
     // Skip incrementing usage if ad-watched
     if (!usage.adWatched && user?.id) {
       await incrementUsage('salaryPredictions', user.id)
+      recordAiUse(user?.id || 'anonymous', 'salaryPredictions')
     }
 
     return NextResponse.json({

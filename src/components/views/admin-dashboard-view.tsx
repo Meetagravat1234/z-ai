@@ -11,7 +11,7 @@ import { useNav } from '@/lib/nav-store'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
-type Tab = 'fetch' | 'bulk' | 'add' | 'jobs' | 'companies' | 'analytics'
+type Tab = 'fetch' | 'bulk' | 'add' | 'jobs' | 'companies' | 'analytics' | 'users'
 
 export function AdminDashboardView() {
   const { user, loading: userLoading } = useAuth()
@@ -79,6 +79,7 @@ export function AdminDashboardView() {
           { id: 'add', label: 'Add Manually', icon: Plus },
           { id: 'jobs', label: 'Manage Jobs', icon: FileText },
           { id: 'companies', label: 'Companies', icon: Building2 },
+          { id: 'users', label: 'Users', icon: Users },
           { id: 'analytics', label: 'Analytics', icon: BarChart3 },
         ] as const).map((t) => {
           const Icon = t.icon
@@ -107,6 +108,7 @@ export function AdminDashboardView() {
       {tab === 'add' && <AddManuallyTab />}
       {tab === 'jobs' && <ManageJobsTab />}
       {tab === 'companies' && <ManageCompaniesTab />}
+      {tab === 'users' && <ManageUsersTab />}
       {tab === 'analytics' && <AnalyticsTab />}
     </div>
   )
@@ -1260,6 +1262,382 @@ function StatBox({ icon: Icon, label, value, color }: { icon: React.ComponentTyp
       <Icon className={cn('w-4 h-4 mb-1.5', color)} />
       <div className="text-xl font-extrabold tabular-nums">{value}</div>
       <div className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">{label}</div>
+    </div>
+  )
+}
+
+
+// ============================================================================
+// MANAGE USERS TAB — admin can view all signed-up users, search/filter,
+// promote to admin, extend subscription, reset usage counters.
+// ============================================================================
+
+interface AdminUser {
+  id: string
+  email: string
+  name: string | null
+  role: string
+  avatar: string | null
+  headline: string | null
+  targetRole: string | null
+  subscriptionTier: string
+  subscriptionEndsAt: string | null
+  createdAt: string
+  updatedAt: string
+  resumeOptimizationsUsed: number
+  coverLettersUsed: number
+  mockInterviewsUsed: number
+  atsChecksUsed: number
+  skillGapAnalysesUsed: number
+  salaryPredictionsUsed: number
+  pdfDownloadsUsed: number
+  docxDownloadsUsed: number
+  usageResetAt: string | null
+  _count: {
+    savedJobs: number
+    applications: number
+    jobAlerts: number
+    payments: number
+    bulkFetchJobs: number
+  }
+}
+
+function ManageUsersTab() {
+  const [users, setUsers] = React.useState<AdminUser[]>([])
+  const [loading, setLoading] = React.useState(true)
+  const [search, setSearch] = React.useState('')
+  const [roleFilter, setRoleFilter] = React.useState('')
+  const [tierFilter, setTierFilter] = React.useState('')
+  const [page, setPage] = React.useState(1)
+  const [totalPages, setTotalPages] = React.useState(1)
+  const [total, setTotal] = React.useState(0)
+  const [expandedId, setExpandedId] = React.useState<string | null>(null)
+  const [actionLoading, setActionLoading] = React.useState<string | null>(null)
+  const searchTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  async function loadUsers() {
+    setLoading(true)
+    try {
+      const params = new URLSearchParams({ take: '50', page: String(page) })
+      if (search) params.set('q', search)
+      if (roleFilter) params.set('role', roleFilter)
+      if (tierFilter) params.set('tier', tierFilter)
+      const r = await fetch(`/api/admin/users?${params}`)
+      const d = await r.json()
+      if (r.ok) {
+        setUsers(d.users)
+        setTotal(d.pagination.total)
+        setTotalPages(d.pagination.totalPages)
+      }
+    } catch (e) {
+      console.error('Failed to load users', e)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  React.useEffect(() => {
+    if (searchTimer.current) clearTimeout(searchTimer.current)
+    searchTimer.current = setTimeout(() => {
+      setPage(1)
+      loadUsers()
+    }, 300)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, roleFilter, tierFilter, page])
+
+  async function handleAction(userId: string, action: string, value?: string) {
+    setActionLoading(userId + action)
+    try {
+      const r = await fetch('/api/admin/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, action, value }),
+      })
+      const d = await r.json()
+      if (!r.ok) {
+        toast.error(d.error || 'Action failed')
+      } else {
+        toast.success(`✓ ${action.replace('-', ' ')} done`)
+        loadUsers()
+      }
+    } catch (e: any) {
+      toast.error(e.message)
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  function totalAiUses(u: AdminUser): number {
+    return u.resumeOptimizationsUsed + u.coverLettersUsed + u.mockInterviewsUsed +
+      u.atsChecksUsed + u.skillGapAnalysesUsed + u.salaryPredictionsUsed +
+      u.pdfDownloadsUsed + u.docxDownloadsUsed
+  }
+
+  function formatDate(iso: string | null): string {
+    if (!iso) return '—'
+    const d = new Date(iso)
+    return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+  }
+
+  function daysUntil(iso: string | null): string {
+    if (!iso) return '—'
+    const diff = new Date(iso).getTime() - Date.now()
+    const days = Math.ceil(diff / 86400000)
+    if (days < 0) return 'expired'
+    if (days === 0) return 'today'
+    return `${days}d left`
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Stats summary */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="rounded-xl border border-border bg-card p-3">
+          <div className="text-xs text-muted-foreground">Total Users</div>
+          <div className="text-2xl font-bold tabular-nums">{total}</div>
+        </div>
+        <div className="rounded-xl border border-border bg-card p-3">
+          <div className="text-xs text-muted-foreground">Pro Subscribers</div>
+          <div className="text-2xl font-bold tabular-nums text-emerald-600">
+            {users.filter((u) => u.subscriptionTier === 'pro').length}
+            <span className="text-xs text-muted-foreground"> / page</span>
+          </div>
+        </div>
+        <div className="rounded-xl border border-border bg-card p-3">
+          <div className="text-xs text-muted-foreground">Admins</div>
+          <div className="text-2xl font-bold tabular-nums text-violet-600">
+            {users.filter((u) => u.role === 'admin').length}
+          </div>
+        </div>
+        <div className="rounded-xl border border-border bg-card p-3">
+          <div className="text-xs text-muted-foreground">New Today</div>
+          <div className="text-2xl font-bold tabular-nums">
+            {users.filter((u) => new Date(u.createdAt).toDateString() === new Date().toDateString()).length}
+          </div>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="rounded-2xl border border-border bg-card p-4">
+        <div className="flex flex-wrap gap-3 mb-4">
+          <div className="flex-1 min-w-[200px] relative">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by email or name..."
+              className="w-full pl-9 pr-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+            />
+          </div>
+          <select
+            value={roleFilter}
+            onChange={(e) => setRoleFilter(e.target.value)}
+            className="px-3 py-2 rounded-lg border border-border bg-background text-sm"
+          >
+            <option value="">All Roles</option>
+            <option value="candidate">Candidates</option>
+            <option value="employer">Employers</option>
+            <option value="admin">Admins</option>
+          </select>
+          <select
+            value={tierFilter}
+            onChange={(e) => setTierFilter(e.target.value)}
+            className="px-3 py-2 rounded-lg border border-border bg-background text-sm"
+          >
+            <option value="">All Tiers</option>
+            <option value="free">Free</option>
+            <option value="pro">Pro</option>
+            <option value="recruiter">Recruiter</option>
+          </select>
+        </div>
+
+        {/* Users table */}
+        <div className="overflow-x-auto -mx-4 px-4">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-xs text-muted-foreground border-b border-border">
+                <th className="pb-2 font-medium">User</th>
+                <th className="pb-2 font-medium">Role</th>
+                <th className="pb-2 font-medium">Tier</th>
+                <th className="pb-2 font-medium">Activity</th>
+                <th className="pb-2 font-medium">Joined</th>
+                <th className="pb-2 font-medium"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan={6} className="py-8 text-center text-muted-foreground">
+                    <Loader2 className="w-5 h-5 animate-spin inline-block mr-2" />
+                    Loading users...
+                  </td>
+                </tr>
+              ) : users.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-8 text-center text-muted-foreground">
+                    No users found. Try a different search or filter.
+                  </td>
+                </tr>
+              ) : (
+                users.map((u) => (
+                  <React.Fragment key={u.id}>
+                    <tr className="border-b border-border hover:bg-muted/30">
+                      <td className="py-3 pr-4">
+                        <div className="font-medium">{u.name || '(no name)'}</div>
+                        <div className="text-xs text-muted-foreground">{u.email}</div>
+                      </td>
+                      <td className="py-3 pr-4">
+                        <span className={cn(
+                          'inline-block px-2 py-0.5 rounded-full text-xs font-medium',
+                          u.role === 'admin' && 'bg-violet-500/10 text-violet-600',
+                          u.role === 'employer' && 'bg-blue-500/10 text-blue-600',
+                          u.role === 'candidate' && 'bg-muted text-muted-foreground',
+                        )}>
+                          {u.role}
+                        </span>
+                      </td>
+                      <td className="py-3 pr-4">
+                        <span className={cn(
+                          'inline-block px-2 py-0.5 rounded-full text-xs font-medium',
+                          u.subscriptionTier === 'pro' && 'bg-emerald-500/10 text-emerald-600',
+                          u.subscriptionTier === 'recruiter' && 'bg-amber-500/10 text-amber-600',
+                          u.subscriptionTier === 'free' && 'bg-muted text-muted-foreground',
+                        )}>
+                          {u.subscriptionTier}
+                          {u.subscriptionEndsAt && u.subscriptionTier !== 'free' && (
+                            <span className="ml-1 opacity-70">({daysUntil(u.subscriptionEndsAt)})</span>
+                          )}
+                        </span>
+                      </td>
+                      <td className="py-3 pr-4 text-xs">
+                        <div>Saved: {u._count.savedJobs}</div>
+                        <div className="text-muted-foreground">Apps: {u._count.applications} · AI: {totalAiUses(u)}</div>
+                      </td>
+                      <td className="py-3 pr-4 text-xs text-muted-foreground">{formatDate(u.createdAt)}</td>
+                      <td className="py-3 pr-2 text-right">
+                        <button
+                          onClick={() => setExpandedId(expandedId === u.id ? null : u.id)}
+                          className="text-xs text-primary hover:underline"
+                        >
+                          {expandedId === u.id ? 'Hide' : 'Details'}
+                        </button>
+                      </td>
+                    </tr>
+                    {expandedId === u.id && (
+                      <tr className="bg-muted/20">
+                        <td colSpan={6} className="px-6 py-4">
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs mb-4">
+                            <div>
+                              <div className="text-muted-foreground">Resume Optimizations</div>
+                              <div className="font-medium tabular-nums">{u.resumeOptimizationsUsed}/mo</div>
+                            </div>
+                            <div>
+                              <div className="text-muted-foreground">Cover Letters</div>
+                              <div className="font-medium tabular-nums">{u.coverLettersUsed}/mo</div>
+                            </div>
+                            <div>
+                              <div className="text-muted-foreground">Mock Interviews</div>
+                              <div className="font-medium tabular-nums">{u.mockInterviewsUsed}/mo</div>
+                            </div>
+                            <div>
+                              <div className="text-muted-foreground">ATS Checks</div>
+                              <div className="font-medium tabular-nums">{u.atsChecksUsed}/mo</div>
+                            </div>
+                            <div>
+                              <div className="text-muted-foreground">Skill Gaps</div>
+                              <div className="font-medium tabular-nums">{u.skillGapAnalysesUsed}/mo</div>
+                            </div>
+                            <div>
+                              <div className="text-muted-foreground">Salary Predictions</div>
+                              <div className="font-medium tabular-nums">{u.salaryPredictionsUsed}/mo</div>
+                            </div>
+                            <div>
+                              <div className="text-muted-foreground">PDF Downloads</div>
+                              <div className="font-medium tabular-nums">{u.pdfDownloadsUsed}/mo</div>
+                            </div>
+                            <div>
+                              <div className="text-muted-foreground">DOCX Downloads</div>
+                              <div className="font-medium tabular-nums">{u.docxDownloadsUsed}/mo</div>
+                            </div>
+                          </div>
+
+                          {u.targetRole && (
+                            <div className="text-xs mb-3">
+                              <span className="text-muted-foreground">Target role: </span>
+                              <span className="font-medium">{u.targetRole}</span>
+                            </div>
+                          )}
+
+                          <div className="flex flex-wrap gap-2">
+                            {u.role !== 'admin' ? (
+                              <button
+                                onClick={() => handleAction(u.id, 'promote-admin')}
+                                disabled={actionLoading === u.id + 'promote-admin'}
+                                className="px-3 py-1.5 rounded-lg bg-violet-500/10 text-violet-600 text-xs font-semibold hover:bg-violet-500/20 disabled:opacity-50"
+                              >
+                                {actionLoading === u.id + 'promote-admin' ? '...' : 'Promote to Admin'}
+                              </button>
+                            ) : (
+                              u.email !== 'admin@hirebase.in' && (
+                                <button
+                                  onClick={() => handleAction(u.id, 'demote-admin')}
+                                  disabled={actionLoading === u.id + 'demote-admin'}
+                                  className="px-3 py-1.5 rounded-lg border border-border text-xs font-semibold hover:bg-muted disabled:opacity-50"
+                                >
+                                  {actionLoading === u.id + 'demote-admin' ? '...' : 'Demote to Candidate'}
+                                </button>
+                              )
+                            )}
+                            <button
+                              onClick={() => handleAction(u.id, 'extend-subscription', '30')}
+                              disabled={actionLoading === u.id + 'extend-subscription'}
+                              className="px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 text-xs font-semibold hover:bg-emerald-500/20 disabled:opacity-50"
+                            >
+                              {actionLoading === u.id + 'extend-subscription' ? '...' : '+30 Days Pro'}
+                            </button>
+                            <button
+                              onClick={() => handleAction(u.id, 'reset-usage')}
+                              disabled={actionLoading === u.id + 'reset-usage'}
+                              className="px-3 py-1.5 rounded-lg border border-amber-500/30 text-amber-600 text-xs font-semibold hover:bg-amber-500/10 disabled:opacity-50"
+                            >
+                              {actionLoading === u.id + 'reset-usage' ? '...' : 'Reset Usage'}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between mt-4">
+            <div className="text-xs text-muted-foreground">
+              Page {page} of {totalPages} · {total} total users
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setPage(Math.max(1, page - 1))}
+                disabled={page === 1 || loading}
+                className="px-3 py-1.5 rounded-lg border border-border text-xs font-semibold disabled:opacity-50"
+              >
+                ← Prev
+              </button>
+              <button
+                onClick={() => setPage(Math.min(totalPages, page + 1))}
+                disabled={page === totalPages || loading}
+                className="px-3 py-1.5 rounded-lg border border-border text-xs font-semibold disabled:opacity-50"
+              >
+                Next →
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

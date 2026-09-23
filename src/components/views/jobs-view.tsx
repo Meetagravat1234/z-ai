@@ -1,10 +1,12 @@
 'use client'
 
 import * as React from 'react'
-import { Filter, X, Loader2, Search, SlidersHorizontal, Briefcase } from 'lucide-react'
+import { Filter, X, Loader2, Search, SlidersHorizontal, Briefcase, Bell } from 'lucide-react'
 import { JobCard, type Job } from '@/components/jobs/job-card'
 import { useNav } from '@/lib/nav-store'
+import { useAuth } from '@/lib/auth-context'
 import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
 
 interface Props {
   fixedCategory?: string
@@ -154,6 +156,12 @@ export function JobsView({ fixedCategory, fixedTitle, showFilters = true, initia
             Filters
           </button>
         )}
+        <SaveSearchButton
+          query={q}
+          category={category === 'all' ? '' : category}
+          workMode={workMode === 'All' ? '' : workMode}
+          location={q ? q : ''}
+        />
       </div>
 
       {/* Filter panel */}
@@ -282,5 +290,127 @@ function Chip({ label, onRemove }: { label: string; onRemove: () => void }) {
         <X className="w-3 h-3" />
       </button>
     </span>
+  )
+}
+
+
+// ============================================================================
+// SaveSearchButton — lets user save current search filters as a job alert.
+// If logged in, creates a JobAlert record (daily email digest of new matches).
+// If not logged in, redirects to auth.
+// ============================================================================
+interface SaveSearchButtonProps {
+  query: string
+  category?: string
+  workMode?: string
+  location?: string
+  minSalary?: number
+}
+
+function SaveSearchButton({ query, category, workMode, location }: SaveSearchButtonProps) {
+  const { user, loading } = useAuth()
+  const [open, setOpen] = React.useState(false)
+  const [email, setEmail] = React.useState('')
+  const [creating, setCreating] = React.useState(false)
+
+  React.useEffect(() => {
+    if (user?.email) setEmail(user.email)
+  }, [user])
+
+  async function saveSearch() {
+    if (!email) {
+      toast.error('Please enter your email')
+      return
+    }
+    setCreating(true)
+    try {
+      const r = await fetch('/api/alerts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: query || null,
+          category: category || null,
+          workMode: workMode || null,
+          location: location || null,
+          email,
+          frequency: 'daily',
+        }),
+      })
+      const d = await r.json()
+      if (!r.ok) throw new Error(d.error || 'Failed to save search')
+      if (d.alreadyExists) {
+        toast.info('You already have this search saved.')
+      } else if (d.reactivated) {
+        toast.success('✓ Search re-activated — you\'ll get daily emails with new matches')
+      } else {
+        toast.success('✓ Search saved! Check your email for confirmation.')
+      }
+      setOpen(false)
+    } catch (e: any) {
+      toast.error(e.message)
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  // Don't show button if no filters are active
+  const hasFilters = query || category || workMode
+  if (!hasFilters) return null
+
+  return (
+    <>
+      <button
+        onClick={() => setOpen(true)}
+        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-border bg-card hover:bg-muted font-medium text-sm transition-colors"
+        title="Get daily email when new jobs match this search"
+      >
+        <Bell className="w-4 h-4" />
+        <span className="hidden sm:inline">Save Search</span>
+      </button>
+
+      {open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setOpen(false)}>
+          <div className="rounded-2xl bg-card border border-border p-6 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-bold mb-2">Save this search</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Get a daily email when new jobs match:
+            </p>
+            <div className="flex flex-wrap gap-1.5 mb-4 text-xs">
+              {query && <span className="px-2 py-1 rounded-md bg-muted">"{query}"</span>}
+              {category && <span className="px-2 py-1 rounded-md bg-muted">{category}</span>}
+              {workMode && <span className="px-2 py-1 rounded-md bg-muted">{workMode}</span>}
+              {location && <span className="px-2 py-1 rounded-md bg-muted">{location}</span>}
+            </div>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="your.email@example.com"
+              className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-primary/40"
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={saveSearch}
+                disabled={creating || !email}
+                className="flex-1 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold disabled:opacity-50"
+              >
+                {creating ? 'Saving…' : 'Save Search'}
+              </button>
+              <button
+                onClick={() => setOpen(false)}
+                className="px-4 py-2 rounded-lg border border-border text-sm font-medium"
+              >
+                Cancel
+              </button>
+            </div>
+            {!loading && !user && (
+              <p className="text-xs text-muted-foreground mt-3 text-center">
+                Tip: <a href="/?view=auth" className="text-primary underline">sign in</a> first to manage saved searches
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+    </>
   )
 }

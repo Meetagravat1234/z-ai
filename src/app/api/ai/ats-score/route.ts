@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { chatComplete } from '@/lib/multi-ai'
 import { getCurrentUser } from '@/lib/auth-server'
 import { canUseAIToolWithAdGate as canUseAITool, incrementUsage } from '@/lib/subscription'
+import { applyRateLimit } from '@/lib/apply-rate-limit'
+import { recordAiUse } from '@/lib/rate-limit'
 
 // POST /api/ai/ats-score
 // Body: { resume: string, jobDescription: string }
@@ -29,6 +31,10 @@ export async function POST(req: NextRequest) {
         { status: 403 },
       )
     }
+
+    // Rate limit: 10/hour free, 30/hour pro — prevents script-spam even when quota is high
+    const rateLimitResponse = applyRateLimit(user, 'atsChecks')
+    if (rateLimitResponse) return rateLimitResponse
 
     const raw = await chatComplete(
       [
@@ -81,6 +87,7 @@ Rules:
     // Skip incrementing usage if ad-watched (ad-watched = free use, doesn't consume quota)
     if (!usage.adWatched && user?.id) {
       await incrementUsage('atsChecks', user.id)
+      recordAiUse(user?.id || 'anonymous', 'atsChecks')
     }
 
     return NextResponse.json({

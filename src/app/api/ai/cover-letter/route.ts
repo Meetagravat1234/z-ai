@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { chatComplete } from '@/lib/multi-ai'
 import { getCurrentUser } from '@/lib/auth-server'
 import { canUseAIToolWithAdGate as canUseAITool, incrementUsage } from '@/lib/subscription'
+import { applyRateLimit } from '@/lib/apply-rate-limit'
+import { recordAiUse } from '@/lib/rate-limit'
 
 // POST /api/ai/cover-letter
 // Body: { resume: string, jobDescription: string, companyName?: string, role?: string }
@@ -29,6 +31,10 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    // Rate limit: 10/hour free, 30/hour pro
+    const rateLimitResponse = applyRateLimit(user, 'coverLetters')
+    if (rateLimitResponse) return rateLimitResponse
+
     const raw = await chatComplete(
       [
         {
@@ -50,6 +56,7 @@ Tone: warm, confident, specific. Avoid corporate buzzwords.`,
     // Skip incrementing usage if ad-watched
     if (!usage.adWatched && user?.id) {
       await incrementUsage('coverLetters', user.id)
+      recordAiUse(user?.id || 'anonymous', 'coverLetters')
     }
 
     return NextResponse.json({

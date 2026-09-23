@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { chatComplete } from '@/lib/multi-ai'
 import { getCurrentUser } from '@/lib/auth-server'
 import { canUseAIToolWithAdGate as canUseAITool, incrementUsage } from '@/lib/subscription'
+import { applyRateLimit } from '@/lib/apply-rate-limit'
+import { recordAiUse } from '@/lib/rate-limit'
 
 // POST /api/ai/resume-optimize
 // Body: { resume: string, jobDescription: string }
@@ -29,6 +31,10 @@ export async function POST(req: NextRequest) {
         { status: 403 },
       )
     }
+
+    // Rate limit: 10/hour free, 30/hour pro
+    const rateLimitResponse = applyRateLimit(user, 'resumeOptimizations')
+    if (rateLimitResponse) return rateLimitResponse
 
     const raw = await chatComplete(
       [
@@ -95,6 +101,7 @@ OUTPUT RULES:
     // Skip if user watched an ad (ad-watched = free use, doesn't consume quota)
     if (!usage.adWatched && user?.id) {
       await incrementUsage('resumeOptimizations', user.id)
+      recordAiUse(user?.id || 'anonymous', 'resumeOptimizations')
     }
 
     return NextResponse.json({

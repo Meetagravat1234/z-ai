@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { chatComplete } from '@/lib/multi-ai'
 import { getCurrentUser } from '@/lib/auth-server'
 import { canUseAIToolWithAdGate as canUseAITool, incrementUsage } from '@/lib/subscription'
+import { applyRateLimit } from '@/lib/apply-rate-limit'
+import { recordAiUse } from '@/lib/rate-limit'
 
 // POST /api/ai/mock-interview
 // Body: { messages: [{role, content}], role?: string, company?: string }
@@ -34,6 +36,12 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Rate limit: 10/hour free, 30/hour pro (only on new sessions)
+    if (isNewSession) {
+      const rateLimitResponse = applyRateLimit(user, 'mockInterviews')
+      if (rateLimitResponse) return rateLimitResponse
+    }
+
     const systemPrompt = `You are an experienced technical interviewer${company ? ` at ${company}` : ''}${role ? ` interviewing for the role of ${role}` : ''}.
 
 Rules:
@@ -57,6 +65,7 @@ The candidate's first message will be a greeting or "ready". Begin with your int
     // Skip if ad-watched
     if (isNewSession && !usage.adWatched && user?.id) {
       await incrementUsage('mockInterviews', user.id)
+      recordAiUse(user?.id || 'anonymous', 'mockInterviews')
     }
 
     return NextResponse.json({

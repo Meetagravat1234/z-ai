@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { chatComplete } from '@/lib/multi-ai'
+import { getAdminUser } from '@/lib/admin-auth'
 
 /**
  * GET /api/debug/ai-test
@@ -8,10 +10,16 @@ import { chatComplete } from '@/lib/multi-ai'
  * chat completion call. Returns which provider succeeded (or the errors
  * from each).
  *
- * No auth required — but it only does a tiny "Say OK" test, so abuse is
- * limited. Useful for debugging "All AI providers are rate limited" errors.
+ * Auth: admin only — protects API keys from leaking through envVars dump.
+ * Public users get 401.
  */
-export async function GET() {
+export async function GET(req: NextRequest) {
+  // Admin-only — prevents public access to env var info + AI quota burn
+  const admin = await getAdminUser()
+  if (!admin) {
+    return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
+  }
+
   const results: any = {
     timestamp: new Date().toISOString(),
     envVars: {
