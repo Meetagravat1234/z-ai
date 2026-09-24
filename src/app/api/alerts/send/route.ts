@@ -95,8 +95,12 @@ export async function GET(req: Request) {
         if (alert.workMode) where.workMode = alert.workMode
         if (alert.location) {
           // Fuzzy location matching — handles common misspellings like
-          // "banglore" → matches "Bengaluru" and "Bangalore"
-          const loc = alert.location.toLowerCase().trim()
+          // "banglore" → matches "Bengaluru" and "Bangalore".
+          //
+          // ALSO splits the location by comma/slash (same fix as the query):
+          //   "Pune,Banglore,Mumbai,Hyderabad" → ["Pune", "Banglore", "Mumbai", "Hyderabad"]
+          // Without splitting, Prisma searches for the whole phrase which matches nothing.
+          const locRaw = alert.location.toLowerCase().trim()
           const locationVariations: Record<string, string[]> = {
             'banglore': ['Bengaluru', 'Bangalore', 'banglore'],
             'bangalore': ['Bengaluru', 'Bangalore', 'banglore'],
@@ -110,14 +114,27 @@ export async function GET(req: Request) {
             'delhi': ['Delhi', 'Noida', 'Gurugram', 'Gurgaon'],
             'ncr': ['Delhi', 'Noida', 'Gurugram', 'Gurgaon'],
           }
-          const variations = locationVariations[loc] || [alert.location]
-          // Location matching is ADDITIVE (AND with the keyword OR groups),
-          // so we use a separate AND clause. This way the query becomes:
-          //   (title/skills/desc contains any keyword) AND (location matches)
+
+          // Split multi-city input into individual cities
+          const cities = locRaw
+            .split(/[,/\s]+/)
+            .map((c) => c.trim())
+            .filter((c) => c.length > 2)
+            .slice(0, 10)
+
+          // Build variations for each city
+          const variations: string[] = []
+          for (const city of cities) {
+            const vars = locationVariations[city] || [city]
+            for (const v of vars) {
+              if (!variations.includes(v)) variations.push(v)
+            }
+          }
+
+          // Location matching is ADDITIVE (AND with the keyword OR groups)
           const locationClauses = variations.map((v) => ({
             location: { contains: v, mode: 'insensitive' },
           }))
-          // Combine: existing where.AND + location OR group
           where.AND = where.AND || []
           where.AND.push({ OR: locationClauses })
         }
