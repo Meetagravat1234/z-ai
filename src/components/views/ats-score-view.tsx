@@ -114,15 +114,18 @@ export function ATSScoreView() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <div className="space-y-4">
+          {/* Upload resume — ONLY upload, no paste textarea */}
           <div>
-            <label className="text-sm font-bold mb-1.5 block">Your resume</label>
+            <label className="text-sm font-bold mb-1.5 block">Upload your resume</label>
+            <p className="text-xs text-muted-foreground mb-2">
+              Upload a PDF or DOCX file — we'll extract the text automatically.
+            </p>
             <ResumeUpload onTextExtracted={(text) => setResume(text)} />
-            <textarea
-              value={resume}
-              onChange={(e) => setResume(e.target.value)}
-              placeholder="Paste your resume here, or upload a file above."
-              className="w-full min-h-[180px] p-4 rounded-xl border border-border bg-card text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/40"
-            />
+            {resume && (
+              <div className="mt-2 p-2 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-xs">
+                ✓ Resume uploaded ({resume.length} chars extracted)
+              </div>
+            )}
           </div>
           <div>
             <label className="text-sm font-bold mb-1.5 block">Target job description</label>

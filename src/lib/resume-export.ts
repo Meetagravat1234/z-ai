@@ -97,17 +97,24 @@ function buildPrintCss(template: ResumeTemplate | null): string {
   const accent = template?.accentColor || '#10b981'
   const fontFamily = template?.fontFamily || "'Calibri', 'Helvetica Neue', Arial, sans-serif"
 
+  // ALL templates use compact settings to fit on 1 page.
+  // User explicitly requested: "resume is created in 2 pages and i want that is created in 1 page"
+  const isCompact = true  // always compact — fit on 1 page
+  const baseFontSize = '9pt'
+  const baseMargin = '0.4in 0.5in'
+  const baseLineHeight = '1.3'
+
   // Base CSS — shared across all templates
   let css = `
   @page {
     size: A4;
-    margin: ${template?.layout === 'compact' ? '0.4in' : '0.6in'} 0.7in;
+    margin: ${baseMargin};
   }
   * { box-sizing: border-box; }
   body {
     font-family: ${fontFamily};
-    font-size: ${template?.layout === 'compact' ? '9.5pt' : '10.5pt'};
-    line-height: 1.45;
+    font-size: ${baseFontSize};
+    line-height: ${baseLineHeight};
     color: #1a1a1a;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
@@ -115,65 +122,65 @@ function buildPrintCss(template: ResumeTemplate | null): string {
     padding: 0;
   }`
 
-  // H1 (name) — uses accent color
+  // H1 (name) — uses accent color, compact
   css += `
   h1 {
-    font-size: ${template?.layout === 'compact' ? '18pt' : '20pt'};
+    font-size: 16pt;
     font-weight: 700;
-    margin: 0 0 6pt 0;
+    margin: 0 0 3pt 0;
     color: #0f1729;
-    border-bottom: 2pt solid ${accent};
-    padding-bottom: 5pt;
+    border-bottom: 1.5pt solid ${accent};
+    padding-bottom: 3pt;
     letter-spacing: -0.3pt;
   }`
 
-  // H2 (section headings) — template-specific style
+  // H2 (section headings) — template-specific style, compact
   if (template?.layout === 'ats-plain') {
     css += `
     h2 {
-      font-size: 12pt;
+      font-size: 10pt;
       font-weight: 700;
-      margin: 12pt 0 4pt 0;
+      margin: 8pt 0 2pt 0;
       color: #1a1a1a;
     }`
   } else if (template?.category === 'executive' || template?.category === 'academic') {
     css += `
     h2 {
-      font-size: 12pt;
+      font-size: 10pt;
       font-weight: 700;
-      margin: 14pt 0 4pt 0;
+      margin: 8pt 0 2pt 0;
       color: #1a1a1a;
-      border-bottom: 1pt solid ${accent};
-      padding-bottom: 2pt;
+      border-bottom: 0.5pt solid ${accent};
+      padding-bottom: 1pt;
     }`
   } else {
     css += `
     h2 {
-      font-size: 12pt;
+      font-size: 10pt;
       font-weight: 700;
-      margin: 14pt 0 4pt 0;
+      margin: 8pt 0 2pt 0;
       color: #1a1a1a;
       text-transform: uppercase;
-      letter-spacing: 0.8pt;
+      letter-spacing: 0.5pt;
       border-bottom: 0.5pt solid ${accent};
-      padding-bottom: 2pt;
+      padding-bottom: 1pt;
     }`
   }
 
   css += `
   h3 {
-    font-size: 11pt;
+    font-size: 9.5pt;
     font-weight: 700;
-    margin: 10pt 0 3pt 0;
+    margin: 6pt 0 2pt 0;
     color: ${accent};
   }
-  p { margin: 0 0 5pt 0; line-height: 1.5; }
-  ul, ol { margin: 0 0 5pt 0; padding-left: 16pt; }
-  li { margin-bottom: 2pt; line-height: 1.45; }
+  p { margin: 0 0 3pt 0; line-height: 1.35; }
+  ul, ol { margin: 0 0 3pt 0; padding-left: 14pt; }
+  li { margin-bottom: 1pt; line-height: 1.3; }
   li::marker { color: ${accent}; }
   strong { font-weight: 700; }
   em { font-style: italic; }
-  hr { border: none; border-top: 0.5pt solid #d1d5db; margin: 10pt 0; }
+  hr { border: none; border-top: 0.5pt solid #d1d5db; margin: 6pt 0; }
   a { color: ${accent}; text-decoration: underline; }
   h1, h2, h3, li { page-break-inside: avoid; }
   body > h1:first-child { margin-top: 0; }`
@@ -183,26 +190,26 @@ function buildPrintCss(template: ResumeTemplate | null): string {
     css += `
   .resume-container {
     display: grid;
-    grid-template-columns: 1fr 200pt;
-    gap: 16pt;
+    grid-template-columns: 1fr 160pt;
+    gap: 12pt;
   }
   .resume-main { grid-column: 1; }
   .resume-sidebar {
     grid-column: 2;
     background: #f8fafc;
-    padding: 10pt;
-    border-left: 2pt solid ${accent};
+    padding: 6pt 8pt;
+    border-left: 1.5pt solid ${accent};
   }
   .resume-sidebar h2 {
-    font-size: 10pt;
-    margin: 8pt 0 3pt 0;
+    font-size: 9pt;
+    margin: 6pt 0 2pt 0;
     border-bottom: 0.5pt solid ${accent};
     text-transform: uppercase;
   }
   .resume-sidebar h2:first-child { margin-top: 0; }
   .resume-sidebar p, .resume-sidebar li {
-    font-size: 9pt;
-    line-height: 1.35;
+    font-size: 8pt;
+    line-height: 1.25;
   }`
   }
 
