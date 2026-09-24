@@ -4,17 +4,36 @@
  * PDF: Uses browser's native print engine (window.print) via a hidden iframe.
  *      This produces REAL text-based PDFs (not images) — ATS-friendly + good looking.
  *      The user clicks "Download PDF" → print dialog opens → they save as PDF.
+ *      When a template slug is provided, applies template-specific CSS
+ *      (accent color, font family, two-column layout for sidebar templates).
  *
  * DOCX: Uses the docx npm package to generate a real .docx file client-side.
  *       Opens in MS Word / Google Docs / LibreOffice. Editable.
+ *       Note: DOCX format has limited styling support — accent color is applied
+ *       to headings, but two-column layouts aren't supported in Word.
  */
+
+import { getTemplate, type ResumeTemplate } from '@/lib/resume-templates'
 
 // ============================================================
 // Markdown → PDF (via browser print engine)
 // ============================================================
-export async function generatePdfFromMarkdown(markdown: string, fileName: string): Promise<void> {
+export async function generatePdfFromMarkdown(
+  markdown: string,
+  fileName: string,
+  templateSlug?: string | null,
+): Promise<void> {
   // Convert markdown to clean HTML
   const html = markdownToHtml(markdown)
+
+  // Get template-specific CSS (or default if no template)
+  const template = templateSlug ? getTemplate(templateSlug) : null
+  const css = buildPrintCss(template)
+
+  // For two-column templates, wrap the HTML with sidebar layout
+  const finalHtml = template?.layout === 'two-column'
+    ? wrapTwoColumnLayout(html)
+    : html
 
   // Create a hidden iframe for printing
   const iframe = document.createElement('iframe')
@@ -41,87 +60,11 @@ export async function generatePdfFromMarkdown(markdown: string, fileName: string
 <meta charset="utf-8">
 <title>${fileName.replace(/\.(pdf|docx)$/, '')}</title>
 <style>
-  @page {
-    size: A4;
-    margin: 0.6in 0.7in;
-  }
-  * {
-    box-sizing: border-box;
-  }
-  body {
-    font-family: 'Calibri', 'Helvetica Neue', Arial, sans-serif;
-    font-size: 10.5pt;
-    line-height: 1.45;
-    color: #1a1a1a;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-    margin: 0;
-    padding: 0;
-  }
-  h1 {
-    font-size: 20pt;
-    font-weight: 700;
-    margin: 0 0 6pt 0;
-    color: #0f1729;
-    border-bottom: 2pt solid #10b981;
-    padding-bottom: 5pt;
-    letter-spacing: -0.3pt;
-  }
-  h2 {
-    font-size: 12pt;
-    font-weight: 700;
-    margin: 14pt 0 4pt 0;
-    color: #1a1a1a;
-    text-transform: uppercase;
-    letter-spacing: 0.8pt;
-    border-bottom: 0.5pt solid #d1d5db;
-    padding-bottom: 2pt;
-  }
-  h3 {
-    font-size: 11pt;
-    font-weight: 700;
-    margin: 10pt 0 3pt 0;
-    color: #374151;
-  }
-  p {
-    margin: 0 0 5pt 0;
-    line-height: 1.5;
-  }
-  ul, ol {
-    margin: 0 0 5pt 0;
-    padding-left: 16pt;
-  }
-  li {
-    margin-bottom: 2pt;
-    line-height: 1.45;
-  }
-  strong {
-    font-weight: 700;
-  }
-  em {
-    font-style: italic;
-  }
-  hr {
-    border: none;
-    border-top: 0.5pt solid #d1d5db;
-    margin: 10pt 0;
-  }
-  a {
-    color: #0563C1;
-    text-decoration: underline;
-  }
-  /* Prevent page breaks inside sections */
-  h1, h2, h3, li {
-    page-break-inside: avoid;
-  }
-  /* First page — no extra top margin */
-  body > h1:first-child {
-    margin-top: 0;
-  }
+${css}
 </style>
 </head>
 <body>
-${html}
+${finalHtml}
 </body>
 </html>
   `)
@@ -139,6 +82,167 @@ ${html}
       document.body.removeChild(iframe)
     }
   }, 1000)
+}
+
+// ============================================================
+// Template-specific CSS builder
+// ============================================================
+
+/**
+ * Build print CSS for a specific resume template.
+ * Each template has its own accent color, font family, and layout style.
+ * When no template is provided, uses the default green accent (#10b981).
+ */
+function buildPrintCss(template: ResumeTemplate | null): string {
+  const accent = template?.accentColor || '#10b981'
+  const fontFamily = template?.fontFamily || "'Calibri', 'Helvetica Neue', Arial, sans-serif"
+
+  // Base CSS — shared across all templates
+  let css = `
+  @page {
+    size: A4;
+    margin: ${template?.layout === 'compact' ? '0.4in' : '0.6in'} 0.7in;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: ${fontFamily};
+    font-size: ${template?.layout === 'compact' ? '9.5pt' : '10.5pt'};
+    line-height: 1.45;
+    color: #1a1a1a;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    margin: 0;
+    padding: 0;
+  }`
+
+  // H1 (name) — uses accent color
+  css += `
+  h1 {
+    font-size: ${template?.layout === 'compact' ? '18pt' : '20pt'};
+    font-weight: 700;
+    margin: 0 0 6pt 0;
+    color: #0f1729;
+    border-bottom: 2pt solid ${accent};
+    padding-bottom: 5pt;
+    letter-spacing: -0.3pt;
+  }`
+
+  // H2 (section headings) — template-specific style
+  if (template?.layout === 'ats-plain') {
+    css += `
+    h2 {
+      font-size: 12pt;
+      font-weight: 700;
+      margin: 12pt 0 4pt 0;
+      color: #1a1a1a;
+    }`
+  } else if (template?.category === 'executive' || template?.category === 'academic') {
+    css += `
+    h2 {
+      font-size: 12pt;
+      font-weight: 700;
+      margin: 14pt 0 4pt 0;
+      color: #1a1a1a;
+      border-bottom: 1pt solid ${accent};
+      padding-bottom: 2pt;
+    }`
+  } else {
+    css += `
+    h2 {
+      font-size: 12pt;
+      font-weight: 700;
+      margin: 14pt 0 4pt 0;
+      color: #1a1a1a;
+      text-transform: uppercase;
+      letter-spacing: 0.8pt;
+      border-bottom: 0.5pt solid ${accent};
+      padding-bottom: 2pt;
+    }`
+  }
+
+  css += `
+  h3 {
+    font-size: 11pt;
+    font-weight: 700;
+    margin: 10pt 0 3pt 0;
+    color: ${accent};
+  }
+  p { margin: 0 0 5pt 0; line-height: 1.5; }
+  ul, ol { margin: 0 0 5pt 0; padding-left: 16pt; }
+  li { margin-bottom: 2pt; line-height: 1.45; }
+  li::marker { color: ${accent}; }
+  strong { font-weight: 700; }
+  em { font-style: italic; }
+  hr { border: none; border-top: 0.5pt solid #d1d5db; margin: 10pt 0; }
+  a { color: ${accent}; text-decoration: underline; }
+  h1, h2, h3, li { page-break-inside: avoid; }
+  body > h1:first-child { margin-top: 0; }`
+
+  // Two-column layout CSS
+  if (template?.layout === 'two-column') {
+    css += `
+  .resume-container {
+    display: grid;
+    grid-template-columns: 1fr 200pt;
+    gap: 16pt;
+  }
+  .resume-main { grid-column: 1; }
+  .resume-sidebar {
+    grid-column: 2;
+    background: #f8fafc;
+    padding: 10pt;
+    border-left: 2pt solid ${accent};
+  }
+  .resume-sidebar h2 {
+    font-size: 10pt;
+    margin: 8pt 0 3pt 0;
+    border-bottom: 0.5pt solid ${accent};
+    text-transform: uppercase;
+  }
+  .resume-sidebar h2:first-child { margin-top: 0; }
+  .resume-sidebar p, .resume-sidebar li {
+    font-size: 9pt;
+    line-height: 1.35;
+  }`
+  }
+
+  return css
+}
+
+/**
+ * Wrap HTML content in a two-column layout for sidebar templates.
+ * Extracts Skills, Tools, Certifications sections and moves them to the sidebar.
+ */
+function wrapTwoColumnLayout(html: string): string {
+  const sidebarHeadings = ['skills', 'core skills', 'tools', 'certifications', 'languages', 'core competencies']
+  const sections: { content: string; isSidebar: boolean }[] = []
+
+  const parts = html.split(/(?=<h2[^>]*>)/i)
+  let preContent = ''
+  if (parts.length > 0 && !parts[0].match(/<h2/i)) {
+    preContent = parts[0]
+    parts.shift()
+  }
+
+  for (const part of parts) {
+    const headingMatch = part.match(/<h2[^>]*>(.*?)<\/h2>/i)
+    const heading = headingMatch ? headingMatch[1].toLowerCase().trim() : ''
+    const isSidebar = sidebarHeadings.some((s) => heading.includes(s))
+    sections.push({ content: part, isSidebar })
+  }
+
+  const mainParts = sections.filter((s) => !s.isSidebar).map((s) => s.content).join('')
+  const sidebarParts = sections.filter((s) => s.isSidebar).map((s) => s.content).join('')
+
+  if (!sidebarParts) return html
+
+  return `
+    ${preContent}
+    <div class="resume-container">
+      <div class="resume-main">${mainParts}</div>
+      <div class="resume-sidebar">${sidebarParts}</div>
+    </div>
+  `
 }
 
 // ============================================================

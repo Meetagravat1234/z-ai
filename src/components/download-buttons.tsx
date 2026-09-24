@@ -14,9 +14,11 @@ interface DownloadButtonsProps {
   baseFileName?: string
   /** Optional class name */
   className?: string
+  /** Resume template slug — applies template-specific styling to PDF */
+  template?: string | null
 }
 
-export function DownloadButtons({ markdown, baseFileName = 'resume', className }: DownloadButtonsProps) {
+export function DownloadButtons({ markdown, baseFileName = 'resume', className, template }: DownloadButtonsProps) {
   const [downloading, setDownloading] = React.useState<'pdf' | 'docx' | null>(null)
   const [showAdGate, setShowAdGate] = React.useState(false)
   const [pendingFormat, setPendingFormat] = React.useState<'pdf' | 'docx' | null>(null)
@@ -54,7 +56,8 @@ export function DownloadButtons({ markdown, baseFileName = 'resume', className }
         ? `${baseFileName}.pdf`
         : `${baseFileName}.docx`
       if (format === 'pdf') {
-        await generatePdfFromMarkdown(markdown, fileName)
+        // Pass template slug to apply template-specific CSS styling
+        await generatePdfFromMarkdown(markdown, fileName, template)
         toast.info('Print dialog opened — select "Save as PDF" to download your resume.')
       } else {
         await generateDocxFromMarkdown(markdown, fileName)

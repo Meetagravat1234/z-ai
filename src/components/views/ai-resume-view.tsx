@@ -193,7 +193,7 @@ export function AIResumeOptimizer() {
                 <p className="text-[10px] text-muted-foreground mb-2 uppercase tracking-wide font-semibold">
                   Download your resume
                 </p>
-                <DownloadButtons markdown={result} baseFileName="Resume" />
+                <DownloadButtons markdown={result} baseFileName="Resume" template={resultTemplate} />
               </div>
             </>
           ) : (
