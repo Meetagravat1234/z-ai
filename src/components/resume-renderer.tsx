@@ -248,7 +248,7 @@ function DefaultMarkdownView({ blocks, accentColor = '#6366f1' }: { blocks: Mark
         switch (block.type) {
           case 'h1':
             return (
-              <h1 key={i} className="text-xl font-extrabold mt-2 mb-1 first:mt-0 pb-1 border-b-2" style={{ color: '#000', borderColor: accentColor }}>
+              <h1 key={i} className="text-2xl font-extrabold mt-3 mb-2 first:mt-0 pb-1.5 border-b-2" style={{ color: '#000', borderColor: accentColor }}>
                 {renderInline(block.text)}
               </h1>
             )
@@ -256,7 +256,7 @@ function DefaultMarkdownView({ blocks, accentColor = '#6366f1' }: { blocks: Mark
             return (
               <h2
                 key={i}
-                className="text-xs font-bold mt-3 mb-1 pb-0.5 border-b uppercase tracking-wide"
+                className="text-sm font-bold mt-4 mb-1.5 pb-1 border-b uppercase tracking-wide"
                 style={{ borderColor: accentColor, color: '#000' }}
               >
                 {renderInline(block.text)}
@@ -264,27 +264,27 @@ function DefaultMarkdownView({ blocks, accentColor = '#6366f1' }: { blocks: Mark
             )
           case 'h3':
             return (
-              <h3 key={i} className="text-sm font-bold mt-2 mb-0.5" style={{ color: accentColor }}>
+              <h3 key={i} className="text-sm font-bold mt-2.5 mb-1" style={{ color: accentColor }}>
                 {renderInline(block.text)}
               </h3>
             )
           case 'bullet':
             return (
-              <div key={i} className="flex gap-1.5 mb-0.5 text-xs" style={{ paddingLeft: `${(block.indent || 0) * 12}px` }}>
+              <div key={i} className="flex gap-2 mb-1 text-sm" style={{ paddingLeft: `${(block.indent || 0) * 16}px` }}>
                 <span style={{ color: accentColor }}>•</span>
                 <span className="flex-1 text-foreground leading-snug">{renderInline(block.text)}</span>
               </div>
             )
           case 'paragraph':
             return (
-              <p key={i} className="mb-1 text-xs text-foreground leading-snug">
+              <p key={i} className="mb-1.5 text-sm text-foreground leading-snug">
                 {renderInline(block.text)}
               </p>
             )
           case 'hr':
-            return <hr key={i} className="my-2 border-border" />
+            return <hr key={i} className="my-3 border-border" />
           case 'empty':
-            return <div key={i} className="h-1" />
+            return <div key={i} className="h-2" />
           default:
             return null
         }
