@@ -67,5 +67,11 @@ mini-services/*/*.log
 /download/
 /tool-results/
 /upload/
+# IMPORTANT: Do NOT ignore src/app/api/upload/ — that's the resume upload API route.
+# The /upload/ pattern above is for the top-level upload/ folder (user screenshots).
+# But Git matches it against any path containing 'upload/', so we need to force-include
+# the API route.
+!src/app/api/upload/
+!src/app/api/upload/**
 scripts/.*.tmp
 *.tar.gz
