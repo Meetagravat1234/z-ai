@@ -27,7 +27,7 @@ export async function generatePdfFromMarkdown(
   const html = markdownToHtml(markdown)
 
   // Get template-specific CSS (or default if no template)
-  const template = templateSlug ? getTemplate(templateSlug) : null
+  const template = templateSlug ? getTemplate(templateSlug) ?? null : null
   const css = buildPrintCss(template)
 
   // For two-column templates, wrap the HTML with sidebar layout
