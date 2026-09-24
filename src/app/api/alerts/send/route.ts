@@ -58,7 +58,7 @@ export async function GET(req: Request) {
       try {
         // Build the job query based on alert criteria
         const where: any = { verified: true }
-        
+
         if (alert.lastSentAt) {
           // Only include jobs posted after last alert was sent
           where.postedAt = { gt: alert.lastSentAt }
@@ -68,11 +68,28 @@ export async function GET(req: Request) {
         }
 
         if (alert.query) {
-          where.OR = [
-            { title: { contains: alert.query, mode: 'insensitive' } },
-            { skills: { contains: alert.query, mode: 'insensitive' } },
-            { description: { contains: alert.query, mode: 'insensitive' } },
-          ]
+          // Split the query into individual keywords by comma, slash, or whitespace.
+          // e.g. "React,Frontend,Full stack,Mern stack" → ["React", "Frontend", "Full", "stack", "Mern", "stack"]
+          // Then match ANY keyword in title/skills/description.
+          // Without this split, Prisma searches for the WHOLE phrase as-is,
+          // which matches NOTHING (e.g. "React,Frontend,Full stack,Mern stack" as one phrase).
+          const keywords = alert.query
+            .split(/[,/\s]+/)
+            .map((k) => k.trim())
+            .filter((k) => k.length > 2)  // skip 1-2 char fragments
+            .slice(0, 10)  // cap at 10 keywords to keep query fast
+
+          if (keywords.length > 0) {
+            // For each keyword, build an OR group (title OR skills OR description contains it).
+            // Then nest all keyword-groups in an outer OR so ANY keyword matches.
+            where.OR = keywords.map((k) => ({
+              OR: [
+                { title: { contains: k, mode: 'insensitive' } },
+                { skills: { contains: k, mode: 'insensitive' } },
+                { description: { contains: k, mode: 'insensitive' } },
+              ],
+            }))
+          }
         }
         if (alert.category) where.category = alert.category
         if (alert.workMode) where.workMode = alert.workMode
@@ -94,10 +111,15 @@ export async function GET(req: Request) {
             'ncr': ['Delhi', 'Noida', 'Gurugram', 'Gurgaon'],
           }
           const variations = locationVariations[loc] || [alert.location]
-          where.OR = where.OR || []
-          for (const v of variations) {
-            where.OR.push({ location: { contains: v, mode: 'insensitive' } })
-          }
+          // Location matching is ADDITIVE (AND with the keyword OR groups),
+          // so we use a separate AND clause. This way the query becomes:
+          //   (title/skills/desc contains any keyword) AND (location matches)
+          const locationClauses = variations.map((v) => ({
+            location: { contains: v, mode: 'insensitive' },
+          }))
+          // Combine: existing where.AND + location OR group
+          where.AND = where.AND || []
+          where.AND.push({ OR: locationClauses })
         }
         if (alert.minSalary) where.salaryMin = { gte: alert.minSalary }
 
