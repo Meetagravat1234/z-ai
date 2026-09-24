@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 
 // PATCH /api/profile — update the current user's profile
-// Body: { name?, headline?, targetRole?, skills?, experienceYears?, preferredLocations?, minSalary?, bio? }
+// Body: { name?, headline?, targetRole?, skills?, experienceYears?, preferredLocations?, minSalary?, bio?, onboardingCompleted? }
 export async function PATCH(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
@@ -22,6 +22,7 @@ export async function PATCH(req: NextRequest) {
       preferredLocations,
       minSalary,
       bio,
+      onboardingCompleted,
     } = body
 
     // Build the update object — only update fields that are explicitly provided
@@ -40,6 +41,9 @@ export async function PATCH(req: NextRequest) {
       const n = parseInt(minSalary, 10)
       if (!isNaN(n) && n >= 0) update.minSalary = n
       else if (minSalary === null || minSalary === '') update.minSalary = null
+    }
+    if (onboardingCompleted === true) {
+      update.onboardingCompletedAt = new Date()
     }
 
     const updated = await db.user.update({

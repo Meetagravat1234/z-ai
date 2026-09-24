@@ -30,6 +30,7 @@ export async function GET() {
         // Subscription + paywall fields (added for Razorpay integration)
         subscriptionTier: true,
         subscriptionEndsAt: true,
+        onboardingCompletedAt: true,
         resumeOptimizationsUsed: true,
         coverLettersUsed: true,
         mockInterviewsUsed: true,
@@ -51,6 +52,7 @@ export async function GET() {
       user: {
         ...user,
         subscriptionEndsAt: user.subscriptionEndsAt?.toISOString() ?? null,
+        onboardingCompletedAt: user.onboardingCompletedAt?.toISOString() ?? null,
         usageResetAt: user.usageResetAt.toISOString(),
       },
     })

@@ -31,6 +31,8 @@ import { AIResumeOptimizer } from '@/components/views/ai-resume-view'
 import { AICoverLetter } from '@/components/views/ai-cover-letter-view'
 import { AIMockInterview } from '@/components/views/ai-mock-interview-view'
 import { AISalaryPredictor } from '@/components/views/ai-salary-view'
+import { TryAiBanner } from '@/components/try-ai-banner'
+import { GlobalOnboarding } from '@/components/global-onboarding'
 
 import type { HomeInitialData } from '@/lib/home-types'
 
@@ -43,6 +45,7 @@ export default function HomeShell({ initialData }: { initialData: HomeInitialDat
         <Sidebar />
         <div className="flex-1 flex flex-col min-w-0">
           <TopNav />
+          <TryAiBanner />
           <main className="flex-1 px-4 lg:px-6 py-6 pb-24 lg:pb-6">
             <div className="max-w-7xl mx-auto">
               <ViewRouter view={view} initialData={initialData} />
@@ -54,6 +57,7 @@ export default function HomeShell({ initialData }: { initialData: HomeInitialDat
       <Footer />
       <BottomNav />
       <CommandPalette />
+      <GlobalOnboarding />
     </div>
   )
 }

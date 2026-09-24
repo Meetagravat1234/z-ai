@@ -45,6 +45,14 @@ model User {
   docxDownloadsUsed        Int       @default(0)
   usageResetAt             DateTime  @default(now())
 
+  // Onboarding flow — tracks whether user completed the 3-step welcome
+  onboardingCompletedAt   DateTime?
+
+  // Drip email campaign — tracks which emails have been sent
+  // 0 = no email sent, 1 = welcome sent, 2 = AI tools reminder, 3 = limited offer
+  dripEmailStage           Int      @default(0)
+  dripEmailSentAt          DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

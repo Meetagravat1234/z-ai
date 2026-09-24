@@ -24,6 +24,7 @@ import {
 } from 'lucide-react'
 import { useNav } from '@/lib/nav-store'
 import { useAuth } from '@/lib/auth-context'
+import { SocialProofStats } from '@/components/social-proof-stats'
 import { AnimatedNumber } from '@/components/animated-number'
 import { JobCard, type Job } from '@/components/jobs/job-card'
 import { cn } from '@/lib/utils'
@@ -209,6 +210,11 @@ export function HomeView({ initialData }: { initialData?: HomeInitialData }) {
             })}
           </div>
         </div>
+      </section>
+
+      {/* SOCIAL PROOF STATS — real-time platform metrics */}
+      <section className="mt-5">
+        <SocialProofStats />
       </section>
 
       {/* JOBS FOR YOU — personalized recommendations */}

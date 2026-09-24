@@ -20,6 +20,8 @@ export interface CurrentUser {
   // without casting to `any`. Used by the sidebar badge + AI tool modals.
   subscriptionTier: string  // 'free' | 'pro' | 'recruiter'
   subscriptionEndsAt: string | null  // ISO date string or null
+  // Onboarding — null means user hasn't completed the welcome flow yet
+  onboardingCompletedAt: string | null
 }
 
 interface AuthContextValue {
