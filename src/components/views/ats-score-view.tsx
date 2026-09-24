@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Loader2, Sparkles, AlertCircle, CheckCircle2, FileText, TrendingUp, Copy, Check, XCircle, AlertTriangle, Info, ArrowRight } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { useResumeStore } from '@/lib/resume-store'
 import { ResumeUpload } from '@/components/resume-upload'
 import { ProUpsellModal } from '@/components/pro-upsell-modal'
 
@@ -26,6 +27,22 @@ export function ATSScoreView() {
   const [error, setError] = React.useState('')
   const [result, setResult] = React.useState<ATSResult | null>(null)
   const [showAdGate, setShowAdGate] = React.useState(false)
+
+  // Use shared resume store — persists across page navigations
+  const { resumeText: sharedResume, setResumeText: setSharedResume } = useResumeStore()
+
+  // Sync local state when shared resume changes (e.g. user uploaded on another page)
+  React.useEffect(() => {
+    if (sharedResume && sharedResume !== resume) {
+      setResume(sharedResume)
+    }
+  }, [sharedResume])
+
+  // Wrapper that also updates the shared store
+  const handleResumeUpload = (text: string) => {
+    setResume(text)
+    setSharedResume(text)
+  }
 
   async function check() {
     if (!resume.trim() || !jd.trim()) {
@@ -120,10 +137,10 @@ export function ATSScoreView() {
             <p className="text-xs text-muted-foreground mb-2">
               Upload a PDF or DOCX file — we'll extract the text automatically.
             </p>
-            <ResumeUpload onTextExtracted={(text) => setResume(text)} />
+            <ResumeUpload onTextExtracted={handleResumeUpload} />
             {resume && (
-              <div className="mt-2 p-2 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-xs">
-                ✓ Resume uploaded ({resume.length} chars extracted)
+              <div className="mt-2 p-2 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-xs font-medium">
+                ✓ Resume ready — click "Check ATS Score" to analyze
               </div>
             )}
           </div>

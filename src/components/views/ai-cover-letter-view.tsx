@@ -6,13 +6,30 @@ import { toast } from 'sonner'
 import { ResumeUpload } from '@/components/resume-upload'
 import { DownloadButtons } from '@/components/download-buttons'
 import { ProUpsellModal } from '@/components/pro-upsell-modal'
+import { useResumeStore } from '@/lib/resume-store'
 
 export function AICoverLetter() {
-  const [resume, setResume] = React.useState('')
+  // Use shared resume store — persists across page navigations
+  const { resumeText: sharedResume, setResumeText: setSharedResume } = useResumeStore()
+
+  const [resume, setResume] = React.useState(sharedResume || '')
   const [jd, setJd] = React.useState('')
   const [company, setCompany] = React.useState('')
   const [role, setRole] = React.useState('')
   const [result, setResult] = React.useState('')
+
+  // Sync local state when shared resume changes (e.g. user uploaded on another page)
+  React.useEffect(() => {
+    if (sharedResume && sharedResume !== resume) {
+      setResume(sharedResume)
+    }
+  }, [sharedResume])
+
+  // Wrapper that also updates the shared store
+  const handleResumeUpload = (text: string) => {
+    setResume(text)
+    setSharedResume(text)
+  }
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState('')
   const [copied, setCopied] = React.useState(false)
@@ -73,7 +90,7 @@ export function AICoverLetter() {
         <div className="space-y-4">
           <div>
             <label className="text-sm font-bold mb-1.5 block">Your resume</label>
-            <ResumeUpload onTextExtracted={(text) => setResume(text)} />
+            <ResumeUpload onTextExtracted={handleResumeUpload} />
             <textarea
               value={resume}
               onChange={(e) => setResume(e.target.value)}

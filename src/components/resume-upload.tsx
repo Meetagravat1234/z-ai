@@ -49,7 +49,7 @@ export function ResumeUpload({ onTextExtracted, currentText, label = 'Upload res
 
       onTextExtracted(d.text)
       setFileName(d.fileName)
-      toast.success(`Extracted ${d.charCount} chars from ${d.fileName}${d.truncated ? ' (truncated to 15k)' : ''}`)
+      toast.success(`Resume ready${d.truncated ? ' (trimmed to 15K chars)' : ''}`)
     } catch (e: any) {
       setError(e.message)
       toast.error(e.message || 'Upload failed — you can paste your resume manually below.')
@@ -99,7 +99,7 @@ export function ResumeUpload({ onTextExtracted, currentText, label = 'Upload res
         {loading ? (
           <div className="flex items-center justify-center gap-2 py-1">
             <Loader2 className="w-4 h-4 animate-spin text-primary" />
-            <span className="text-sm text-muted-foreground">Extracting text…</span>
+            <span className="text-sm text-muted-foreground">Processing…</span>
           </div>
         ) : fileName ? (
           <div className="flex items-center justify-center gap-2 py-1">

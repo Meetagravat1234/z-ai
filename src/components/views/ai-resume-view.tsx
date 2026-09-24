@@ -10,6 +10,7 @@ import { TemplateGallery } from '@/components/template-gallery'
 import { ResumeRenderer } from '@/components/resume-renderer'
 import { useAuth } from '@/lib/auth-context'
 import { cn } from '@/lib/utils'
+import { useResumeStore } from '@/lib/resume-store'
 import type { ResumeTemplate } from '@/lib/resume-templates'
 import { getTemplate } from '@/lib/resume-templates'
 
@@ -19,10 +20,26 @@ export function AIResumeOptimizer() {
   const { user } = useAuth()
   const isPro = user?.subscriptionTier === 'pro' || user?.subscriptionTier === 'recruiter' || user?.role === 'admin'
 
+  // Use shared resume store — persists across page navigations
+  const { resumeText: sharedResume, setResumeText: setSharedResume } = useResumeStore()
+
   const [step, setStep] = React.useState<Step>(1)
   const [selectedTemplate, setSelectedTemplate] = React.useState<string | null>(null)
-  const [resume, setResume] = React.useState('')
+  const [resume, setResume] = React.useState(sharedResume || '')
   const [jd, setJd] = React.useState('')
+
+  // Sync local state when shared resume changes (e.g. user uploaded on another page)
+  React.useEffect(() => {
+    if (sharedResume && sharedResume !== resume) {
+      setResume(sharedResume)
+    }
+  }, [sharedResume])
+
+  // Wrapper that also updates the shared store
+  const handleResumeUpload = (text: string) => {
+    setResume(text)
+    setSharedResume(text)
+  }
   const [result, setResult] = React.useState('')
   const [resultTemplate, setResultTemplate] = React.useState<string | null>(null)
   const [loading, setLoading] = React.useState(false)
@@ -175,10 +192,10 @@ export function AIResumeOptimizer() {
             <p className="text-xs text-muted-foreground mb-3">
               Upload your current resume as a PDF or DOCX file. We'll extract the text automatically.
             </p>
-            <ResumeUpload onTextExtracted={(text) => setResume(text)} />
+            <ResumeUpload onTextExtracted={handleResumeUpload} />
             {resume && (
-              <div className="mt-3 p-3 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-xs">
-                ✓ Resume uploaded ({resume.length} chars extracted)
+              <div className="mt-3 p-3 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-xs font-medium">
+                ✓ Resume ready — click "Generate My Resume" to continue
               </div>
             )}
           </div>

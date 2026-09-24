@@ -4,6 +4,7 @@ import * as React from 'react'
 import { Loader2, Sparkles, Upload, ArrowRight, ArrowLeft, Check, Briefcase, Target, Rocket } from 'lucide-react'
 import { toast } from 'sonner'
 import { ResumeUpload } from '@/components/resume-upload'
+import { useResumeStore } from '@/lib/resume-store'
 import { cn } from '@/lib/utils'
 
 interface OnboardingModalProps {
@@ -37,6 +38,9 @@ export function OnboardingModal({ open, onClose, onComplete }: OnboardingModalPr
   const [selectedRole, setSelectedRole] = React.useState<string>('')
   const [resumeText, setResumeText] = React.useState('')
   const [saving, setSaving] = React.useState(false)
+
+  // Use shared resume store — uploads here will be available in all AI tools
+  const { setResumeText: setSharedResume } = useResumeStore()
 
   // Reset state when modal closes
   React.useEffect(() => {
@@ -151,10 +155,13 @@ export function OnboardingModal({ open, onClose, onComplete }: OnboardingModalPr
                   Optional — but recommended for better AI results
                 </p>
               </div>
-              <ResumeUpload onTextExtracted={(text) => setResumeText(text)} />
+              <ResumeUpload onTextExtracted={(text) => {
+                setResumeText(text)
+                setSharedResume(text)  // Save to shared store so AI tools have it
+              }} />
               {resumeText && (
                 <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-xs">
-                  ✓ Resume uploaded ({resumeText.length} chars)
+                  ✓ Resume ready — your AI tools will use it automatically
                 </div>
               )}
               <div className="flex gap-2">
