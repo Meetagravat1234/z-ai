@@ -119,6 +119,32 @@ export function JobDetailView({
   const [saving, setSaving] = React.useState(false)
   const [applying, setApplying] = React.useState(false)
 
+  // Auto-resume pending apply action after login
+  // When user clicks "Apply" without being logged in, we save the action to
+  // localStorage. After they log in, this effect detects the pending action
+  // and automatically resumes it (opens the apply URL).
+  React.useEffect(() => {
+    if (!user || isDemo || !job?.applyUrl) return
+    try {
+      const pending = localStorage.getItem('pendingApply')
+      if (!pending) return
+      const data = JSON.parse(pending)
+      // Only resume if it's recent (< 10 minutes old)
+      if (Date.now() - data.timestamp > 10 * 60 * 1000) {
+        localStorage.removeItem('pendingApply')
+        return
+      }
+      // Only resume if it's for THIS job
+      if (data.jobId === job.id || data.applyUrl === job.applyUrl) {
+        localStorage.removeItem('pendingApply')
+        toast.success(`Welcome back! Resuming your application for ${job.title}...`)
+        // Auto-trigger the apply after a short delay so the user sees the toast
+        setTimeout(() => handleApply(), 1500)
+      }
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, isDemo, job])
+
   React.useEffect(() => {
     // If SSR provided initial data, don't refetch
     if (initialJob) {
@@ -193,8 +219,26 @@ export function JobDetailView({
     }
     // Require login to apply — captures leads + prevents bot abuse
     if (!user || isDemo) {
-      toast.info('Please sign in to apply for this job')
-      go('auth')
+      // Save the pending apply action so we can resume after login
+      // Include the current URL so we can navigate back after auth
+      try {
+        localStorage.setItem('pendingApply', JSON.stringify({
+          jobId: job.id,
+          applyUrl: job.applyUrl,
+          jobTitle: job.title,
+          companyName: job.company.name,
+          returnUrl: window.location.pathname,  // e.g. /jobs/job-123-title
+          timestamp: Date.now(),
+        }))
+      } catch {}
+      toast.info('Please sign in to apply — you\'ll be redirected back automatically')
+      // If on SSR page (URL is /jobs/...), go to /?view=auth which preserves the URL
+      // If on SPA, go to auth view
+      if (window.location.pathname.startsWith('/jobs/') || window.location.pathname !== '/') {
+        window.location.href = '/?view=auth'
+      } else {
+        go('auth')
+      }
       return
     }
     setApplying(true)

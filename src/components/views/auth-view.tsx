@@ -73,10 +73,32 @@ export function AuthView() {
       await refresh()
       toast.success(mode === 'signup' ? 'Welcome to Hirebase! 🎉' : 'Welcome back! 👋')
 
-      // Redirect to the page the user was trying to access, or home page
-      // Use full-page navigation (not SPA go()) because the URL must change
+      // Check for pending apply action — if user was trying to apply for a job
+      // before signing in, redirect them back to that job after login.
+      let pendingApply: any = null
+      try {
+        const stored = localStorage.getItem('pendingApply')
+        if (stored) {
+          pendingApply = JSON.parse(stored)
+          // Only use if recent (< 10 minutes)
+          if (Date.now() - pendingApply.timestamp > 10 * 60 * 1000) {
+            localStorage.removeItem('pendingApply')
+            pendingApply = null
+          }
+        }
+      } catch {}
+
+      // Redirect priority:
+      // 1. Pending apply action → go back to the job detail page (auto-resumes apply)
+      // 2. Explicit ?next= URL → go back to that page
+      // 3. New signup → go to profile to complete setup
+      // 4. Returning user → go to home
       const nextUrl = searchParams.get('next')
-      if (nextUrl && nextUrl.startsWith('/') && !nextUrl.startsWith('/auth')) {
+      if (pendingApply && pendingApply.returnUrl) {
+        // Navigate back to the job detail page — the JobDetailView will
+        // detect pendingApply in localStorage and auto-trigger the apply
+        router.push(pendingApply.returnUrl)
+      } else if (nextUrl && nextUrl.startsWith('/') && !nextUrl.startsWith('/auth')) {
         // User was redirected to login from a specific page — send them back
         router.push(nextUrl)
       } else if (mode === 'signup') {
