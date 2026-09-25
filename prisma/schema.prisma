@@ -92,6 +92,7 @@ model Job {
   companyId     String
   company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   category      String   // "fresher" | "internship" | "walk-in" | "hidden" | "experienced" | "remote"
+  domain        String   @default("other") // "ai-ml" | "vlsi-embedded" | "web-development" | etc
   employmentType String  @default("Full-time") // Full-time, Part-time, Contract, Internship
   workMode      String   @default("Onsite") // Onsite, Remote, Hybrid
   experience    String   // "0 Years", "0-2 Years", "1 Year", "3-5 Years" etc
@@ -124,6 +125,7 @@ model Job {
   @@unique([source, sourceRef])
   @@index([hash])
   @@index([category])
+  @@index([domain])
   @@index([companyId])
 }
 

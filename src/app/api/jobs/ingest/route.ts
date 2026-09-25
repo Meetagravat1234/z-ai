@@ -1,3 +1,4 @@
+import { classifyJobDomain } from "@/lib/job-domains"
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import crypto from 'crypto'
@@ -141,6 +142,7 @@ export async function POST(req: NextRequest) {
             title: raw.title,
             companyId: company.id,
             category,
+            domain: classifyJobDomain(raw.title, skills || ''),
             employmentType,
             workMode,
             experience,

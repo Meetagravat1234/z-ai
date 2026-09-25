@@ -1,3 +1,4 @@
+import { classifyJobDomain } from '@/lib/job-domains'
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getAdminUser } from '@/lib/admin-auth'
@@ -354,6 +355,7 @@ Extract the structured job fields.`,
       title: cleanTitle,
       companyId: company.id,
       category: parsed.category || 'experienced',
+      domain: classifyJobDomain(parsed.title || '', Array.isArray(parsed.skills) ? parsed.skills.join(', ') : (parsed.skills || '')),
       employmentType: parsed.employmentType || 'Full-time',
       workMode: parsed.workMode || 'Onsite',
       experience: parsed.experience || inferExperienceFromTitle(parsed.title || ''),

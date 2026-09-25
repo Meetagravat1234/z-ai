@@ -1,3 +1,4 @@
+import { classifyJobDomain } from '@/lib/job-domains'
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getAdminUser } from '@/lib/admin-auth'
@@ -93,6 +94,7 @@ export async function POST(req: NextRequest) {
         title,
         companyId: companyRecord.id,
         category: category || 'experienced',
+        domain: classifyJobDomain(title || '', skills || ''),
         employmentType: employmentType || 'Full-time',
         workMode: workMode || 'Onsite',
         experience: experience || '0-2 Years',

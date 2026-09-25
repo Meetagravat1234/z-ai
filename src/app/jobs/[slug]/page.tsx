@@ -6,6 +6,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { CITY_PAGES, ROLE_PAGES, jobUrl, parseJobIdFromSlug, slugify, cleanJobTitle } from '@/lib/seo-routes'
+import { JOB_DOMAINS, getDomain } from '@/lib/job-domains'
 import { estimateSalaryForJob } from '@/lib/salary-estimate'
 
 // Always render fresh — jobs change frequently
@@ -81,6 +82,19 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     }
   }
 
+  // Case 2b: Domain page (AI/ML, VLSI/Embedded, Web Dev, etc.)
+  const domain = getDomain(slug)
+  if (domain) {
+    const title = `${domain.name} Jobs in India — Verified Openings | Hirebase`
+    const description = `Browse ${domain.name} jobs in India. ${domain.description}. Verified openings at top companies. Apply free — no signup required.`
+    return {
+      title,
+      description,
+      alternates: { canonical: `https://www.hirebase.in/jobs/${domain.slug}` },
+      openGraph: { title, description, url: `https://www.hirebase.in/jobs/${domain.slug}` },
+    }
+  }
+
   // Case 3: Individual job — fetch from DB
   const jobId = parseJobIdFromSlug(slug)
   if (!jobId) return { title: 'Job not found | Hirebase' }
@@ -127,6 +141,12 @@ export default async function JobRoute({ params }: PageProps) {
   const categoryMap = ['fresher', 'internship', 'walk-in', 'hidden', 'experienced']
   if (categoryMap.includes(slug)) {
     return <CategoryPage category={slug} />
+  }
+
+  // Check if it's a domain page
+  const domain = getDomain(slug)
+  if (domain) {
+    return <DomainPage domainSlug={slug} />
   }
 
   return <JobDetailPage slug={slug} />
@@ -663,6 +683,74 @@ async function CategoryPage({ category }: { category: string }) {
         </div>
       </SiteShell>
     </>
+  )
+}
+
+// ============================================================
+// Domain page — /jobs/ai-ml, /jobs/vlsi-embedded, etc.
+// ============================================================
+async function DomainPage({ domainSlug }: { domainSlug: string }) {
+  const domain = getDomain(domainSlug)
+  if (!domain) return notFound()
+
+  const jobs = await db.job.findMany({
+    where: { domain: domainSlug, verified: true },
+    include: { company: true },
+    orderBy: { postedAt: 'desc' },
+    take: 60,
+  })
+
+  return (
+    <SiteShell>
+      <div className="space-y-6">
+        <header>
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold mb-3"
+            style={{ background: `${domain.color}15`, color: domain.color }}>
+            <span>{domain.emoji}</span>
+            {domain.name}
+          </div>
+          <h1 className="text-3xl font-extrabold tracking-tight">
+            {domain.name} Jobs in India
+          </h1>
+          <p className="text-muted-foreground mt-2 max-w-2xl">
+            {domain.description}. Browse {jobs.length}+ verified openings at top companies.
+            Apply free — no signup required.
+          </p>
+        </header>
+
+        {/* Other domains — quick links */}
+        <div className="flex flex-wrap gap-2">
+          {JOB_DOMAINS.filter((d) => d.slug !== domainSlug).slice(0, 8).map((d) => (
+            <Link
+              key={d.slug}
+              href={`/jobs/${d.slug}`}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border bg-card text-xs font-medium hover:border-primary/40 hover:bg-muted"
+            >
+              <span>{d.emoji}</span>
+              {d.name}
+            </Link>
+          ))}
+        </div>
+
+        {/* Jobs */}
+        {jobs.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {jobs.map((job) => (
+              <JobCardLink key={job.id} job={job} />
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-16 rounded-2xl border border-dashed border-border">
+            <p className="text-muted-foreground">
+              No {domain.name} jobs found right now. Check back soon — new jobs are added daily.
+            </p>
+            <Link href="/jobs" className="inline-flex items-center gap-1 mt-4 text-primary hover:underline">
+              Browse all jobs →
+            </Link>
+          </div>
+        )}
+      </div>
+    </SiteShell>
   )
 }
 

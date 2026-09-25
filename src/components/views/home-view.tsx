@@ -25,6 +25,7 @@ import {
 import { useNav } from '@/lib/nav-store'
 import { useAuth } from '@/lib/auth-context'
 import { SocialProofStats } from '@/components/social-proof-stats'
+import { DomainBrowser } from '@/components/domain-browser'
 import { AnimatedNumber } from '@/components/animated-number'
 import { JobCard, type Job } from '@/components/jobs/job-card'
 import { cn } from '@/lib/utils'
@@ -215,6 +216,11 @@ export function HomeView({ initialData }: { initialData?: HomeInitialData }) {
       {/* SOCIAL PROOF STATS — real-time platform metrics */}
       <section className="mt-5">
         <SocialProofStats />
+      </section>
+
+      {/* BROWSE BY DOMAIN — VLSI, AI/ML, Web Dev, etc. */}
+      <section className="mt-8">
+        <DomainBrowser />
       </section>
 
       {/* JOBS FOR YOU — personalized recommendations */}

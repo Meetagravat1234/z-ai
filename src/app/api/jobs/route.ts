@@ -47,6 +47,7 @@ export async function GET(req: NextRequest) {
 
     const q = searchParams.get('q')?.toLowerCase()
     const category = searchParams.get('category')
+    const domain = searchParams.get('domain')
     const company = searchParams.get('company')
     const workMode = searchParams.get('workMode')
     const experience = searchParams.get('experience')
@@ -133,6 +134,7 @@ export async function GET(req: NextRequest) {
     }
 
     if (category && category !== 'all') conditions.push({ category })
+    if (domain && domain !== 'all') conditions.push({ domain })
     if (workMode && workMode !== 'all') conditions.push({ workMode })
     if (employmentType && employmentType !== 'all') conditions.push({ employmentType })
     if (experience && experience !== 'all') conditions.push({ experience: { contains: experience } })

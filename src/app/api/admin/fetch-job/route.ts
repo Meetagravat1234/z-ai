@@ -1,3 +1,4 @@
+import { classifyJobDomain } from '@/lib/job-domains'
 import { NextRequest, NextResponse } from 'next/server'
 import { chatComplete } from '@/lib/multi-ai'
 import { fetchJobPage } from '@/lib/job-page-fetcher'
@@ -152,6 +153,7 @@ Extract the structured job fields.`
           title: parsed.title,
           companyId: company.id,
           category: parsed.category || 'experienced',
+          domain: classifyJobDomain(parsed.title, Array.isArray(parsed.skills) ? parsed.skills.join(', ') : (parsed.skills || '')),
           employmentType: parsed.employmentType || 'Full-time',
           workMode: parsed.workMode || 'Onsite',
           experience: parsed.experience || 'Not specified',

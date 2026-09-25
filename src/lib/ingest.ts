@@ -1,3 +1,4 @@
+import { classifyJobDomain } from './job-domains'
 // Shared job ingestion logic — called directly by sync endpoints
 // (avoids the Vercel serverless "can't fetch own API" problem)
 import { db } from '@/lib/db'
@@ -152,6 +153,7 @@ export async function ingestJobs(
           title: raw.title,
           companyId: company.id,
           category,
+          domain: classifyJobDomain(raw.title, skills || ''),
           employmentType,
           workMode,
           experience,

@@ -1,3 +1,4 @@
+import { classifyJobDomain } from '@/lib/job-domains'
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import crypto from 'crypto'
@@ -179,6 +180,7 @@ export async function GET(req: NextRequest) {
             title: raw.title,
             companyId: company.id,
             category: raw.category || 'experienced',
+            domain: classifyJobDomain(raw.title || '', raw.skills || ''),
             employmentType: raw.employmentType || 'Full-time',
             workMode: raw.workMode || 'Onsite',
             experience: raw.experience || '0-2 Years',
