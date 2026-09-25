@@ -121,10 +121,15 @@ export function JobDetailView({
 
   // Auto-resume pending apply action after login
   // When user clicks "Apply" without being logged in, we save the action to
-  // localStorage. After they log in, this effect detects the pending action
-  // and automatically resumes it (opens the apply URL).
+  // localStorage. After they log in + return to the job page, this effect
+  // detects the pending action and automatically resumes it.
+  const resumeAttempted = React.useRef(false)
   React.useEffect(() => {
+    // Only run once per mount
+    if (resumeAttempted.current) return
+    // Need both user + job to be loaded
     if (!user || isDemo || !job?.applyUrl) return
+
     try {
       const pending = localStorage.getItem('pendingApply')
       if (!pending) return
@@ -134,8 +139,9 @@ export function JobDetailView({
         localStorage.removeItem('pendingApply')
         return
       }
-      // Only resume if it's for THIS job
+      // Match by jobId OR applyUrl (in case jobId format differs)
       if (data.jobId === job.id || data.applyUrl === job.applyUrl) {
+        resumeAttempted.current = true
         localStorage.removeItem('pendingApply')
         toast.success(`Welcome back! Resuming your application for ${job.title}...`)
         // Auto-trigger the apply after a short delay so the user sees the toast
@@ -220,21 +226,29 @@ export function JobDetailView({
     // Require login to apply — captures leads + prevents bot abuse
     if (!user || isDemo) {
       // Save the pending apply action so we can resume after login
-      // Include the current URL so we can navigate back after auth
+      // Include the current URL + jobId so we can navigate back after auth
       try {
+        // For SSR pages (/jobs/[slug]), returnUrl is the full path
+        // For SPA home page (/), returnUrl is '/' + we save jobId for openJob()
+        const isSsrPage = window.location.pathname.startsWith('/jobs/')
+        const returnUrl = isSsrPage
+          ? window.location.pathname + window.location.search
+          : '/'
         localStorage.setItem('pendingApply', JSON.stringify({
           jobId: job.id,
           applyUrl: job.applyUrl,
           jobTitle: job.title,
           companyName: job.company.name,
-          returnUrl: window.location.pathname,  // e.g. /jobs/job-123-title
+          returnUrl,
+          isSpa: !isSsrPage,  // if SPA, we need to call openJob() after redirect
           timestamp: Date.now(),
         }))
       } catch {}
       toast.info('Please sign in to apply — you\'ll be redirected back automatically')
-      // If on SSR page (URL is /jobs/...), go to /?view=auth which preserves the URL
-      // If on SPA, go to auth view
-      if (window.location.pathname.startsWith('/jobs/') || window.location.pathname !== '/') {
+      // Navigate to auth:
+      // - SSR page → full page navigation to /?view=auth
+      // - SPA home → use SPA navigation go('auth')
+      if (window.location.pathname !== '/') {
         window.location.href = '/?view=auth'
       } else {
         go('auth')

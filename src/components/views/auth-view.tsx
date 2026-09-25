@@ -89,23 +89,26 @@ export function AuthView() {
       } catch {}
 
       // Redirect priority:
-      // 1. Pending apply action → go back to the job detail page (auto-resumes apply)
-      // 2. Explicit ?next= URL → go back to that page
-      // 3. New signup → go to profile to complete setup
-      // 4. Returning user → go to home
+      // 1. Pending apply action with SSR returnUrl → go back to that job page
+      // 2. Pending apply action with SPA (isSpa=true) → go to home + open job
+      // 3. Explicit ?next= URL → go back to that page
+      // 4. New signup → go to profile to complete setup
+      // 5. Returning user → go to home
       const nextUrl = searchParams.get('next')
-      if (pendingApply && pendingApply.returnUrl) {
-        // Navigate back to the job detail page — the JobDetailView will
-        // detect pendingApply in localStorage and auto-trigger the apply
-        router.push(pendingApply.returnUrl)
+      if (pendingApply && pendingApply.returnUrl && !pendingApply.isSpa) {
+        // SSR case: navigate back to /jobs/[slug]
+        // Use window.location.href for reliable full-page navigation
+        window.location.href = pendingApply.returnUrl
+        return
+      } else if (pendingApply && pendingApply.isSpa && pendingApply.jobId) {
+        // SPA case: go to home page, the JobDetailView will detect pendingApply
+        // and auto-open the job
+        router.push('/')
       } else if (nextUrl && nextUrl.startsWith('/') && !nextUrl.startsWith('/auth')) {
-        // User was redirected to login from a specific page — send them back
         router.push(nextUrl)
       } else if (mode === 'signup') {
-        // New users go to profile to complete setup
         router.push('/profile')
       } else {
-        // Returning users go to home
         router.push('/')
       }
     } catch (e: any) {
