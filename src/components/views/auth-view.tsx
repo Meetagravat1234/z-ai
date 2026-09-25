@@ -4,6 +4,7 @@ import * as React from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Loader2, Mail, Lock, User as UserIcon, Sparkles, CheckCircle2, AlertCircle, TrendingUp, Target, Shield } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
+import { useNav } from '@/lib/nav-store'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
@@ -11,6 +12,7 @@ export function AuthView() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { refresh } = useAuth()
+  const { go, openJob } = useNav()
   const [mode, setMode] = React.useState<'login' | 'signup'>('signup')
   const [email, setEmail] = React.useState('')
   const [password, setPassword] = React.useState('')
@@ -89,8 +91,8 @@ export function AuthView() {
       } catch {}
 
       // Redirect priority:
-      // 1. Pending apply action with SSR returnUrl → go back to that job page
-      // 2. Pending apply action with SPA (isSpa=true) → go to home + open job
+      // 1. Pending apply on SSR page → go back to that URL
+      // 2. Pending apply on SPA home → directly open the job (no router.push needed)
       // 3. Explicit ?next= URL → go back to that page
       // 4. New signup → go to profile to complete setup
       // 5. Returning user → go to home
@@ -101,9 +103,10 @@ export function AuthView() {
         window.location.href = pendingApply.returnUrl
         return
       } else if (pendingApply && pendingApply.isSpa && pendingApply.jobId) {
-        // SPA case: go to home page, the JobDetailView will detect pendingApply
-        // and auto-open the job
-        router.push('/')
+        // SPA case: we're already on '/' — just open the job directly
+        // The JobDetailView will detect pendingApply in localStorage and auto-apply
+        toast.info('Resuming your application…')
+        openJob(pendingApply.jobId)
       } else if (nextUrl && nextUrl.startsWith('/') && !nextUrl.startsWith('/auth')) {
         router.push(nextUrl)
       } else if (mode === 'signup') {

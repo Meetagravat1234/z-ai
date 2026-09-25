@@ -37,28 +37,40 @@ import { GlobalOnboarding } from '@/components/global-onboarding'
 import type { HomeInitialData } from '@/lib/home-types'
 
 export default function HomeShell({ initialData }: { initialData: HomeInitialData }) {
-  const { view, openJob } = useNav()
+  const { view, openJob, go, setView } = useNav()
+
+  // On mount: check URL for ?view= param (e.g. /?view=auth from SSR redirect)
+  // This handles the case where user was on /jobs/[slug], clicked Apply,
+  // got redirected to /?view=auth — we need to show the auth view
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    const viewParam = params.get('view')
+    if (viewParam && viewParam !== view) {
+      setView(viewParam as any)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Check for pending apply action when user returns from auth (SPA case)
-  // If user was on the SPA home page, clicked a job, then clicked Apply
-  // without being logged in — after auth they return to '/' but the job
-  // detail view isn't open. This effect opens it automatically.
   React.useEffect(() => {
     try {
       const pending = localStorage.getItem('pendingApply')
       if (!pending) return
       const data = JSON.parse(pending)
-      // Only use if recent (< 10 min) and it's an SPA case
+      // Only use if recent (< 10 min)
       if (Date.now() - data.timestamp > 10 * 60 * 1000) {
         localStorage.removeItem('pendingApply')
         return
       }
-      if (data.isSpa && data.jobId) {
-        // Don't clear here — the JobDetailView will clear it when it auto-resumes
+      // Only auto-open if we're on the home view (not auth view)
+      // If on auth view, the AuthView will handle it after login
+      if (data.isSpa && data.jobId && view !== 'auth') {
         openJob(data.jobId)
       }
     } catch {}
-  }, [openJob])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, openJob])
 
   return (
     <div className="min-h-screen flex flex-col bg-background">

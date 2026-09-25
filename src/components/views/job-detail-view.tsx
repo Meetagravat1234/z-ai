@@ -151,6 +151,27 @@ export function JobDetailView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, isDemo, job])
 
+  // Also handle the case where user is NOT logged in but has a pendingApply
+  // from a previous session (e.g. closed the tab, came back later)
+  // Show a gentle prompt to sign in
+  React.useEffect(() => {
+    if (user || isDemo || !job) return
+    try {
+      const pending = localStorage.getItem('pendingApply')
+      if (!pending) return
+      const data = JSON.parse(pending)
+      if (Date.now() - data.timestamp > 10 * 60 * 1000) {
+        localStorage.removeItem('pendingApply')
+        return
+      }
+      // Job matches — show prompt
+      if (data.jobId === job.id || data.applyUrl === job.applyUrl) {
+        toast.info('Sign in to continue your application', { duration: 5000 })
+      }
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, isDemo, job])
+
   React.useEffect(() => {
     // If SSR provided initial data, don't refetch
     if (initialJob) {
