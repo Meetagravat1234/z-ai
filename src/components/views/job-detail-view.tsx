@@ -25,6 +25,7 @@ import {
   TrendingUp,
 } from 'lucide-react'
 import { useNav } from '@/lib/nav-store'
+import { useAuth } from '@/lib/auth-context'
 import { JobCard, type Job } from '@/components/jobs/job-card'
 import { JobMatchBadge } from '@/components/jobs/job-match-badge'
 import { cn } from '@/lib/utils'
@@ -107,6 +108,7 @@ export function JobDetailView({
   jobId?: string
 } = {}) {
   const { selectedJobId, go, openJob, openCompany } = useNav()
+  const { user, isDemo } = useAuth()
   // Resolve the active job ID — prop (from SSR route) > Zustand selectedJobId (in-app nav)
   const activeJobId = propJobId || selectedJobId
   const [job, setJob] = React.useState<JobDetail | null>(initialJob || null)
@@ -189,10 +191,16 @@ export function JobDetailView({
       toast.info('Apply link not available. Please contact the employer directly.')
       return
     }
+    // Require login to apply — captures leads + prevents bot abuse
+    if (!user || isDemo) {
+      toast.info('Please sign in to apply for this job')
+      go('auth')
+      return
+    }
     setApplying(true)
     try {
       const salaryInfo = formatSalary(job)
-      // Optionally track application automatically
+      // Track application automatically
       await fetch('/api/applications', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

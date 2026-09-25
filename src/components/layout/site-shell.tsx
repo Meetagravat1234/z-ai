@@ -4,6 +4,8 @@ import * as React from 'react'
 import Link from 'next/link'
 import { Sidebar, TopNav, BottomNav } from '@/components/layout/sidebar'
 import { CommandPalette } from '@/components/command/command-palette'
+import { TryAiBanner } from '@/components/try-ai-banner'
+import { GlobalOnboarding } from '@/components/global-onboarding'
 import { useNav } from '@/lib/nav-store'
 
 /**
@@ -22,6 +24,7 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
         <Sidebar />
         <div className="flex-1 flex flex-col min-w-0">
           <TopNav />
+          <TryAiBanner />
           <main className="flex-1 px-4 lg:px-6 py-6 pb-24 lg:pb-6">
             <div className="max-w-7xl mx-auto">{children}</div>
           </main>
@@ -30,6 +33,7 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
       <Footer />
       <BottomNav />
       <CommandPalette />
+      <GlobalOnboarding />
     </div>
   )
 }

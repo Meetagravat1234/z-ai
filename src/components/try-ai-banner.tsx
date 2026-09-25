@@ -35,24 +35,33 @@ export function TryAiBanner() {
     }
   }, [])
 
-  // Don't show for anonymous users or demo users
-  if (!user || isDemo) return null
+  // Don't show for demo users (logged in but no session)
+  if (isDemo) return null
 
-  // Check if user has used any AI tool
-  const hasUsedAi =
-    (user as any).resumeOptimizationsUsed > 0 ||
-    (user as any).atsChecksUsed > 0 ||
-    (user as any).coverLettersUsed > 0 ||
-    (user as any).mockInterviewsUsed > 0 ||
-    (user as any).skillGapAnalysesUsed > 0 ||
-    (user as any).salaryPredictionsUsed > 0
+  // Check if logged-in user has used any AI tool
+  if (user) {
+    const hasUsedAi =
+      (user as any).resumeOptimizationsUsed > 0 ||
+      (user as any).atsChecksUsed > 0 ||
+      (user as any).coverLettersUsed > 0 ||
+      (user as any).mockInterviewsUsed > 0 ||
+      (user as any).skillGapAnalysesUsed > 0 ||
+      (user as any).salaryPredictionsUsed > 0
 
-  if (hasUsedAi || dismissed) return null
+    if (hasUsedAi || dismissed) return null
+  }
 
   function dismiss() {
     localStorage.setItem('tryAiBannerDismissed', String(Date.now()))
     setDismissed(true)
   }
+
+  // Different copy for logged-in vs anonymous users
+  const isAnonymous = !user
+  const bannerText = isAnonymous
+    ? '🎁 Sign up free to unlock 6 AI tools — resume optimizer, ATS checker, mock interviews + more'
+    : '🎁 You have 1 FREE resume optimization waiting'
+  const ctaText = isAnonymous ? 'Sign Up Free' : 'Try Now'
 
   return (
     <div className="mx-4 lg:mx-6 mt-4 rounded-2xl bg-gradient-to-r from-primary/10 via-violet-500/10 to-primary/10 border border-primary/30 p-4 flex items-center gap-3">
@@ -61,17 +70,19 @@ export function TryAiBanner() {
       </div>
       <div className="flex-1 min-w-0">
         <div className="font-bold text-sm">
-          🎁 You have 1 FREE resume optimization waiting
+          {bannerText}
         </div>
         <div className="text-xs text-muted-foreground mt-0.5">
-          Try our AI tools — tailor your resume, check ATS score, or practice interviews. Free for life.
+          {isAnonymous
+            ? 'No credit card required. Get 1 free use per tool per month.'
+            : 'Try our AI tools — tailor your resume, check ATS score, or practice interviews. Free for life.'}
         </div>
       </div>
       <Link
-        href="/ai-tools/resume-optimizer"
+        href={isAnonymous ? '/?view=auth' : '/ai-tools/resume-optimizer'}
         className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:opacity-90 shrink-0"
       >
-        Try Now
+        {ctaText}
         <ArrowRight className="w-3.5 h-3.5" />
       </Link>
       <button
