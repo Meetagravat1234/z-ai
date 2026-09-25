@@ -94,6 +94,7 @@ export async function POST(req: NextRequest) {
     let savedCount = 0
     let dupCount = 0
     let errCount = 0
+    let consecutiveRateLimits = 0  // Circuit breaker — stop after 3 consecutive rate-limit failures
 
     // Process each URL sequentially (parallel would blow AI rate limits)
     for (const urlRow of pendingUrls) {
@@ -102,8 +103,7 @@ export async function POST(req: NextRequest) {
 
         // If the error is "rate limited", put the URL BACK to pending instead
         // of permanently marking it as error. It will be retried on the next
-        // /process call (after the cooldown period). This prevents 90% of
-        // URLs from permanently failing just because z-ai needed a break.
+        // /process call (after the cooldown period).
         if (result.status === 'error' && result.error && result.error.includes('rate limited')) {
           // Put it back to pending — will be retried on next /process call
           await db.bulkFetchJobUrl.update({
@@ -115,8 +115,19 @@ export async function POST(req: NextRequest) {
             },
           })
           // Don't count as error or processed — it will be retried
+          consecutiveRateLimits++
+          // Circuit breaker: if 3 consecutive URLs fail with rate-limit,
+          // stop processing for this cycle. z-ai is clearly down/rate-limited.
+          // The next poll (25s later) will retry — by then z-ai may have recovered.
+          if (consecutiveRateLimits >= 3) {
+            console.log('[bulk-fetch] 3 consecutive rate-limit failures — pausing for this cycle')
+            break
+          }
           continue
         }
+
+        // Reset counter on success or non-rate-limit error
+        consecutiveRateLimits = 0
 
         await db.bulkFetchJobUrl.update({
           where: { id: urlRow.id },
@@ -226,7 +237,18 @@ async function processSingleUrl(url: string): Promise<{
     html = pageData.html
     publishedTime = pageData.publishedTime
   } catch (e: any) {
-    return { status: 'error', error: 'Failed to fetch page: ' + (e.message?.slice(0, 100) || 'unknown') }
+    const errMsg = e.message?.slice(0, 100) || 'unknown'
+    // If the page fetch failed because ALL providers failed (z-ai rate-limited
+    // + Jina couldn't bypass), put the URL back to 'pending' instead of 'error'.
+    // This way, it retries on the next poll cycle (after z-ai recovers).
+    // The bulk-fetch handler checks for 'rate limited' in the error message.
+    if (errMsg.includes('All page reader providers failed') || errMsg.includes('rate limited')) {
+      return {
+        status: 'error' as const,
+        error: 'rate limited — all page readers failed, will retry next cycle',
+      }
+    }
+    return { status: 'error' as const, error: 'Failed to fetch page: ' + errMsg }
   }
 
   // Strip HTML to plain text
