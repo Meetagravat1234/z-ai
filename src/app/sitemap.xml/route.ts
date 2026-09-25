@@ -22,6 +22,7 @@ export async function GET() {
   const subSitemaps = [
     { loc: `${baseUrl}/sitemap-main.xml`, lastmod: today },
     { loc: `${baseUrl}/sitemap-jobs.xml`, lastmod: today },
+    { loc: `${baseUrl}/sitemap-domains.xml`, lastmod: today },
     { loc: `${baseUrl}/sitemap-companies.xml`, lastmod: today },
     { loc: `${baseUrl}/sitemap-cities.xml`, lastmod: today },
     { loc: `${baseUrl}/sitemap-roles.xml`, lastmod: today },

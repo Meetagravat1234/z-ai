@@ -700,8 +700,27 @@ async function DomainPage({ domainSlug }: { domainSlug: string }) {
     take: 60,
   })
 
+  // JSON-LD ItemList — helps Google understand the job listings on this page
+  const itemListLd = {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    name: `${domain.name} Jobs in India`,
+    description: domain.description,
+    numberOfItems: jobs.length,
+    itemListElement: jobs.slice(0, 10).map((job, i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      url: `https://www.hirebase.in${jobUrl(job)}`,
+      name: `${job.title} at ${job.company.name}`,
+    })),
+  }
+
   return (
     <SiteShell>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListLd) }}
+      />
       <div className="space-y-6">
         <header>
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold mb-3"
