@@ -146,23 +146,24 @@ async function generatePdfMobile(
 
     const pdfWidth = 210
     const pdfHeight = 297
-    const contentWidth = pdfWidth
+    const margin = 10 // 10mm margin on all sides
+    const contentWidth = pdfWidth - margin * 2
     const contentHeight = (canvas.height * contentWidth) / canvas.width
 
-    if (contentHeight <= pdfHeight) {
+    if (contentHeight <= pdfHeight - margin * 2) {
       const imgData = canvas.toDataURL('image/jpeg', 0.95)
-      pdf.addImage(imgData, 'JPEG', 0, 0, contentWidth, contentHeight)
+      pdf.addImage(imgData, 'JPEG', margin, margin, contentWidth, contentHeight)
     } else {
       let heightLeft = contentHeight
-      let position = 0
+      let position = margin
       const imgData = canvas.toDataURL('image/jpeg', 0.95)
-      pdf.addImage(imgData, 'JPEG', 0, position, contentWidth, contentHeight)
-      heightLeft -= pdfHeight
+      pdf.addImage(imgData, 'JPEG', margin, position, contentWidth, contentHeight)
+      heightLeft -= (pdfHeight - margin * 2)
       while (heightLeft > 0) {
-        position = -(contentHeight - heightLeft)
+        position = -(contentHeight - heightLeft) + margin
         pdf.addPage()
-        pdf.addImage(imgData, 'JPEG', 0, position, contentWidth, contentHeight)
-        heightLeft -= pdfHeight
+        pdf.addImage(imgData, 'JPEG', margin, position, contentWidth, contentHeight)
+        heightLeft -= (pdfHeight - margin * 2)
       }
     }
 
@@ -193,7 +194,7 @@ function buildPrintCss(template: ResumeTemplate | null): string {
   const baseLineHeight = '1.4'
 
   let css = `
-  @page { size: A4; margin: 0; }
+  @page { size: A4; margin: 0.5in 0.6in; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     font-family: ${fontFamily};
@@ -202,6 +203,8 @@ function buildPrintCss(template: ResumeTemplate | null): string {
     color: #1a1a1a;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+    margin: 0;
+    padding: 0;
   }
   h1 {
     font-size: 20pt;
