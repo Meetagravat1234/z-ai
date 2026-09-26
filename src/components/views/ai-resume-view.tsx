@@ -279,7 +279,7 @@ export function AIResumeOptimizer() {
           {/* Mobile tip */}
           <div className="sm:hidden text-center">
             <p className="text-[11px] text-muted-foreground">
-              💡 On mobile: After clicking "Download PDF", use your browser's "Save as PDF" option in the print dialog.
+              💡 Your resume PDF will download directly to your device.
             </p>
           </div>
         </div>

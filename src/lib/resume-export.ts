@@ -1,32 +1,34 @@
 /**
  * Resume / cover-letter export utilities.
  *
- * PDF: Uses browser's native print engine (window.print) via a hidden iframe.
- *      This produces REAL text-based PDFs (not images) — ATS-friendly + good looking.
- *      The user clicks "Download PDF" → print dialog opens → they save as PDF.
- *      When a template slug is provided, applies template-specific CSS
- *      (accent color, font family, two-column layout for sidebar templates).
+ * PDF: Uses jsPDF + html2canvas for DIRECT download (no print dialog).
+ *      The user clicks "Download PDF" → file downloads immediately.
+ *      Works on mobile + desktop. Template-specific styling applied.
  *
  * DOCX: Uses the docx npm package to generate a real .docx file client-side.
  *       Opens in MS Word / Google Docs / LibreOffice. Editable.
- *       Note: DOCX format has limited styling support — accent color is applied
- *       to headings, but two-column layouts aren't supported in Word.
  */
 
 import { getTemplate, type ResumeTemplate } from '@/lib/resume-templates'
 
 // ============================================================
-// Markdown → PDF (via browser print engine)
+// Markdown → PDF (via jsPDF — direct download, no print dialog)
 // ============================================================
 export async function generatePdfFromMarkdown(
   markdown: string,
   fileName: string,
   templateSlug?: string | null,
 ): Promise<void> {
+  // Dynamically import jsPDF + html2canvas (only loaded when user downloads)
+  const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([
+    import('jspdf'),
+    import('html2canvas'),
+  ])
+
   // Convert markdown to clean HTML
   const html = markdownToHtml(markdown)
 
-  // Get template-specific CSS (or default if no template)
+  // Get template-specific CSS
   const template = templateSlug ? getTemplate(templateSlug) ?? null : null
   const css = buildPrintCss(template)
 
@@ -35,53 +37,73 @@ export async function generatePdfFromMarkdown(
     ? wrapTwoColumnLayout(html)
     : html
 
-  // Create a hidden iframe for printing
-  const iframe = document.createElement('iframe')
-  iframe.style.position = 'fixed'
-  iframe.style.right = '0'
-  iframe.style.bottom = '0'
-  iframe.style.width = '0'
-  iframe.style.height = '0'
-  iframe.style.border = '0'
-  document.body.appendChild(iframe)
+  // Create a temporary hidden div to render the resume HTML
+  const container = document.createElement('div')
+  container.style.position = 'absolute'
+  container.style.left = '-9999px'
+  container.style.top = '0'
+  container.style.width = '794px' // A4 width at 96 DPI (210mm * 96/25.4)
+  container.style.background = '#ffffff'
+  container.style.padding = '40px 48px'
+  container.innerHTML = `<style>${css}</style>${finalHtml}`
+  document.body.appendChild(container)
 
-  // Write the resume HTML + print CSS into the iframe
-  const printDoc = iframe.contentWindow?.document
-  if (!printDoc) {
-    document.body.removeChild(iframe)
-    throw new Error('Could not create print window')
-  }
+  try {
+    // Wait for fonts + content to render
+    await new Promise((r) => setTimeout(r, 300))
 
-  printDoc.open()
-  printDoc.write(`
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<title>${fileName.replace(/\.(pdf|docx)$/, '')}</title>
-<style>
-${css}
-</style>
-</head>
-<body>
-${finalHtml}
-</body>
-</html>
-  `)
-  printDoc.close()
+    // Render the HTML to a canvas (image)
+    const canvas = await html2canvas(container, {
+      scale: 2, // 2x for crisp text
+      useCORS: true,
+      backgroundColor: '#ffffff',
+      logging: false,
+    })
 
-  // Wait for the iframe to render, then trigger print
-  await new Promise(resolve => setTimeout(resolve, 500))
+    // Create PDF from the canvas
+    const pdf = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4',
+      compress: true,
+    })
 
-  iframe.contentWindow?.focus()
-  iframe.contentWindow?.print()
+    // Calculate dimensions to fit A4 page
+    const pdfWidth = 210 // A4 width in mm
+    const pdfHeight = 297 // A4 height in mm
+    const margin = 0 // content already has padding
+    const contentWidth = pdfWidth - margin * 2
+    const contentHeight = (canvas.height * contentWidth) / canvas.width
 
-  // Remove the iframe after print dialog closes
-  setTimeout(() => {
-    if (iframe.parentNode) {
-      document.body.removeChild(iframe)
+    // If content fits on one page, add it directly
+    if (contentHeight <= pdfHeight) {
+      const imgData = canvas.toDataURL('image/jpeg', 0.95)
+      pdf.addImage(imgData, 'JPEG', margin, margin, contentWidth, contentHeight)
+    } else {
+      // Content spans multiple pages — split the canvas into pages
+      let heightLeft = contentHeight
+      let position = 0
+      const imgData = canvas.toDataURL('image/jpeg', 0.95)
+
+      pdf.addImage(imgData, 'JPEG', margin, position, contentWidth, contentHeight)
+      heightLeft -= pdfHeight
+
+      while (heightLeft > 0) {
+        position = -(contentHeight - heightLeft)
+        pdf.addPage()
+        pdf.addImage(imgData, 'JPEG', margin, position, contentWidth, contentHeight)
+        heightLeft -= pdfHeight
+      }
     }
-  }, 1000)
+
+    // Download the PDF directly
+    pdf.save(fileName)
+  } finally {
+    // Clean up the temporary container
+    if (container.parentNode) {
+      document.body.removeChild(container)
+    }
+  }
 }
 
 // ============================================================
@@ -95,23 +117,16 @@ ${finalHtml}
  */
 function buildPrintCss(template: ResumeTemplate | null): string {
   const accent = template?.accentColor || '#10b981'
-  const fontFamily = template?.fontFamily || "'Calibri', 'Helvetica Neue', Arial, sans-serif"
+  const fontFamily = template?.fontFamily || "'Inter', 'Helvetica', Arial, sans-serif"
 
-  // Templates use readable sizes that fill 1 page naturally.
-  // User requested: "resume is created in 2 pages and i want that is created in 1 page"
-  // but also: "not making full page resume" (too short).
-  // Solution: use 10pt font + normal margins + 5-6 bullets per job = fills exactly 1 page.
-  const baseFontSize = '10pt'
+  // Simple, clean, professional CSS — not too fancy
+  const baseFontSize = '11pt'
   const baseMargin = '0.5in 0.6in'
   const baseLineHeight = '1.4'
 
-  // Base CSS — shared across all templates
   let css = `
-  @page {
-    size: A4;
-    margin: ${baseMargin};
-  }
-  * { box-sizing: border-box; }
+  @page { size: A4; margin: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     font-family: ${fontFamily};
     font-size: ${baseFontSize};
@@ -119,60 +134,29 @@ function buildPrintCss(template: ResumeTemplate | null): string {
     color: #1a1a1a;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
-    margin: 0;
-    padding: 0;
-  }`
-
-  // H1 (name) — uses accent color
-  css += `
+  }
   h1 {
-    font-size: 18pt;
+    font-size: 20pt;
     font-weight: 700;
     margin: 0 0 4pt 0;
     color: #0f1729;
     border-bottom: 2pt solid ${accent};
     padding-bottom: 4pt;
-    letter-spacing: -0.3pt;
-  }`
-
-  // H2 (section headings) — template-specific style
-  if (template?.layout === 'ats-plain') {
-    css += `
-    h2 {
-      font-size: 11pt;
-      font-weight: 700;
-      margin: 10pt 0 3pt 0;
-      color: #1a1a1a;
-    }`
-  } else if (template?.category === 'executive' || template?.category === 'academic') {
-    css += `
-    h2 {
-      font-size: 11pt;
-      font-weight: 700;
-      margin: 10pt 0 3pt 0;
-      color: #1a1a1a;
-      border-bottom: 0.5pt solid ${accent};
-      padding-bottom: 2pt;
-    }`
-  } else {
-    css += `
-    h2 {
-      font-size: 11pt;
-      font-weight: 700;
-      margin: 10pt 0 3pt 0;
-      color: #1a1a1a;
-      text-transform: uppercase;
-      letter-spacing: 0.5pt;
-      border-bottom: 0.5pt solid ${accent};
-      padding-bottom: 2pt;
-    }`
   }
-
-  css += `
-  h3 {
-    font-size: 10pt;
+  h2 {
+    font-size: 12pt;
     font-weight: 700;
-    margin: 6pt 0 2pt 0;
+    margin: 12pt 0 4pt 0;
+    color: #1a1a1a;
+    text-transform: uppercase;
+    letter-spacing: 0.5pt;
+    border-bottom: 0.5pt solid ${accent};
+    padding-bottom: 2pt;
+  }
+  h3 {
+    font-size: 11pt;
+    font-weight: 700;
+    margin: 8pt 0 2pt 0;
     color: ${accent};
   }
   p { margin: 0 0 4pt 0; line-height: 1.4; }
@@ -195,15 +179,8 @@ function buildPrintCss(template: ResumeTemplate | null): string {
     gap: 12pt;
   }
   @media (max-width: 480px) {
-    .resume-container {
-      grid-template-columns: 1fr;
-      gap: 8pt;
-    }
-    .resume-sidebar {
-      border-left: none;
-      border-top: 1pt solid ${accent};
-      padding: 8pt;
-    }
+    .resume-container { grid-template-columns: 1fr; gap: 8pt; }
+    .resume-sidebar { border-left: none; border-top: 1pt solid ${accent}; padding: 8pt; }
   }
   .resume-main { grid-column: 1; }
   .resume-sidebar {

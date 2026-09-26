@@ -58,7 +58,7 @@ export function DownloadButtons({ markdown, baseFileName = 'resume', className, 
       if (format === 'pdf') {
         // Pass template slug to apply template-specific CSS styling
         await generatePdfFromMarkdown(markdown, fileName, template)
-        toast.info('Print dialog opened — select "Save as PDF" to download your resume.')
+        toast.success('Resume PDF downloaded successfully!')
       } else {
         await generateDocxFromMarkdown(markdown, fileName)
         toast.success(`Downloaded ${fileName}`)
