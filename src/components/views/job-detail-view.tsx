@@ -1,6 +1,7 @@
 'use client'
 
 import * as React from 'react'
+import Link from 'next/link'
 import {
   ArrowLeft,
   MapPin,
@@ -23,6 +24,7 @@ import {
   Calendar,
   Eye,
   TrendingUp,
+  ArrowRight,
 } from 'lucide-react'
 import { useNav } from '@/lib/nav-store'
 import { useAuth } from '@/lib/auth-context'
@@ -30,6 +32,7 @@ import { JobCard, type Job } from '@/components/jobs/job-card'
 import { JobMatchBadge } from '@/components/jobs/job-match-badge'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
+import { cleanJobTitle } from '@/lib/seo-routes'
 
 interface Company {
   id: string
@@ -363,6 +366,21 @@ export function JobDetailView({
 
   return (
     <div className="space-y-6 pb-8 max-w-5xl mx-auto">
+      {/* Breadcrumbs — visible navigation + SEO */}
+      <nav className="flex items-center gap-1.5 text-xs text-muted-foreground flex-wrap" aria-label="Breadcrumb">
+        <Link href="/" className="hover:text-foreground transition-colors">Home</Link>
+        <span>/</span>
+        <Link href="/jobs" className="hover:text-foreground transition-colors">Jobs</Link>
+        {job.category && (
+          <>
+            <span>/</span>
+            <Link href={`/jobs/${job.category}`} className="hover:text-foreground transition-colors capitalize">{job.category}</Link>
+          </>
+        )}
+        <span>/</span>
+        <span className="text-foreground font-medium truncate max-w-[200px]">{cleanJobTitle(job.title, job.company.name)}</span>
+      </nav>
+
       {/* Back button */}
       <button
         onClick={() => go('all-jobs')}
@@ -804,7 +822,90 @@ export function JobDetailView({
           </div>
         </section>
       )}
+
+      {/* RELATED ARTICLES — SEO + engagement */}
+      <RelatedArticles jobTitle={job?.title || ''} domain={(job as any).domain || ''} />
+
+      {/* RESUME OPTIMIZER CTA */}
+      <ResumeOptimizerCTA />
     </div>
+  )
+}
+
+/**
+ * RelatedArticles — fetches articles related to the job's domain.
+ * Shown at the bottom of job detail pages to improve SEO + engagement.
+ */
+function RelatedArticles({ jobTitle, domain }: { jobTitle: string; domain: string }) {
+  const [articles, setArticles] = React.useState<any[]>([])
+  const [loading, setLoading] = React.useState(true)
+
+  React.useEffect(() => {
+    fetch('/api/articles?limit=3')
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.articles) setArticles(d.articles.slice(0, 3))
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [])
+
+  if (loading || articles.length === 0) return null
+
+  return (
+    <section className="mt-8">
+      <h2 className="text-xl font-bold mb-4">Career advice</h2>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {articles.map((article) => (
+          <Link
+            key={article.id}
+            href={`/insights/${article.slug}`}
+            className="group rounded-2xl border border-border bg-card p-4 hover:border-primary/40 hover:shadow-md transition-all"
+          >
+            <div className="text-2xl mb-2">{article.coverEmoji || '📄'}</div>
+            <h3 className="font-bold text-sm leading-tight group-hover:text-primary transition-colors line-clamp-2">
+              {article.title}
+            </h3>
+            <p className="text-xs text-muted-foreground mt-1.5 line-clamp-2">
+              {article.excerpt}
+            </p>
+            <div className="flex items-center gap-2 mt-3 text-[10px] text-muted-foreground">
+              <span>{article.readMinutes || 5} min read</span>
+              <span>·</span>
+              <span>{article.category}</span>
+            </div>
+          </Link>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+/**
+ * ResumeOptimizerCTA — small banner at the bottom of job detail pages
+ * encouraging users to optimize their resume for this job.
+ */
+function ResumeOptimizerCTA() {
+  return (
+    <section className="mt-6">
+      <Link
+        href="/ai-tools/resume-optimizer"
+        className="block p-5 rounded-2xl bg-gradient-to-br from-violet-500/10 via-primary/5 to-violet-500/10 border border-violet-500/20 hover:border-violet-500/40 transition-colors"
+      >
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-primary flex items-center justify-center shrink-0">
+            <Sparkles className="w-6 h-6 text-white" />
+          </div>
+          <div className="flex-1">
+            <div className="font-bold text-base">Optimize your resume with AI</div>
+            <div className="text-sm text-muted-foreground mt-0.5">
+              Get a tailored, ATS-friendly resume for this job — free for your first use.
+            </div>
+          </div>
+          <ArrowRight className="w-5 h-5 text-violet-500 shrink-0" />
+        </div>
+      </Link>
+    </section>
   )
 }
 
