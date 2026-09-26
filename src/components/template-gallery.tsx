@@ -39,9 +39,9 @@ export function TemplateGallery({ selected, onSelect, isPro, onLockedClick }: Te
             key={template.slug}
             template={template}
             isSelected={selected === template.slug}
-            isLocked={!isPro}
+            isLocked={!isPro && !template.isFree}
             onSelect={() => {
-              if (!isPro) {
+              if (!isPro && !template.isFree) {
                 onLockedClick?.(template)
               } else {
                 onSelect(template.slug)
@@ -62,6 +62,7 @@ interface TemplateCardProps {
 }
 
 function TemplateCard({ template, isSelected, isLocked, onSelect }: TemplateCardProps) {
+  const isFree = template.isFree === true
   return (
     <button
       onClick={onSelect}
@@ -79,16 +80,23 @@ function TemplateCard({ template, isSelected, isLocked, onSelect }: TemplateCard
         </div>
       )}
 
-      {/* Pro badge */}
+      {/* Badge — Free or Pro */}
       <div className="absolute top-2 left-2 z-10">
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/90 backdrop-blur-sm text-white text-[10px] font-bold uppercase tracking-wide">
-          <Crown className="w-3 h-3" />
-          Pro
-        </span>
+        {isFree ? (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/90 backdrop-blur-sm text-white text-[10px] font-bold uppercase tracking-wide">
+            <Check className="w-2.5 h-2.5" />
+            Free
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/90 backdrop-blur-sm text-white text-[10px] font-bold uppercase tracking-wide">
+            <Crown className="w-2.5 h-2.5" />
+            Pro
+          </span>
+        )}
       </div>
 
-      {/* Lock overlay */}
-      {isLocked && (
+      {/* Lock overlay for non-Pro users on Pro-only templates */}
+      {isLocked && !isFree && (
         <div className="absolute inset-0 z-20 bg-black/50 backdrop-blur-[2px] flex items-center justify-center">
           <div className="text-center text-white">
             <Lock className="w-6 h-6 mx-auto mb-1" />

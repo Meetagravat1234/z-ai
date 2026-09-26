@@ -102,7 +102,7 @@ export function JobMatchBadge({ jobId, className }: JobMatchBadgeProps) {
         )}
       >
         <Target className="w-3.5 h-3.5" />
-        Add profile skills for AI match
+        Complete profile to see job match %
       </button>
     )
   }

@@ -2,6 +2,7 @@
 
 import * as React from 'react'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { Sparkles, ArrowRight, X } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
 
@@ -21,6 +22,7 @@ import { useAuth } from '@/lib/auth-context'
  */
 export function TryAiBanner() {
   const { user, isDemo } = useAuth()
+  const pathname = usePathname()
   const [dismissed, setDismissed] = React.useState(false)
 
   // Check localStorage on mount
@@ -35,8 +37,18 @@ export function TryAiBanner() {
     }
   }, [])
 
+  // Don't show banner on auth page (feels intrusive when user is already trying to sign up)
+  // Don't show on job detail pages (user is focused on applying, not browsing AI tools)
+  // Don't show on AI tools pages (user is already there)
+  const isHiddenPage = pathname === '/auth' || 
+    pathname?.includes('view=auth') ||
+    pathname?.startsWith('/jobs/') || 
+    pathname?.includes('/ai-tools/') ||
+    pathname === '/profile' ||
+    pathname === '/tracker'
+
   // Don't show for demo users (logged in but no session)
-  if (isDemo) return null
+  if (isDemo || isHiddenPage) return null
 
   // Check if logged-in user has used any AI tool
   if (user) {

@@ -53,6 +53,8 @@ export interface ResumeTemplate {
   sections: ResumeSection[]
   /** Additional instructions for the AI when generating this template */
   aiPromptModifier: string
+  /** Whether this template is free (no Pro required). Default: false (Pro-only). */
+  isFree?: boolean
 }
 
 // ============================================================================
@@ -90,6 +92,7 @@ export const RESUME_TEMPLATES: ResumeTemplate[] = [
     aiPromptModifier: `Sections to include: Professional Summary, Technical Skills, Professional Experience, Notable Projects (if mentioned in resume), Education.
 If the user's resume doesn't have project info, skip the Projects section entirely.
 Technical Skills should be categorized: Languages, Frameworks, Cloud, Databases.`,
+    isFree: true,  // Modern Minimalist — free for all users
   },
 
   // 2. Tech Forward — Developer/DevOps
@@ -307,6 +310,7 @@ CRITICAL: Mirror the EXACT keywords from the job description.
 - Each experience bullet MUST contain at least 1 keyword from the JD
 Sections: Professional Summary (keyword-rich), Core Competencies (comma-separated keywords from JD), Technical Skills (categorized), Professional Experience, Education, Certifications (if any).
 No tables, no columns, no images. Maximum keyword density without keyword stuffing.`,
+    isFree: true,  // ATS Maximum — free for all users (most basic)
   },
 
   // 10. Hybrid Modern — Most roles

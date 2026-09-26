@@ -46,11 +46,12 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Template feature is Pro-only — if template is selected and user is not Pro, block
-    if (templateSlug && !usage.isPro) {
+    // Template feature is Pro-only — UNLESS the template is marked as free
+    const template = templateSlug ? getTemplate(templateSlug) : null
+    if (templateSlug && !usage.isPro && template && !template.isFree) {
       return NextResponse.json(
         {
-          error: 'Resume templates are a Pro feature. Upgrade to Pro to use templates.',
+          error: 'This resume template is a Pro feature. Upgrade to Pro to use it, or pick a Free template.',
           requiresUpgrade: true,
           requiresPro: true,
         },
@@ -63,7 +64,8 @@ export async function POST(req: NextRequest) {
     if (rateLimitResponse) return rateLimitResponse
 
     // Build the system prompt — base prompt + template-specific modifier
-    const template = templateSlug ? getTemplate(templateSlug) : null
+    // (template variable was already declared above for the Pro check)
+    // const template = templateSlug ? getTemplate(templateSlug) : null
 
     // Build section list for the AI prompt
     const sectionList = template
