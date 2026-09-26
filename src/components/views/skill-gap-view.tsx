@@ -3,6 +3,7 @@
 import * as React from 'react'
 import { Loader2, Sparkles, AlertCircle, CheckCircle2, Target, BookOpen, Rocket, Lightbulb, Clock } from 'lucide-react'
 import { toast } from 'sonner'
+import { useAuth } from '@/lib/auth-context'
 import { cn } from '@/lib/utils'
 import { ResumeUpload } from '@/components/resume-upload'
 import { ProUpsellModal } from '@/components/pro-upsell-modal'
@@ -26,6 +27,7 @@ const POPULAR_ROLES = [
 ]
 
 export function SkillGapView() {
+  const { user } = useAuth()
   const [skills, setSkills] = React.useState('')
   const [targetRole, setTargetRole] = React.useState('Software Engineer')
   const [experience, setExperience] = React.useState('0')
@@ -197,7 +199,7 @@ export function SkillGapView() {
       <ProUpsellModal
         open={showAdGate}
         toolLabel="Skill Gap Analyzer"
-        used={1}
+        used={(user as any)?.skillGapAnalysesUsed || 1}
         limit={1}
         onClose={handleAdGateClose}
       />

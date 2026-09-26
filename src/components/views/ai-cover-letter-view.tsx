@@ -7,8 +7,10 @@ import { ResumeUpload } from '@/components/resume-upload'
 import { DownloadButtons } from '@/components/download-buttons'
 import { ProUpsellModal } from '@/components/pro-upsell-modal'
 import { useResumeStore } from '@/lib/resume-store'
+import { useAuth } from '@/lib/auth-context'
 
 export function AICoverLetter() {
+  const { user } = useAuth()
   // Use shared resume store — persists across page navigations
   const { resumeText: sharedResume, setResumeText: setSharedResume } = useResumeStore()
 
@@ -182,8 +184,8 @@ export function AICoverLetter() {
 
       <ProUpsellModal
         open={showAdGate}
-        toolLabel="AI Cover Letter"
-        used={1}
+        toolLabel="AI Cover Letter Generator"
+        used={(user as any)?.coverLettersUsed || 1}
         limit={1}
         onClose={handleAdGateClose}
       />

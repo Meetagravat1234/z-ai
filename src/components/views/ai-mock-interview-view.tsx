@@ -3,6 +3,7 @@
 import * as React from 'react'
 import { Loader2, Mic, Send, AlertCircle, User, Bot } from 'lucide-react'
 import { toast } from 'sonner'
+import { useAuth } from '@/lib/auth-context'
 import { ProUpsellModal } from '@/components/pro-upsell-modal'
 
 interface Msg {
@@ -11,6 +12,7 @@ interface Msg {
 }
 
 export function AIMockInterview() {
+  const { user } = useAuth()
   const [role, setRole] = React.useState('')
   const [company, setCompany] = React.useState('')
   const [started, setStarted] = React.useState(false)
@@ -197,7 +199,7 @@ export function AIMockInterview() {
       <ProUpsellModal
         open={showAdGate}
         toolLabel="AI Mock Interview"
-        used={1}
+        used={(user as any)?.mockInterviewsUsed || 1}
         limit={1}
         onClose={handleAdGateClose}
       />

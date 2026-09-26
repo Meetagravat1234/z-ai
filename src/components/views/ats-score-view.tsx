@@ -6,8 +6,7 @@ import { Loader2, Sparkles, AlertCircle, CheckCircle2, FileText, TrendingUp, Cop
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { useResumeStore } from '@/lib/resume-store'
-import { useAuth } from '@/lib/auth-context'
-import { useIsPro } from '@/lib/auth-context'
+import { useAuth, useIsPro } from '@/lib/auth-context'
 import { ResumeUpload } from '@/components/resume-upload'
 import { ProUpsellModal } from '@/components/pro-upsell-modal'
 
@@ -24,6 +23,8 @@ interface ATSResult {
 
 export function ATSScoreView() {
   const isPro = useIsPro()
+  const { user } = useAuth()
+  const atsUsed = (user as any)?.atsChecksUsed || 0
   const [resume, setResume] = React.useState('')
   const [jd, setJd] = React.useState('')
   const [loading, setLoading] = React.useState(false)
@@ -443,7 +444,7 @@ export function ATSScoreView() {
       <ProUpsellModal
         open={showAdGate}
         toolLabel="ATS Score Checker"
-        used={3}
+        used={atsUsed}
         limit={3}
         onClose={handleAdGateClose}
       />

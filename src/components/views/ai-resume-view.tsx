@@ -302,7 +302,7 @@ export function AIResumeOptimizer() {
       <ProUpsellModal
         open={showAdGate}
         toolLabel="AI Resume Optimizer + Templates"
-        used={1}
+        used={(user as any)?.resumeOptimizationsUsed || 1}
         limit={1}
         onClose={handleAdGateClose}
       />

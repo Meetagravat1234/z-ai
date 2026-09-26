@@ -4,6 +4,7 @@ import * as React from 'react'
 import { Loader2, Wallet, AlertCircle, TrendingUp, TrendingDown, Sparkles, Lightbulb } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ProUpsellModal } from '@/components/pro-upsell-modal'
+import { useAuth } from '@/lib/auth-context'
 
 interface SalaryResult {
   predictedRange?: { min: number; max: number; currency: string; unit: string }
@@ -18,6 +19,7 @@ interface SalaryResult {
 }
 
 export function AISalaryPredictor() {
+  const { user } = useAuth()
   const [role, setRole] = React.useState('')
   const [company, setCompany] = React.useState('')
   const [location, setLocation] = React.useState('Bengaluru')
@@ -216,7 +218,7 @@ export function AISalaryPredictor() {
       <ProUpsellModal
         open={showAdGate}
         toolLabel="Salary Predictor"
-        used={1}
+        used={(user as any)?.salaryPredictionsUsed || 1}
         limit={1}
         onClose={handleAdGateClose}
       />
