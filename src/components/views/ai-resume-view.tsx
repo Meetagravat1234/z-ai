@@ -256,12 +256,10 @@ export function AIResumeOptimizer() {
           {/* PDF-style preview — looks like an actual page */}
           <div className="flex justify-center">
             <div
-              className="bg-white shadow-xl rounded-lg border border-border"
+              className="bg-white shadow-xl rounded-lg border border-border w-full overflow-hidden"
               style={{
-                width: '100%',
                 maxWidth: '800px',
-                minHeight: '1100px',
-                padding: '48px 56px',
+                padding: '32px 24px',
               }}
             >
               <ResumeRenderer content={result} templateSlug={resultTemplate || selectedTemplate} />

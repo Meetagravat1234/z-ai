@@ -327,10 +327,11 @@ export function TopNav() {
 
       <button
         onClick={() => setCommandOpen(true)}
-        className="flex-1 max-w-md flex items-center gap-2 px-3 py-2 rounded-xl border border-border bg-muted/40 hover:bg-muted text-sm text-muted-foreground transition-colors text-left"
+        className="flex-1 max-w-md flex items-center gap-2 px-3 py-2 rounded-xl border border-border bg-muted/40 hover:bg-muted text-sm text-muted-foreground transition-colors text-left min-w-0"
       >
-        <Search className="w-4 h-4" />
-        <span className="flex-1 truncate">Search jobs, companies, articles…</span>
+        <Search className="w-4 h-4 shrink-0" />
+        <span className="flex-1 truncate hidden sm:inline">Search jobs, companies, articles…</span>
+        <span className="flex-1 truncate sm:hidden">Search…</span>
       </button>
 
       <div className="flex-1" />
@@ -399,7 +400,7 @@ export function BottomNav() {
   const items: Array<{ id: ViewId; label: string; icon: React.ComponentType<{ className?: string }> }> = [
     { id: 'home', label: 'Home', icon: LayoutDashboard },
     { id: 'all-jobs', label: 'Jobs', icon: Briefcase },
-    { id: 'companies', label: 'Companies', icon: Building2 },
+    { id: 'ai-resume', label: 'AI Tools', icon: Sparkles },
     { id: 'saved', label: 'Saved', icon: Bookmark },
     { id: 'tracker', label: 'Tracker', icon: KanbanSquare },
   ]
@@ -411,18 +412,19 @@ export function BottomNav() {
           const active = pathname === itemUrl
             || (itemUrl !== '/' && pathname?.startsWith(itemUrl))
             || (item.id === 'home' && pathname === '/')
+            || (item.id === 'ai-resume' && pathname?.startsWith('/ai-tools'))
           const Icon = item.icon
           return (
             <Link
               key={item.id}
               href={itemUrl}
               className={cn(
-                'flex-1 flex flex-col items-center gap-1 py-2.5 text-[10px] font-medium transition-colors',
+                'flex-1 flex flex-col items-center gap-0.5 py-2 text-[10px] font-medium transition-colors min-w-0',
                 active ? 'text-primary' : 'text-muted-foreground'
               )}
             >
-              <Icon className="w-5 h-5" />
-              {item.label}
+              <Icon className="w-5 h-5 shrink-0" />
+              <span className="truncate">{item.label}</span>
             </Link>
           )
         })}

@@ -98,13 +98,13 @@ function StatCard({
   bg: string
 }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-3 flex items-center gap-3">
-      <div className={`w-8 h-8 rounded-lg ${bg} flex items-center justify-center ${color} shrink-0`}>
+    <div className="rounded-xl border border-border bg-card p-2.5 sm:p-3 flex items-center gap-2 sm:gap-3">
+      <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg ${bg} flex items-center justify-center ${color} shrink-0`}>
         {icon}
       </div>
       <div className="min-w-0">
-        <div className={`text-base font-extrabold tabular-nums ${color}`}>{value}</div>
-        <div className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide truncate">
+        <div className={`text-sm sm:text-base font-extrabold tabular-nums ${color}`}>{value}</div>
+        <div className="text-[9px] sm:text-[10px] text-muted-foreground font-medium uppercase tracking-wide truncate">
           {label}
         </div>
       </div>

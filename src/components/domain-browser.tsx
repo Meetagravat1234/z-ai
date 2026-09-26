@@ -25,22 +25,22 @@ export function DomainBrowser() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
         {JOB_DOMAINS.map((domain) => (
           <Link
             key={domain.slug}
             href={`/jobs/${domain.slug}`}
-            className="group rounded-2xl border border-border bg-card p-4 hover:border-primary/40 hover:shadow-md transition-all"
+            className="group rounded-xl sm:rounded-2xl border border-border bg-card p-3 sm:p-4 hover:border-primary/40 hover:shadow-md transition-all"
           >
-            <div className="flex items-start gap-2 mb-2">
-              <span className="text-2xl">{domain.emoji}</span>
+            <div className="flex items-start gap-2 mb-1.5 sm:mb-2">
+              <span className="text-lg sm:text-2xl">{domain.emoji}</span>
               <div className="flex-1 min-w-0">
-                <div className="font-bold text-sm leading-tight group-hover:text-primary transition-colors">
+                <div className="font-bold text-xs sm:text-sm leading-tight group-hover:text-primary transition-colors">
                   {domain.name}
                 </div>
               </div>
             </div>
-            <p className="text-[11px] text-muted-foreground leading-snug line-clamp-2">
+            <p className="text-[10px] sm:text-[11px] text-muted-foreground leading-snug line-clamp-2 hidden sm:block">
               {domain.description}
             </p>
           </Link>

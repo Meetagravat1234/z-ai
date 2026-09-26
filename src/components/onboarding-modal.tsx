@@ -80,8 +80,8 @@ export function OnboardingModal({ open, onClose, onComplete }: OnboardingModalPr
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
-      <div className="bg-card border border-border rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden">
+    <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-3">
+      <div className="bg-card border border-border rounded-3xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="bg-gradient-to-br from-primary/10 to-violet-500/10 p-6 text-center">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold mb-3">
@@ -118,7 +118,7 @@ export function OnboardingModal({ open, onClose, onComplete }: OnboardingModalPr
                 <h3 className="font-bold text-lg">What role are you targeting?</h3>
                 <p className="text-xs text-muted-foreground">We'll tailor your job matches + AI tools</p>
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-2 gap-2">
                 {ROLE_OPTIONS.map((role) => (
                   <button
                     key={role.id}
