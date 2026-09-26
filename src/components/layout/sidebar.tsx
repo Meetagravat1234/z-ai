@@ -397,39 +397,106 @@ export function TopNav() {
 
 export function BottomNav() {
   const pathname = usePathname()
-  const items: Array<{ id: ViewId; label: string; icon: React.ComponentType<{ className?: string }> }> = [
+  const [showAiSheet, setShowAiSheet] = React.useState(false)
+
+  const aiTools: Array<{ id: ViewId; label: string; icon: React.ComponentType<{ className?: string }> }> = [
+    { id: 'ai-resume', label: 'Resume Optimizer', icon: FileText },
+    { id: 'ats-score', label: 'ATS Score Checker', icon: FileCheck },
+    { id: 'ai-cover-letter', label: 'Cover Letter', icon: Sparkles },
+    { id: 'ai-mock-interview', label: 'Mock Interview', icon: Mic },
+    { id: 'skill-gap', label: 'Skill Gap Analyzer', icon: Target },
+    { id: 'ai-salary', label: 'Salary Predictor', icon: Wallet },
+  ]
+
+  const navItems: Array<{ id: ViewId; label: string; icon: React.ComponentType<{ className?: string }> }> = [
     { id: 'home', label: 'Home', icon: LayoutDashboard },
     { id: 'all-jobs', label: 'Jobs', icon: Briefcase },
     { id: 'ai-resume', label: 'AI Tools', icon: Sparkles },
     { id: 'saved', label: 'Saved', icon: Bookmark },
     { id: 'tracker', label: 'Tracker', icon: KanbanSquare },
   ]
+
   return (
-    <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-background/95 backdrop-blur border-t border-border">
-      <div className="flex">
-        {items.map((item) => {
-          const itemUrl = VIEW_URLS[item.id] || '/'
-          const active = pathname === itemUrl
-            || (itemUrl !== '/' && pathname?.startsWith(itemUrl))
-            || (item.id === 'home' && pathname === '/')
-            || (item.id === 'ai-resume' && pathname?.startsWith('/ai-tools'))
-          const Icon = item.icon
-          return (
-            <Link
-              key={item.id}
-              href={itemUrl}
-              className={cn(
-                'flex-1 flex flex-col items-center gap-0.5 py-2 text-[10px] font-medium transition-colors min-w-0',
-                active ? 'text-primary' : 'text-muted-foreground'
-              )}
-            >
-              <Icon className="w-5 h-5 shrink-0" />
-              <span className="truncate">{item.label}</span>
-            </Link>
-          )
-        })}
-      </div>
-      <div className="h-[env(safe-area-inset-bottom)] bg-background/95" />
-    </nav>
+    <>
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-background/95 backdrop-blur border-t border-border">
+        <div className="flex">
+          {navItems.map((item) => {
+            const itemUrl = VIEW_URLS[item.id] || '/'
+            const active = pathname === itemUrl
+              || (itemUrl !== '/' && pathname?.startsWith(itemUrl))
+              || (item.id === 'home' && pathname === '/')
+              || (item.id === 'ai-resume' && pathname?.startsWith('/ai-tools'))
+            const Icon = item.icon
+            return (
+              <Link
+                key={item.id}
+                href={itemUrl}
+                onClick={(e) => {
+                  if (item.id === 'ai-resume') {
+                    e.preventDefault()
+                    setShowAiSheet(true)
+                  }
+                }}
+                className={cn(
+                  'flex-1 flex flex-col items-center gap-0.5 py-2 text-[10px] font-medium transition-colors min-w-0',
+                  active ? 'text-primary' : 'text-muted-foreground'
+                )}
+              >
+                <Icon className="w-5 h-5 shrink-0" />
+                <span className="truncate">{item.label}</span>
+              </Link>
+            )
+          })}
+        </div>
+        <div className="h-[env(safe-area-inset-bottom)] bg-background/95" />
+      </nav>
+
+      {/* AI Tools bottom sheet — shows all 6 tools when user taps 'AI Tools' */}
+      {showAiSheet && (
+        <div className="lg:hidden fixed inset-0 z-50 flex items-end" onClick={() => setShowAiSheet(false)}>
+          <div className="absolute inset-0 bg-black/50" />
+          <div
+            className="relative w-full bg-card border-t border-border rounded-t-2xl p-4 pb-8 shadow-2xl animate-in slide-in-from-bottom"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-primary" />
+                <h3 className="font-bold text-base">AI Tools</h3>
+              </div>
+              <button
+                onClick={() => setShowAiSheet(false)}
+                className="p-1.5 rounded-lg hover:bg-muted"
+              >
+                <X className="w-5 h-5 text-muted-foreground" />
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {aiTools.map((tool) => {
+                const toolUrl = VIEW_URLS[tool.id] || '/ai-tools/resume-optimizer'
+                const Icon = tool.icon
+                const active = pathname === toolUrl || pathname?.startsWith(toolUrl)
+                return (
+                  <Link
+                    key={tool.id}
+                    href={toolUrl}
+                    onClick={() => setShowAiSheet(false)}
+                    className={cn(
+                      'flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all',
+                      active
+                        ? 'border-primary bg-primary/5'
+                        : 'border-border hover:border-primary/40 hover:bg-muted/50'
+                    )}
+                  >
+                    <Icon className={cn('w-6 h-6', active ? 'text-primary' : 'text-muted-foreground')} />
+                    <span className="text-xs font-medium text-center">{tool.label}</span>
+                  </Link>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   )
 }
