@@ -85,14 +85,14 @@ export function ResumeRenderer({ content, templateSlug, className }: ResumeRende
           '--resume-accent': template.accentColor,
         } as React.CSSProperties}
       >
-        <div className="grid grid-cols-1 md:grid-cols-[1fr_220px] gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-[1fr_180px] gap-4 sm:gap-6">
           {/* Main column */}
           <div className="main-column">
             <DefaultMarkdownView blocks={mainBlocks} accentColor={template.accentColor} />
           </div>
 
-          {/* Sidebar */}
-          <aside className="sidebar-column bg-muted/30 rounded-lg p-4">
+          {/* Sidebar — stacks below main on mobile */}
+          <aside className="sidebar-column bg-muted/30 rounded-lg p-3 sm:p-4 order-last sm:order-none">
             <SidebarMarkdownView blocks={sidebarBlocks} accentColor={template.accentColor} />
           </aside>
         </div>

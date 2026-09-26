@@ -253,25 +253,34 @@ export function AIResumeOptimizer() {
             </div>
           </div>
 
-          {/* PDF-style preview — looks like an actual page */}
+          {/* PDF-style preview — responsive for mobile + desktop */}
           <div className="flex justify-center">
             <div
               className="bg-white shadow-xl rounded-lg border border-border w-full overflow-hidden"
               style={{
                 maxWidth: '800px',
-                padding: '32px 24px',
+                padding: 'clamp(16px, 4vw, 48px) clamp(16px, 4vw, 56px)',
               }}
             >
               <ResumeRenderer content={result} templateSlug={resultTemplate || selectedTemplate} />
             </div>
           </div>
 
-          {/* Download buttons */}
-          <div className="flex flex-col items-center gap-3 pt-4 border-t border-border">
-            <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold">
+          {/* Download buttons — mobile-friendly */}
+          <div className="flex flex-col sm:flex-row items-center gap-3 pt-4 border-t border-border">
+            <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold text-center sm:text-left">
               Download your resume
             </p>
-            <DownloadButtons markdown={result} baseFileName="Resume" template={resultTemplate || selectedTemplate} />
+            <div className="flex flex-wrap justify-center gap-2">
+              <DownloadButtons markdown={result} baseFileName="Resume" template={resultTemplate || selectedTemplate} />
+            </div>
+          </div>
+
+          {/* Mobile tip */}
+          <div className="sm:hidden text-center">
+            <p className="text-[11px] text-muted-foreground">
+              💡 On mobile: After clicking "Download PDF", use your browser's "Save as PDF" option in the print dialog.
+            </p>
           </div>
         </div>
       )}

@@ -191,8 +191,19 @@ function buildPrintCss(template: ResumeTemplate | null): string {
     css += `
   .resume-container {
     display: grid;
-    grid-template-columns: 1fr 180pt;
-    gap: 14pt;
+    grid-template-columns: 1fr 160pt;
+    gap: 12pt;
+  }
+  @media (max-width: 480px) {
+    .resume-container {
+      grid-template-columns: 1fr;
+      gap: 8pt;
+    }
+    .resume-sidebar {
+      border-left: none;
+      border-top: 1pt solid ${accent};
+      padding: 8pt;
+    }
   }
   .resume-main { grid-column: 1; }
   .resume-sidebar {
