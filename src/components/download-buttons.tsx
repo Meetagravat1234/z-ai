@@ -56,9 +56,14 @@ export function DownloadButtons({ markdown, baseFileName = 'resume', className, 
         ? `${baseFileName}.pdf`
         : `${baseFileName}.docx`
       if (format === 'pdf') {
-        // Pass template slug to apply template-specific CSS styling
         await generatePdfFromMarkdown(markdown, fileName, template)
-        toast.success('Resume PDF downloaded successfully!')
+        // Different message for desktop (print dialog) vs mobile (direct download)
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768
+        if (isMobile) {
+          toast.success('Resume PDF downloaded to your device!')
+        } else {
+          toast.info('Print dialog opened — select "Save as PDF" to download.')
+        }
       } else {
         await generateDocxFromMarkdown(markdown, fileName)
         toast.success(`Downloaded ${fileName}`)

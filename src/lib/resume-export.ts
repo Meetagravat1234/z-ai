@@ -1,66 +1,142 @@
 /**
  * Resume / cover-letter export utilities.
  *
- * PDF: Uses jsPDF + html2canvas for DIRECT download (no print dialog).
- *      The user clicks "Download PDF" → file downloads immediately.
- *      Works on mobile + desktop. Template-specific styling applied.
+ * PDF:
+ *   Desktop: Uses browser's native print engine (window.print) via hidden iframe.
+ *           Opens print dialog → user selects 'Save as PDF'. Best quality (text-based PDF).
+ *   Mobile: Uses jsPDF + html2canvas for DIRECT download (no print dialog).
+ *           File downloads immediately — better mobile UX.
  *
  * DOCX: Uses the docx npm package to generate a real .docx file client-side.
- *       Opens in MS Word / Google Docs / LibreOffice. Editable.
  */
 
 import { getTemplate, type ResumeTemplate } from '@/lib/resume-templates'
 
+/**
+ * Detect if user is on a mobile device.
+ * Used to decide between print-based PDF (desktop) vs jsPDF (mobile).
+ */
+function isMobileDevice(): boolean {
+  if (typeof window === 'undefined') return false
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+    (window.innerWidth < 768)
+}
+
 // ============================================================
-// Markdown → PDF (via jsPDF — direct download, no print dialog)
+// Markdown → PDF (desktop: print / mobile: direct download)
 // ============================================================
 export async function generatePdfFromMarkdown(
   markdown: string,
   fileName: string,
   templateSlug?: string | null,
 ): Promise<void> {
-  // Dynamically import jsPDF + html2canvas (only loaded when user downloads)
+  // Mobile → direct download (no print dialog)
+  // Desktop → print dialog (better quality, text-based PDF)
+  if (isMobileDevice()) {
+    return generatePdfMobile(markdown, fileName, templateSlug)
+  } else {
+    return generatePdfDesktop(markdown, fileName, templateSlug)
+  }
+}
+
+// ============================================================
+// Desktop: PDF via browser print engine (text-based, high quality)
+// ============================================================
+async function generatePdfDesktop(
+  markdown: string,
+  fileName: string,
+  templateSlug?: string | null,
+): Promise<void> {
+  const html = markdownToHtml(markdown)
+  const template = templateSlug ? getTemplate(templateSlug) ?? null : null
+  const css = buildPrintCss(template)
+  const finalHtml = template?.layout === 'two-column'
+    ? wrapTwoColumnLayout(html)
+    : html
+
+  const iframe = document.createElement('iframe')
+  iframe.style.position = 'fixed'
+  iframe.style.right = '0'
+  iframe.style.bottom = '0'
+  iframe.style.width = '0'
+  iframe.style.height = '0'
+  iframe.style.border = '0'
+  document.body.appendChild(iframe)
+
+  const printDoc = iframe.contentWindow?.document
+  if (!printDoc) {
+    document.body.removeChild(iframe)
+    throw new Error('Could not create print window')
+  }
+
+  printDoc.open()
+  printDoc.write(`
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>${fileName.replace(/\.(pdf|docx)$/, '')}</title>
+<style>
+${css}
+</style>
+</head>
+<body>
+${finalHtml}
+</body>
+</html>
+  `)
+  printDoc.close()
+
+  await new Promise(resolve => setTimeout(resolve, 500))
+  iframe.contentWindow?.focus()
+  iframe.contentWindow?.print()
+
+  setTimeout(() => {
+    if (iframe.parentNode) {
+      document.body.removeChild(iframe)
+    }
+  }, 1000)
+}
+
+// ============================================================
+// Mobile: PDF via jsPDF + html2canvas (direct download, no print dialog)
+// ============================================================
+async function generatePdfMobile(
+  markdown: string,
+  fileName: string,
+  templateSlug?: string | null,
+): Promise<void> {
   const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([
     import('jspdf'),
     import('html2canvas'),
   ])
 
-  // Convert markdown to clean HTML
   const html = markdownToHtml(markdown)
-
-  // Get template-specific CSS
   const template = templateSlug ? getTemplate(templateSlug) ?? null : null
   const css = buildPrintCss(template)
-
-  // For two-column templates, wrap the HTML with sidebar layout
   const finalHtml = template?.layout === 'two-column'
     ? wrapTwoColumnLayout(html)
     : html
 
-  // Create a temporary hidden div to render the resume HTML
   const container = document.createElement('div')
   container.style.position = 'absolute'
   container.style.left = '-9999px'
   container.style.top = '0'
-  container.style.width = '794px' // A4 width at 96 DPI (210mm * 96/25.4)
+  container.style.width = '794px'
   container.style.background = '#ffffff'
   container.style.padding = '40px 48px'
   container.innerHTML = `<style>${css}</style>${finalHtml}`
   document.body.appendChild(container)
 
   try {
-    // Wait for fonts + content to render
     await new Promise((r) => setTimeout(r, 300))
-
-    // Render the HTML to a canvas (image)
     const canvas = await html2canvas(container, {
-      scale: 2, // 2x for crisp text
+      scale: 2,
       useCORS: true,
       backgroundColor: '#ffffff',
       logging: false,
     })
 
-    // Create PDF from the canvas
     const pdf = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
@@ -68,38 +144,30 @@ export async function generatePdfFromMarkdown(
       compress: true,
     })
 
-    // Calculate dimensions to fit A4 page
-    const pdfWidth = 210 // A4 width in mm
-    const pdfHeight = 297 // A4 height in mm
-    const margin = 0 // content already has padding
-    const contentWidth = pdfWidth - margin * 2
+    const pdfWidth = 210
+    const pdfHeight = 297
+    const contentWidth = pdfWidth
     const contentHeight = (canvas.height * contentWidth) / canvas.width
 
-    // If content fits on one page, add it directly
     if (contentHeight <= pdfHeight) {
       const imgData = canvas.toDataURL('image/jpeg', 0.95)
-      pdf.addImage(imgData, 'JPEG', margin, margin, contentWidth, contentHeight)
+      pdf.addImage(imgData, 'JPEG', 0, 0, contentWidth, contentHeight)
     } else {
-      // Content spans multiple pages — split the canvas into pages
       let heightLeft = contentHeight
       let position = 0
       const imgData = canvas.toDataURL('image/jpeg', 0.95)
-
-      pdf.addImage(imgData, 'JPEG', margin, position, contentWidth, contentHeight)
+      pdf.addImage(imgData, 'JPEG', 0, position, contentWidth, contentHeight)
       heightLeft -= pdfHeight
-
       while (heightLeft > 0) {
         position = -(contentHeight - heightLeft)
         pdf.addPage()
-        pdf.addImage(imgData, 'JPEG', margin, position, contentWidth, contentHeight)
+        pdf.addImage(imgData, 'JPEG', 0, position, contentWidth, contentHeight)
         heightLeft -= pdfHeight
       }
     }
 
-    // Download the PDF directly
     pdf.save(fileName)
   } finally {
-    // Clean up the temporary container
     if (container.parentNode) {
       document.body.removeChild(container)
     }
