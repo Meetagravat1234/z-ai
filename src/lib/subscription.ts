@@ -56,7 +56,7 @@ export const FREE_TIER_LIMITS = {
   resumeOptimizations: 1,
   coverLetters: 1,
   mockInterviews: 1,
-  atsChecks: 1,
+  atsChecks: 3, // 3 free ATS checks per month (was 1)
   skillGapAnalyses: 1,
   salaryPredictions: 1,
   // Resume/cover-letter download exports (1 free per month, then ad-gate OR upgrade)

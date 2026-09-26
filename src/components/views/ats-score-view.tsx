@@ -2,10 +2,12 @@
 
 import * as React from 'react'
 import Link from 'next/link'
-import { Loader2, Sparkles, AlertCircle, CheckCircle2, FileText, TrendingUp, Copy, Check, XCircle, AlertTriangle, Info, ArrowRight } from 'lucide-react'
+import { Loader2, Sparkles, AlertCircle, CheckCircle2, FileText, TrendingUp, Copy, Check, XCircle, AlertTriangle, Info, ArrowRight, Crown, Lock } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { useResumeStore } from '@/lib/resume-store'
+import { useAuth } from '@/lib/auth-context'
+import { useIsPro } from '@/lib/auth-context'
 import { ResumeUpload } from '@/components/resume-upload'
 import { ProUpsellModal } from '@/components/pro-upsell-modal'
 
@@ -21,6 +23,7 @@ interface ATSResult {
 }
 
 export function ATSScoreView() {
+  const isPro = useIsPro()
   const [resume, setResume] = React.useState('')
   const [jd, setJd] = React.useState('')
   const [loading, setLoading] = React.useState(false)
@@ -178,7 +181,7 @@ export function ATSScoreView() {
             </div>
           ) : result ? (
             <div className="space-y-5">
-              {/* Score Circle + Label */}
+              {/* Score Circle + Label — ALWAYS visible (free + Pro) */}
               {result.overallScore !== undefined && (
                 <div className="flex items-center gap-4">
                   {/* Circular progress ring */}
@@ -209,8 +212,78 @@ export function ATSScoreView() {
                 </div>
               )}
 
-              {/* Score Breakdown — colored progress bars */}
-              {result.scoreBreakdown && (
+              {/* FREE USER: Show brief info (top 3 missing keywords only) */}
+              {!isPro && result.missingKeywords && result.missingKeywords.length > 0 && (
+                <div>
+                  <h4 className="text-xs font-bold uppercase tracking-wide text-rose-600 dark:text-rose-400 mb-2 flex items-center gap-1">
+                    <XCircle className="w-3 h-3" /> Top Missing Keywords
+                  </h4>
+                  <div className="flex flex-wrap gap-1.5">
+                    {result.missingKeywords.slice(0, 3).map((kw, i) => (
+                      <span key={i} className="text-xs px-2 py-1 rounded-md bg-rose-500/10 text-rose-700 dark:text-rose-300 font-medium">
+                        {kw}
+                      </span>
+                    ))}
+                    {result.missingKeywords.length > 3 && (
+                      <span className="text-xs px-2 py-1 rounded-md bg-muted text-muted-foreground font-medium">
+                        +{result.missingKeywords.length - 3} more
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* FREE USER: Show first 1 issue only */}
+              {!isPro && result.issues && result.issues.length > 0 && (
+                <div>
+                  <h4 className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2">Top Issue</h4>
+                  {(() => {
+                    const issue = result.issues[0]
+                    const config = severityConfig[issue.severity] || severityConfig.info
+                    const Icon = config.icon
+                    return (
+                      <div className={cn('rounded-lg border p-3', config.bg)}>
+                        <div className="flex items-start gap-2">
+                          <Icon className={cn('w-4 h-4 shrink-0 mt-0.5', config.color)} />
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium">{issue.issue}</div>
+                            <div className="text-xs text-muted-foreground mt-0.5">
+                              <span className="font-semibold">Fix:</span> {issue.fix}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })()}
+                </div>
+              )}
+
+              {/* FREE USER: Pro upsell CTA for detailed breakdown */}
+              {!isPro && (
+                <div className="rounded-xl border-2 border-amber-500/30 bg-amber-500/5 p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shrink-0">
+                      <Crown className="w-5 h-5 text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="font-bold text-sm">Unlock detailed ATS breakdown</div>
+                      <div className="text-xs text-muted-foreground mt-0.5">
+                        Get full keyword analysis, all issues with fixes, score breakdown, and recommendations.
+                      </div>
+                    </div>
+                    <Link
+                      href="/upgrade"
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-amber-500 text-white text-xs font-bold hover:opacity-90 shrink-0"
+                    >
+                      Upgrade
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </Link>
+                  </div>
+                </div>
+              )}
+
+              {/* PRO USER: Full Score Breakdown */}
+              {isPro && result.scoreBreakdown && (
                 <div className="space-y-2.5">
                   <h4 className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Score Breakdown</h4>
                   {Object.entries(result.scoreBreakdown).map(([key, val]) => {
@@ -235,8 +308,8 @@ export function ATSScoreView() {
                 </div>
               )}
 
-              {/* Keywords — matched (green) + missing (red) */}
-              {result.matchedKeywords && result.matchedKeywords.length > 0 && (
+              {/* PRO USER: All Keywords */}
+              {isPro && result.matchedKeywords && result.matchedKeywords.length > 0 && (
                 <div>
                   <h4 className="text-xs font-bold uppercase tracking-wide text-emerald-600 dark:text-emerald-400 mb-2 flex items-center gap-1">
                     <CheckCircle2 className="w-3 h-3" /> Matched Keywords ({result.matchedKeywords.length})
@@ -250,7 +323,7 @@ export function ATSScoreView() {
                   </div>
                 </div>
               )}
-              {result.missingKeywords && result.missingKeywords.length > 0 && (
+              {isPro && result.missingKeywords && result.missingKeywords.length > 0 && (
                 <div>
                   <h4 className="text-xs font-bold uppercase tracking-wide text-rose-600 dark:text-rose-400 mb-2 flex items-center gap-1">
                     <XCircle className="w-3 h-3" /> Missing Keywords ({result.missingKeywords.length})
@@ -265,8 +338,8 @@ export function ATSScoreView() {
                 </div>
               )}
 
-              {/* Issues with severity colors */}
-              {result.issues && result.issues.length > 0 && (
+              {/* PRO USER: All Issues */}
+              {isPro && result.issues && result.issues.length > 0 && (
                 <div>
                   <h4 className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2">Issues Found</h4>
                   <div className="space-y-2">
@@ -294,8 +367,8 @@ export function ATSScoreView() {
                 </div>
               )}
 
-              {/* Strengths */}
-              {result.strengths && result.strengths.length > 0 && (
+              {/* PRO USER: Strengths */}
+              {isPro && result.strengths && result.strengths.length > 0 && (
                 <div>
                   <h4 className="text-xs font-bold uppercase tracking-wide text-emerald-600 dark:text-emerald-400 mb-2 flex items-center gap-1">
                     <CheckCircle2 className="w-3 h-3" /> What's Working Well
@@ -311,8 +384,8 @@ export function ATSScoreView() {
                 </div>
               )}
 
-              {/* Top Recommendations */}
-              {result.topRecommendations && result.topRecommendations.length > 0 && (
+              {/* PRO USER: Top Recommendations */}
+              {isPro && result.topRecommendations && result.topRecommendations.length > 0 && (
                 <div>
                   <h4 className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2">Top Recommendations</h4>
                   <ol className="space-y-2 text-sm">
@@ -364,8 +437,8 @@ export function ATSScoreView() {
       <ProUpsellModal
         open={showAdGate}
         toolLabel="ATS Score Checker"
-        used={1}
-        limit={1}
+        used={3}
+        limit={3}
         onClose={handleAdGateClose}
       />
     </div>
