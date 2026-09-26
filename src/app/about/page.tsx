@@ -2,7 +2,6 @@ import { SiteShell } from '@/components/layout/site-shell'
 import { AboutView } from '@/components/views/about-view'
 import type { Metadata } from 'next'
 
-export const dynamic = 'force-dynamic'
 export const revalidate = 3600
 
 export const metadata: Metadata = {

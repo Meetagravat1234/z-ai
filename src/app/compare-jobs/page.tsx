@@ -3,7 +3,7 @@ import { CompareJobsView } from '@/components/views/compare-jobs-view'
 import type { Metadata } from 'next'
 
 export const dynamic = 'force-dynamic'
-export const revalidate = 300
+export const revalidate = 3600
 
 export const metadata: Metadata = {
   title: 'Compare Jobs — Side-by-Side Job Comparison | Hirebase',

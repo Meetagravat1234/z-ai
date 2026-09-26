@@ -3,7 +3,7 @@ import { TrackerView } from '@/components/views/tracker-view'
 import type { Metadata } from 'next'
 
 export const dynamic = 'force-dynamic'
-export const revalidate = 60
+export const revalidate = 300
 
 export const metadata: Metadata = {
   title: 'Application Tracker — Manage Your Job Applications | Hirebase',

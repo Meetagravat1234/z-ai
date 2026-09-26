@@ -3,7 +3,7 @@ import { AuthView } from '@/components/views/auth-view'
 import type { Metadata } from 'next'
 
 export const dynamic = 'force-dynamic'
-export const revalidate = 60
+export const revalidate = 300
 
 export const metadata: Metadata = {
   title: 'Sign In or Sign Up — Free for Indian Job Seekers | Hirebase',

@@ -3,7 +3,6 @@ import { SiteShell } from '@/components/layout/site-shell'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 
-export const dynamic = 'force-dynamic'
 export const revalidate = 3600
 
 export const metadata: Metadata = {

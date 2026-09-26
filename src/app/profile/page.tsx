@@ -3,7 +3,7 @@ import { ProfileView } from '@/components/views/profile-view'
 import type { Metadata } from 'next'
 
 export const dynamic = 'force-dynamic'
-export const revalidate = 60
+export const revalidate = 300
 
 export const metadata: Metadata = {
   title: 'My Profile — Manage Your Hirebase Account | Hirebase',

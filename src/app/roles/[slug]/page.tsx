@@ -7,8 +7,7 @@ import { notFound } from 'next/navigation'
 import { ROLE_PAGES, jobUrl } from '@/lib/seo-routes'
 import { estimateSalaryForJob } from '@/lib/salary-estimate'
 
-export const dynamic = 'force-dynamic'
-export const revalidate = 300
+export const revalidate = 3600
 
 interface PageProps {
   params: Promise<{ slug: string }>

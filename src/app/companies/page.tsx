@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { companyUrl } from '@/lib/seo-routes'
 
 export const dynamic = 'force-dynamic'
-export const revalidate = 300
+export const revalidate = 3600
 
 export const metadata: Metadata = {
   title: 'Top Companies Hiring in India | Hirebase',

@@ -3,7 +3,7 @@ import { SyncStatusView } from '@/components/views/sync-status-view'
 import type { Metadata } from 'next'
 
 export const dynamic = 'force-dynamic'
-export const revalidate = 60
+export const revalidate = 300
 
 export const metadata: Metadata = {
   title: 'Live Sync Status — Real-Time Job Aggregation | Hirebase',

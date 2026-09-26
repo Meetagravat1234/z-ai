@@ -3,7 +3,6 @@ import { SkillTestClient } from '@/components/views/skill-test-view'
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 
-export const dynamic = 'force-dynamic'
 
 interface PageProps {
   params: Promise<{ id: string }>

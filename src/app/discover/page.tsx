@@ -3,7 +3,7 @@ import { DiscoverView } from '@/components/views/discover-view'
 import type { Metadata } from 'next'
 
 export const dynamic = 'force-dynamic'
-export const revalidate = 300
+export const revalidate = 3600
 
 export const metadata: Metadata = {
   title: 'Discover Jobs — Explore Verified Openings | Hirebase',

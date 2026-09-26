@@ -10,8 +10,7 @@ import { JOB_DOMAINS, getDomain } from '@/lib/job-domains'
 import { estimateSalaryForJob } from '@/lib/salary-estimate'
 
 // Always render fresh — jobs change frequently
-export const dynamic = 'force-dynamic'
-export const revalidate = 300
+export const revalidate = 3600
 
 interface PageProps {
   params: Promise<{ slug: string }>
