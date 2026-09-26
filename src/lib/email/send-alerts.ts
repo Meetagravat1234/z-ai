@@ -113,13 +113,9 @@ export async function sendJobAlertEmail({ to, userName, alertCriteria, jobs, uns
         : `<span style="color: #9ca3af; font-style: italic;">Not disclosed</span>`
 
       // Job-specific URL on hirebase.in — links to the job detail page
-      // Used as FALLBACK when no direct applyUrl exists
+      // We ALWAYS link to Hirebase first (not directly to employer's site)
+      // so users visit our site, see our branding, and can explore other jobs.
       const jobUrl = `${APP_URL}/jobs/${job.id}-${job.title.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').slice(0, 60)}`
-
-      // Primary link — send user DIRECTLY to the employer's apply page.
-      // Only fall back to Hirebase job detail page if no applyUrl exists.
-      // This reduces friction — user doesn't have to click through Hirebase first.
-      const primaryUrl = job.applyUrl || jobUrl
 
       return `
       <tr>
@@ -130,7 +126,7 @@ export async function sendJobAlertEmail({ to, userName, alertCriteria, jobs, uns
                 ${logo}
               </td>
               <td valign="top">
-                <a href="${primaryUrl}" style="text-decoration: none; color: #111827;">
+                <a href="${jobUrl}" style="text-decoration: none; color: #111827;">
                   <div style="font-weight: 600; font-size: 15px; color: #111827; margin-bottom: 2px; line-height: 1.3;">
                     ${job.title}
                   </div>
@@ -143,7 +139,7 @@ export async function sendJobAlertEmail({ to, userName, alertCriteria, jobs, uns
                 </div>
               </td>
               <td width="80" valign="middle" align="right">
-                ${job.applyUrl ? `<a href="${job.applyUrl}" style="display: inline-block; padding: 7px 14px; border-radius: 8px; background: #111827; color: white; text-decoration: none; font-size: 12px; font-weight: 600;">Apply</a>` : `<a href="${jobUrl}" style="display: inline-block; padding: 7px 14px; border-radius: 8px; background: #f3f4f6; color: #374151; text-decoration: none; font-size: 12px; font-weight: 600;">View</a>`}
+                <a href="${jobUrl}" style="display: inline-block; padding: 7px 14px; border-radius: 8px; background: #111827; color: white; text-decoration: none; font-size: 12px; font-weight: 600;">View</a>
               </td>
             </tr>
           </table>
