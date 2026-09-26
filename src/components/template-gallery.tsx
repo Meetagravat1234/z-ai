@@ -105,25 +105,38 @@ function TemplateCard({ template, isSelected, isLocked, onSelect }: TemplateCard
         </div>
       )}
 
-      {/* Header strip with gradient */}
+      {/* Header strip with gradient — taller + more prominent */}
       <div
-        className="h-2"
+        className="h-3 relative overflow-hidden"
         style={{ background: template.previewGradient }}
-      />
+      >
+        <div className="absolute inset-0 opacity-30" style={{
+          backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,255,255,0.1) 10px, rgba(255,255,255,0.1) 20px)'
+        }} />
+      </div>
 
-      {/* FULL demo resume preview */}
-      <div className="p-4 bg-white" style={{ fontFamily: template.fontFamily }}>
+      {/* FULL demo resume preview — larger + more readable */}
+      <div className="p-5 bg-white" style={{ fontFamily: template.fontFamily }}>
         <FullDemoResume template={template} />
       </div>
 
-      {/* Template info */}
-      <div className="p-3 bg-card border-t border-border">
-        <div className="flex items-center gap-1.5 mb-0.5">
-          <span className="text-base">{template.emoji}</span>
-          <div className="text-sm font-bold leading-tight">{template.name}</div>
+      {/* Template info — more prominent */}
+      <div className="p-4 bg-card border-t border-border">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-xl">{template.emoji}</span>
+          <div className="text-base font-bold leading-tight">{template.name}</div>
         </div>
-        <div className="text-[11px] text-muted-foreground leading-snug">
+        <div className="text-xs text-muted-foreground leading-snug">
           {template.description}
+        </div>
+        {/* Show category badge */}
+        <div className="mt-2">
+          <span
+            className="inline-block text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-md"
+            style={{ background: `${template.accentColor}15`, color: template.accentColor }}
+          >
+            {template.category}
+          </span>
         </div>
       </div>
     </button>
@@ -154,10 +167,10 @@ function FullDemoResume({ template }: { template: ResumeTemplate }) {
   const titleOrContact = headerLines.slice(1).join(' · ')
 
   const headingStyle: React.CSSProperties = {
-    fontSize: '7px',
+    fontSize: '8px',
     fontWeight: 700,
     color: '#1a1a1a',
-    marginTop: '5px',
+    marginTop: '6px',
     marginBottom: '2px',
     textTransform: isAts ? 'none' : 'uppercase',
     letterSpacing: isAts ? '0' : '0.4px',
@@ -173,7 +186,7 @@ function FullDemoResume({ template }: { template: ResumeTemplate }) {
         {lines.map((line, i) => {
           if (line.startsWith('•') || line.startsWith('-')) {
             return (
-              <div key={i} style={{ fontSize: '6px', lineHeight: '1.4', color: '#475569', marginBottom: '1px', paddingLeft: '6px', position: 'relative' }}>
+              <div key={i} style={{ fontSize: '7px', lineHeight: '1.4', color: '#475569', marginBottom: '1px', paddingLeft: '8px', position: 'relative' }}>
                 <span style={{ position: 'absolute', left: 0, color: accent }}>•</span>
                 <span>{line.replace(/^[•-]\s*/, '')}</span>
               </div>
@@ -182,13 +195,13 @@ function FullDemoResume({ template }: { template: ResumeTemplate }) {
           // Numbered list (for academic)
           if (/^\[\d+\]/.test(line)) {
             return (
-              <div key={i} style={{ fontSize: '6px', lineHeight: '1.4', color: '#475569', marginBottom: '1px', paddingLeft: '8px' }}>
+              <div key={i} style={{ fontSize: '7px', lineHeight: '1.4', color: '#475569', marginBottom: '1px', paddingLeft: '10px' }}>
                 {line}
               </div>
             )
           }
           return (
-            <div key={i} style={{ fontSize: '6px', lineHeight: '1.4', color: '#475569', marginBottom: '1px' }}>
+            <div key={i} style={{ fontSize: '7px', lineHeight: '1.4', color: '#475569', marginBottom: '1px' }}>
               {line}
             </div>
           )
@@ -201,21 +214,21 @@ function FullDemoResume({ template }: { template: ResumeTemplate }) {
     return (
       <div>
         {/* Name + contact */}
-        <div style={{ fontSize: '11px', fontWeight: 800, color: '#0f172a', borderBottom: `1.5px solid ${accent}`, paddingBottom: '2px', marginBottom: '3px' }}>
+        <div style={{ fontSize: '13px', fontWeight: 800, color: '#0f172a', borderBottom: `1.5px solid ${accent}`, paddingBottom: '3px', marginBottom: '4px' }}>
           {name}
         </div>
         {titleOrContact && (
-          <div style={{ fontSize: '5.5px', color: '#64748b', marginBottom: '4px' }}>{titleOrContact}</div>
+          <div style={{ fontSize: '6px', color: '#64748b', marginBottom: '5px' }}>{titleOrContact}</div>
         )}
 
         {/* Two-column layout */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px', gap: '6px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 85px', gap: '8px' }}>
           {/* Main column */}
           <div>
             {mainSections.map(renderSection)}
           </div>
           {/* Sidebar */}
-          <div style={{ borderLeft: `1px solid ${accent}`, paddingLeft: '5px', background: '#f8fafc' }}>
+          <div style={{ borderLeft: `1.5px solid ${accent}`, paddingLeft: '6px', background: '#f8fafc', borderRadius: '3px', padding: '4px 6px' }}>
             {sidebarSections.map(renderSection)}
           </div>
         </div>
@@ -226,11 +239,11 @@ function FullDemoResume({ template }: { template: ResumeTemplate }) {
   // Single-column / compact / ATS
   return (
     <div>
-      <div style={{ fontSize: '11px', fontWeight: 800, color: '#0f172a', borderBottom: `1.5px solid ${accent}`, paddingBottom: '2px', marginBottom: '3px' }}>
+      <div style={{ fontSize: '13px', fontWeight: 800, color: '#0f172a', borderBottom: `1.5px solid ${accent}`, paddingBottom: '3px', marginBottom: '4px' }}>
         {name}
       </div>
       {titleOrContact && (
-        <div style={{ fontSize: '5.5px', color: '#64748b', marginBottom: '4px' }}>{titleOrContact}</div>
+        <div style={{ fontSize: '6px', color: '#64748b', marginBottom: '5px' }}>{titleOrContact}</div>
       )}
       {allSections.map(renderSection)}
     </div>

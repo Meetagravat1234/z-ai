@@ -748,6 +748,8 @@ function AddManuallyTab() {
     experience: '0-2 Years', salaryMin: '', salaryMax: '',
     companyLogo: '', companyWebsite: '', industry: '',
     isFeatured: false,
+    walkInDate: '', walkInTime: '', walkInVenue: '',
+    referralSource: '', referralContact: '',
   })
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState('')
@@ -760,11 +762,28 @@ function AddManuallyTab() {
     setError('')
     setLoading(true)
     try {
+      // Build description with walk-in/hidden details appended
+      let fullDescription = form.description
+      if (form.category === 'walk-in' && (form.walkInDate || form.walkInTime || form.walkInVenue)) {
+        fullDescription += `\n\n## 📍 Walk-in Drive Details\n`
+        if (form.walkInDate) fullDescription += `- **Date:** ${form.walkInDate}\n`
+        if (form.walkInTime) fullDescription += `- **Time:** ${form.walkInTime}\n`
+        if (form.walkInVenue) fullDescription += `- **Venue:** ${form.walkInVenue}\n`
+        fullDescription += `\nBring your resume and ID proof. Direct interview — no appointment needed.\n`
+      }
+      if (form.category === 'hidden' && (form.referralSource || form.referralContact)) {
+        fullDescription += `\n\n## 🔒 Referral Information\n`
+        if (form.referralSource) fullDescription += `- **Source:** ${form.referralSource}\n`
+        if (form.referralContact) fullDescription += `- **Contact:** ${form.referralContact}\n`
+        fullDescription += `\nThis is a hidden opportunity. Apply via referral only.\n`
+      }
+
       const r = await fetch('/api/admin/jobs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...form,
+          description: fullDescription,
           salaryMin: form.salaryMin ? Math.round(parseFloat(form.salaryMin) * 10) : null,
           salaryMax: form.salaryMax ? Math.round(parseFloat(form.salaryMax) * 10) : null,
         }),
@@ -850,11 +869,56 @@ function AddManuallyTab() {
             placeholder="Python, React, SQL, AWS"
             className="w-full p-2.5 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/40" />
         </Field>
-        <Field label="Apply URL">
+        <Field label={form.category === 'walk-in' ? 'Walk-in venue / registration link' : form.category === 'hidden' ? 'Referral / hidden job link' : 'Apply URL'}>
           <input value={form.applyUrl} onChange={(e) => setForm({ ...form, applyUrl: e.target.value })}
-            placeholder="https://company.com/careers/123"
+            placeholder={
+              form.category === 'walk-in' ? 'https://company.com/walk-in-registration OR venue address' :
+              form.category === 'hidden' ? 'https://company.com/referral OR referral contact link' :
+              'https://company.com/careers/123'
+            }
             className="w-full p-2.5 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/40" />
         </Field>
+
+        {/* Walk-in specific fields */}
+        {form.category === 'walk-in' && (
+          <div className="p-3 rounded-xl bg-amber-500/5 border border-amber-500/20 space-y-3">
+            <div className="text-xs font-bold text-amber-600 uppercase tracking-wide">📍 Walk-in Drive Details</div>
+            <Field label="Walk-in date">
+              <input type="date" value={form.walkInDate || ''} onChange={(e) => setForm({ ...form, walkInDate: e.target.value })}
+                className="w-full p-2.5 rounded-lg border border-border bg-background text-sm" />
+            </Field>
+            <Field label="Walk-in time">
+              <input value={form.walkInTime || ''} onChange={(e) => setForm({ ...form, walkInTime: e.target.value })}
+                placeholder="9:00 AM - 2:00 PM"
+                className="w-full p-2.5 rounded-lg border border-border bg-background text-sm" />
+            </Field>
+            <Field label="Venue / Address">
+              <input value={form.walkInVenue || ''} onChange={(e) => setForm({ ...form, walkInVenue: e.target.value })}
+                placeholder="Google Office, Bangalore — 4th Floor, Tower C"
+                className="w-full p-2.5 rounded-lg border border-border bg-background text-sm" />
+            </Field>
+          </div>
+        )}
+
+        {/* Hidden job specific fields */}
+        {form.category === 'hidden' && (
+          <div className="p-3 rounded-xl bg-violet-500/5 border border-violet-500/20 space-y-3">
+            <div className="text-xs font-bold text-violet-600 uppercase tracking-wide">🔒 Hidden / Referral Job Details</div>
+            <Field label="Referral source (who shared this?)">
+              <input value={form.referralSource || ''} onChange={(e) => setForm({ ...form, referralSource: e.target.value })}
+                placeholder="e.g. LinkedIn connection, employee referral, WhatsApp group"
+                className="w-full p-2.5 rounded-lg border border-border bg-background text-sm" />
+            </Field>
+            <Field label="Referral contact (email/phone)">
+              <input value={form.referralContact || ''} onChange={(e) => setForm({ ...form, referralContact: e.target.value })}
+                placeholder="hr@company.com or +91 9876543210"
+                className="w-full p-2.5 rounded-lg border border-border bg-background text-sm" />
+            </Field>
+            <p className="text-xs text-muted-foreground">
+              💡 Hidden jobs are not posted publicly on job boards. They're referral-only opportunities.
+            </p>
+          </div>
+        )}
       </div>
 
       <div className="space-y-4">
