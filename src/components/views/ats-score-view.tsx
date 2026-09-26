@@ -399,8 +399,8 @@ export function ATSScoreView() {
                 </div>
               )}
 
-              {/* CTA: Optimize your resume */}
-              {result.overallScore !== undefined && result.overallScore < 90 && (
+              {/* CTA: Optimize your resume — always show, contextual message */}
+              {result.overallScore !== undefined && (
                 <Link
                   href="/ai-tools/resume-optimizer"
                   className="block mt-2 p-4 rounded-xl bg-gradient-to-br from-violet-500/10 to-primary/10 border border-violet-500/20 hover:border-violet-500/40 transition-colors"
@@ -410,9 +410,15 @@ export function ATSScoreView() {
                       <Sparkles className="w-5 h-5 text-white" />
                     </div>
                     <div className="flex-1">
-                      <div className="font-bold text-sm">Optimize your resume with AI</div>
+                      <div className="font-bold text-sm">
+                        {result.overallScore >= 90
+                          ? 'Perfect score! Want to keep it that way?'
+                          : 'Fix these issues automatically with AI'}
+                      </div>
                       <div className="text-xs text-muted-foreground">
-                        Get a tailored, ATS-friendly version of your resume for this job description.
+                        {result.overallScore >= 90
+                          ? 'Get a tailored version of your resume for other job descriptions too.'
+                          : 'Get a tailored, ATS-friendly version of your resume for this job description.'}
                       </div>
                     </div>
                     <ArrowRight className="w-4 h-4 text-muted-foreground shrink-0" />
