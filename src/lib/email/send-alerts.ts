@@ -113,7 +113,13 @@ export async function sendJobAlertEmail({ to, userName, alertCriteria, jobs, uns
         : `<span style="color: #9ca3af; font-style: italic;">Not disclosed</span>`
 
       // Job-specific URL on hirebase.in — links to the job detail page
+      // Used as FALLBACK when no direct applyUrl exists
       const jobUrl = `${APP_URL}/jobs/${job.id}-${job.title.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').slice(0, 60)}`
+
+      // Primary link — send user DIRECTLY to the employer's apply page.
+      // Only fall back to Hirebase job detail page if no applyUrl exists.
+      // This reduces friction — user doesn't have to click through Hirebase first.
+      const primaryUrl = job.applyUrl || jobUrl
 
       return `
       <tr>
@@ -124,7 +130,7 @@ export async function sendJobAlertEmail({ to, userName, alertCriteria, jobs, uns
                 ${logo}
               </td>
               <td valign="top">
-                <a href="${jobUrl}" style="text-decoration: none; color: #111827;">
+                <a href="${primaryUrl}" style="text-decoration: none; color: #111827;">
                   <div style="font-weight: 600; font-size: 15px; color: #111827; margin-bottom: 2px; line-height: 1.3;">
                     ${job.title}
                   </div>
