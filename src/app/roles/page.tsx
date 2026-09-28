@@ -3,7 +3,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { ROLE_PAGES, roleUrl } from '@/lib/seo-routes'
 
-export const revalidate = 3600
+export const revalidate = 86400
 
 export const metadata: Metadata = {
   title: 'Browse Jobs by Role in India | Hirebase',

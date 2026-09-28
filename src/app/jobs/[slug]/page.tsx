@@ -10,7 +10,7 @@ import { JOB_DOMAINS, getDomain } from '@/lib/job-domains'
 import { estimateSalaryForJob } from '@/lib/salary-estimate'
 
 // Always render fresh — jobs change frequently
-export const revalidate = 3600
+// export const revalidate = 3600 // REMOVED — job content never changes, page is now fully static
 
 interface PageProps {
   params: Promise<{ slug: string }>

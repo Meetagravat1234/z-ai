@@ -3,7 +3,7 @@ import { GroundTruthView } from '@/components/views/ground-truth-view'
 import type { Metadata } from 'next'
 
 export const dynamic = 'force-dynamic'
-export const revalidate = 3600
+export const revalidate = 86400
 
 export const metadata: Metadata = {
   title: 'Ground Truth — How Hirebase Verifies Jobs | Hirebase',

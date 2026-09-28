@@ -5,8 +5,8 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { companyUrl } from '@/lib/seo-routes'
 
-export const dynamic = 'force-dynamic'
-export const revalidate = 3600
+export const dynamic = 'force-static'
+// export const revalidate = 3600 // REMOVED — company info rarely changes, page is now fully static
 
 interface PageProps {
   params: Promise<{ slug: string }>

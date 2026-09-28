@@ -9,7 +9,7 @@ import { estimateSalaryForJob } from '@/lib/salary-estimate'
 import { getJobCountDisplay } from '@/lib/job-count'
 import { Suspense } from 'react'
 
-export const revalidate = 3600 // 1 hour ISR — reduces Vercel ISR writes
+export const revalidate = 86400 // 24h ISR
 
 const JOBS_PER_PAGE = 60
 

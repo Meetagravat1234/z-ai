@@ -7,7 +7,7 @@ import { notFound } from 'next/navigation'
 import { ROLE_PAGES, jobUrl } from '@/lib/seo-routes'
 import { estimateSalaryForJob } from '@/lib/salary-estimate'
 
-export const revalidate = 3600
+export const revalidate = 86400
 
 interface PageProps {
   params: Promise<{ slug: string }>

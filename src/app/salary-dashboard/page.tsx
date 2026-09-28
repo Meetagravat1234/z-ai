@@ -2,7 +2,7 @@ import { SiteShell } from '@/components/layout/site-shell'
 import { SalaryDashboardView } from '@/components/views/salary-dashboard-view'
 import type { Metadata } from 'next'
 
-export const revalidate = 3600
+export const revalidate = 86400
 
 export const metadata: Metadata = {
   title: 'Salary Dashboard — Interactive Salary Trends India | Hirebase',

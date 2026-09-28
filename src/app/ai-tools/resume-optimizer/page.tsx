@@ -3,7 +3,7 @@ import { AIResumeOptimizer } from '@/components/views/ai-resume-view'
 import type { Metadata } from 'next'
 
 export const dynamic = 'force-dynamic'
-export const revalidate = 3600
+// export const revalidate = 3600 // REMOVED — AI tool pages are static UI, no data fetching
 
 export const metadata: Metadata = {
   title: 'AI Resume Optimizer India — Free ATS-Friendly | Hirebase',

@@ -3,7 +3,7 @@ import { AIMockInterview } from '@/components/views/ai-mock-interview-view'
 import type { Metadata } from 'next'
 
 export const dynamic = 'force-dynamic'
-export const revalidate = 3600
+// export const revalidate = 3600 // REMOVED — AI tool pages are static UI, no data fetching
 
 export const metadata: Metadata = {
   title: 'AI Mock Interview — Practice Interviews Free | Hirebase',

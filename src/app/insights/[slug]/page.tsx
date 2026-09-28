@@ -4,7 +4,8 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
-export const revalidate = 3600 // 1 hour
+// export const revalidate = 3600 // REMOVED — articles never change, page is now fully static
+export const dynamic = "force-static"
 
 interface PageProps {
   params: Promise<{ slug: string }>

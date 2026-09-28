@@ -2,7 +2,8 @@ import { SiteShell } from '@/components/layout/site-shell'
 import { AboutView } from '@/components/views/about-view'
 import type { Metadata } from 'next'
 
-export const revalidate = 3600
+// export const revalidate = 3600 // REMOVED — about page never changes
+export const dynamic = "force-static"
 
 export const metadata: Metadata = {
   title: 'About Hirebase — India\'s AI-Powered Job Portal',

@@ -4,7 +4,7 @@ import type { Metadata } from 'next'
 import { Check, Crown, ArrowRight, Sparkles, FileText, Mic, Wallet, Briefcase } from 'lucide-react'
 import { getJobCountDisplay } from '@/lib/job-count'
 
-export const revalidate = 3600
+export const revalidate = 86400
 
 export async function generateMetadata(): Promise<Metadata> {
   const jobCount = await getJobCountDisplay()

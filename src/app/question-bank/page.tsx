@@ -3,7 +3,7 @@ import { QuestionBankView } from '@/components/views/question-bank-view'
 import type { Metadata } from 'next'
 
 export const dynamic = 'force-dynamic'
-export const revalidate = 3600
+export const revalidate = 86400
 
 export const metadata: Metadata = {
   title: 'Interview Questions — Real Questions with AI Answers | Hirebase',

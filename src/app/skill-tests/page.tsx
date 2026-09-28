@@ -3,7 +3,7 @@ import { SiteShell } from '@/components/layout/site-shell'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 
-export const revalidate = 3600
+export const revalidate = 86400
 
 export const metadata: Metadata = {
   title: 'Skill Tests — Test Your Knowledge | Hirebase',

@@ -8,7 +8,7 @@ import { getJobCountDisplay } from '@/lib/job-count'
 
 // ISR (Incremental Static Regeneration) — page is cached for 5 minutes,
 // then re-generated in the background. This fixes the 504 timeout issue.
-export const revalidate = 3600 // 1 hour ISR — reduces Vercel ISR writes by 80%
+export const revalidate = 86400 // 24h ISR — new jobs appear within 24h
 
 // Dynamic metadata — job count fetched from DB, never hardcoded again.
 export async function generateMetadata(): Promise<Metadata> {

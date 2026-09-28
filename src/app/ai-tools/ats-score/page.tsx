@@ -3,7 +3,7 @@ import { ATSScoreView } from '@/components/views/ats-score-view'
 import type { Metadata } from 'next'
 
 export const dynamic = 'force-dynamic'
-export const revalidate = 3600
+// export const revalidate = 3600 // REMOVED — AI tool pages are static UI, no data fetching
 
 export const metadata: Metadata = {
   title: 'ATS Score Checker — Free Resume Score (0-100) | Hirebase',
