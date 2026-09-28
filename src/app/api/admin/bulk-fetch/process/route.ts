@@ -185,6 +185,20 @@ export async function POST(req: NextRequest) {
 
     const updated = await db.bulkFetchJob.findUnique({ where: { id: job.id } })
 
+    // If any jobs were saved in this batch, revalidate the homepage + jobs list
+    // so new jobs appear immediately (not waiting 24h for ISR).
+    // Only revalidates if savedCount > 0 — no wasted writes if all were errors/dupes.
+    if (savedCount > 0) {
+      try {
+        const { revalidatePath } = await import('next/cache')
+        revalidatePath('/')
+        revalidatePath('/jobs')
+        console.log(`[bulk-fetch] Revalidated homepage + jobs list (${savedCount} new jobs saved)`)
+      } catch (e) {
+        console.error('[bulk-fetch] Revalidation failed:', e)
+      }
+    }
+
     return NextResponse.json({
       ok: true,
       jobId: job.id,
