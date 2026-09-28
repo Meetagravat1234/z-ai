@@ -2,7 +2,6 @@ import { SiteShell } from '@/components/layout/site-shell'
 import { QuestionBankView } from '@/components/views/question-bank-view'
 import type { Metadata } from 'next'
 
-export const dynamic = 'force-dynamic'
 export const revalidate = 86400
 
 export const metadata: Metadata = {

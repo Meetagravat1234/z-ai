@@ -2,7 +2,6 @@ import { SiteShell } from '@/components/layout/site-shell'
 import { AICoverLetter } from '@/components/views/ai-cover-letter-view'
 import type { Metadata } from 'next'
 
-export const dynamic = 'force-dynamic'
 // export const revalidate = 3600 // REMOVED — AI tool pages are static UI, no data fetching
 
 export const metadata: Metadata = {

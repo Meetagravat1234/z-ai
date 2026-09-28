@@ -2,7 +2,6 @@ import { SiteShell } from '@/components/layout/site-shell'
 import { GroundTruthView } from '@/components/views/ground-truth-view'
 import type { Metadata } from 'next'
 
-export const dynamic = 'force-dynamic'
 export const revalidate = 86400
 
 export const metadata: Metadata = {
