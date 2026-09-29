@@ -4,11 +4,15 @@ import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 
 // GET /api/auth/me — returns the current authenticated user's full profile
+// Cached for 60 seconds to reduce Fluid CPU (was called 256 times = 4.45s)
 export async function GET() {
   try {
     const session = await getServerSession(authOptions)
     if (!session?.user?.email) {
-      return NextResponse.json({ user: null }, { status: 200 })
+      return NextResponse.json(
+        { user: null },
+        { status: 200, headers: { 'Cache-Control': 'private, max-age=60' } }
+      )
     }
 
     const user = await db.user.findUnique({
@@ -48,14 +52,19 @@ export async function GET() {
     }
 
     // Serialize dates to ISO strings (NextResponse can't return Date objects)
-    return NextResponse.json({
-      user: {
-        ...user,
-        subscriptionEndsAt: user.subscriptionEndsAt?.toISOString() ?? null,
-        onboardingCompletedAt: user.onboardingCompletedAt?.toISOString() ?? null,
-        usageResetAt: user.usageResetAt.toISOString(),
+    return NextResponse.json(
+      {
+        user: {
+          ...user,
+          subscriptionEndsAt: user.subscriptionEndsAt?.toISOString() ?? null,
+          onboardingCompletedAt: user.onboardingCompletedAt?.toISOString() ?? null,
+          usageResetAt: user.usageResetAt.toISOString(),
+        },
       },
-    })
+      {
+        headers: { 'Cache-Control': 'private, max-age=60' }
+      }
+    )
   } catch (e: any) {
     console.error('Get current user error:', e)
     return NextResponse.json({ error: e.message }, { status: 500 })

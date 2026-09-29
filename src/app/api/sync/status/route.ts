@@ -35,19 +35,24 @@ export async function GET() {
       ? new Date(lastAny.startedAt.getTime() + 30 * 60 * 1000)
       : null
 
-    return NextResponse.json({
-      totalJobs,
-      enrichedJobs,
-      totalCompanies,
-      newToday,
-      lastSuccess,
-      nextSyncEta,
-      recentSyncs,
-      sourceCounts: sourceCounts.map((s) => ({
-        source: s.source,
-        count: s._count._all,
-      })),
-    })
+    return NextResponse.json(
+      {
+        totalJobs,
+        enrichedJobs,
+        totalCompanies,
+        newToday,
+        lastSuccess,
+        nextSyncEta,
+        recentSyncs,
+        sourceCounts: sourceCounts.map((s) => ({
+          source: s.source,
+          count: s._count._all,
+        })),
+      },
+      {
+        headers: { 'Cache-Control': 's-maxage=300, stale-while-revalidate=600' }
+      }
+    )
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 })
   }

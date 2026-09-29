@@ -10,6 +10,7 @@ import { JOB_DOMAINS, getDomain } from '@/lib/job-domains'
 import { estimateSalaryForJob } from '@/lib/salary-estimate'
 
 // Always render fresh — jobs change frequently
+export const dynamic = 'force-static'
 // export const revalidate = 3600 // REMOVED — job content never changes, page is now fully static
 
 interface PageProps {
