@@ -55,7 +55,7 @@
   "crons": [
     {
       "path": "/api/sync/parallel",
-      "schedule": "0 6 */3 * *"
+      "schedule": "0 6 * * *"
     },
     {
       "path": "/api/alerts/send",
