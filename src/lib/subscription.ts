@@ -1,48 +1,51 @@
 /**
  * Subscription + paywall logic for Hirebase.
  *
- * Two tiers:
- *   - free:      limited AI usage (1 per tool per month), unlimited job browsing
- *   - pro:       10/month per AI tool + premium features (₹299/month or ₹2,499/year)
- *   - recruiter: future (post jobs, see applicants)
+ * Tiers:
+ *   - free:      limited AI usage (3 ATS checks, 1 per other tool per month), unlimited job browsing
+ *   - starter:   ₹99/month — 5 uses per tool, basic templates (new tier for price-sensitive Indian market)
+ *   - pro:       ₹299/month (or ₹149 first month launch offer) — 10/month per AI tool + all templates
+ *   - recruiter: ₹4,999/month — post jobs + see applicants + featured listings
  *
  * Usage limits per tier:
- *   - Free:      1 resume optimization, 1 cover letter, 1 mock interview, 1 ATS check, 1 skill gap, 1 salary prediction per month
- *   - Pro:       10 per tool per month (we cap to prevent abuse — can be raised)
- *   - Recruiter: unlimited (treated same as Pro for AI tools)
- *
- * Counters are reset monthly via `usageResetAt` field. The check happens in two places:
- *   1. Server-side (in API routes): authoritatively checks + increments the counter
- *   2. Client-side (in components): shows remaining quota to user + Upgrade CTA
- *
- * Note: Demo users (isDemo = true) are treated as Free users but with NO usage allowed
- * (must sign up to use any AI tool, even the free one).
+ *   - Free:      3 ATS checks, 1 resume opt, 1 cover letter, 1 mock interview, 1 skill gap, 1 salary prediction per month
+ *   - Starter:   5 per tool per month + 2 free templates
+ *   - Pro:       10 per tool per month + all 10 templates + unlimited PDF downloads
+ *   - Recruiter: Same as Pro + unlimited job posts + candidate search
  */
 
 import { db } from '@/lib/db'
 import { verifyAdToken, verifyAdTokenLoose, getUserIdentifier } from '@/lib/ad-gate'
 import type { NextRequest } from 'next/server'
 
-export type Tier = 'free' | 'pro' | 'recruiter'
+export type Tier = 'free' | 'starter' | 'pro' | 'recruiter'
 
 // ============================================================
 // Pricing constants — keep in sync with /upgrade + /pricing pages
 // ============================================================
 export const PRICING = {
-  pro_monthly: {
-    amount: 29900, // ₹299 in paise
-    label: 'Pro Monthly',
+  starter_monthly: {
+    amount: 9900, // ₹99/month in paise
+    label: 'Starter Monthly',
     durationDays: 30,
-    description: '10 AI tool uses per tool per month + premium features',
+    description: '5 AI tool uses per tool per month + 2 free templates',
+  },
+  pro_monthly: {
+    amount: 14900, // ₹149/month LAUNCH OFFER (was ₹299) in paise
+    originalAmount: 29900, // Show original price for strikethrough
+    label: 'Pro Monthly (Launch Offer)',
+    durationDays: 30,
+    description: '10 AI tool uses per tool per month + all templates + PDF downloads',
   },
   pro_annual: {
-    amount: 249900, // ₹2,499 in paise (saves 30% vs monthly)
-    label: 'Pro Annual',
+    amount: 79900, // ₹799/year LAUNCH OFFER (was ₹2,499) in paise
+    originalAmount: 249900, // Show original price for strikethrough
+    label: 'Pro Annual (Launch Offer)',
     durationDays: 365,
-    description: 'Best value — 12 months for the price of ~8',
+    description: 'Best value — 12 months for the price of ~5. Save 68%!',
   },
   recruiter_monthly: {
-    amount: 499900, // ₹4,999 in paise
+    amount: 499900, // ₹4,999/month in paise
     label: 'Recruiter Monthly',
     durationDays: 30,
     description: 'Post unlimited jobs + see applicants + featured listings',
@@ -64,6 +67,18 @@ export const FREE_TIER_LIMITS = {
   docxDownloads: 1,
 }
 
+// Starter tier monthly limits per AI tool
+export const STARTER_TIER_LIMITS = {
+  resumeOptimizations: 5,
+  coverLetters: 5,
+  mockInterviews: 5,
+  atsChecks: 15,
+  skillGapAnalyses: 5,
+  salaryPredictions: 15,
+  pdfDownloads: 10,
+  docxDownloads: 10,
+}
+
 // Pro tier monthly limits per AI tool
 export const PRO_TIER_LIMITS = {
   resumeOptimizations: 10,
@@ -79,9 +94,9 @@ export const PRO_TIER_LIMITS = {
 // ============================================================
 // Tier helpers — read-only
 // ============================================================
-export function isProUser(user: any): boolean {
+export function isPaidUser(user: any): boolean {
   if (!user) return false
-  if (user.subscriptionTier !== 'pro' && user.subscriptionTier !== 'recruiter') return false
+  if (user.subscriptionTier !== 'starter' && user.subscriptionTier !== 'pro' && user.subscriptionTier !== 'recruiter') return false
   // Subscription expired?
   if (!user.subscriptionEndsAt) return false
   if (new Date(user.subscriptionEndsAt) < new Date()) return false
@@ -90,10 +105,15 @@ export function isProUser(user: any): boolean {
 
 export function tierLabel(user: any): string {
   if (!user) return 'Free'
-  if (isProUser(user)) {
-    return user.subscriptionTier === 'recruiter' ? 'Recruiter Pro' : 'Pro'
-  }
+  if (user.subscriptionTier === 'starter' && isPaidUser(user)) return 'Starter'
+  if (user.subscriptionTier === 'pro' && isPaidUser(user)) return 'Pro'
+  if (user.subscriptionTier === 'recruiter' && isPaidUser(user)) return 'Recruiter'
   return 'Free'
+}
+
+// Alias for backward compatibility — isProUser now includes starter + pro + recruiter
+export function isProUser(user: any): boolean {
+  return isPaidUser(user)
 }
 
 export function daysUntilExpiry(user: any): number | null {
@@ -182,8 +202,14 @@ export async function canUseAITool(
     }
   }
 
-  const pro = isProUser(user)
-  const limit = pro ? PRO_TIER_LIMITS[tool] : FREE_TIER_LIMITS[tool]
+  const isPaid = isPaidUser(user)
+  let limit: number
+  if (isPaid) {
+    limit = user.subscriptionTier === 'starter' ? STARTER_TIER_LIMITS[tool] : PRO_TIER_LIMITS[tool]
+  } else {
+    limit = FREE_TIER_LIMITS[tool]
+  }
+  const pro = isPaid // Keep variable name for compatibility with existing code
 
   // Fetch fresh usage counter from DB (don't trust potentially-stale session data)
   let used = 0

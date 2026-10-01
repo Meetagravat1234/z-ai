@@ -189,31 +189,31 @@ export function OnboardingModal({ open, onClose, onComplete }: OnboardingModalPr
                 <Rocket className="w-8 h-8 mx-auto text-primary mb-2" />
                 <h3 className="font-bold text-lg">You're all set! 🎉</h3>
                 <p className="text-xs text-muted-foreground">
-                  Try your first AI tool — you get 1 free use per month.
+                  Try your first AI tool — you get 3 free ATS checks!
                 </p>
               </div>
               <div className="space-y-2">
                 <a
-                  href="/ai-tools/resume-optimizer"
+                  href="/ai-tools/ats-score"
                   onClick={completeOnboarding}
                   className="flex items-center gap-3 p-3 rounded-xl border-2 border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors"
                 >
-                  <Sparkles className="w-5 h-5 text-primary shrink-0" />
+                  <Briefcase className="w-5 h-5 text-primary shrink-0" />
                   <div className="flex-1">
-                    <div className="text-sm font-bold">AI Resume Optimizer</div>
-                    <div className="text-xs text-muted-foreground">Tailor your resume to any job</div>
+                    <div className="text-sm font-bold">Free ATS Score Checker</div>
+                    <div className="text-xs text-muted-foreground">Check if your resume passes ATS — 3 free checks</div>
                   </div>
                   <ArrowRight className="w-4 h-4 text-primary" />
                 </a>
                 <a
-                  href="/ai-tools/ats-score"
+                  href="/ai-tools/resume-optimizer"
                   onClick={completeOnboarding}
                   className="flex items-center gap-3 p-3 rounded-xl border border-border hover:bg-muted transition-colors"
                 >
-                  <Briefcase className="w-5 h-5 text-emerald-500 shrink-0" />
+                  <Sparkles className="w-5 h-5 text-violet-500 shrink-0" />
                   <div className="flex-1">
-                    <div className="text-sm font-bold">ATS Score Checker</div>
-                    <div className="text-xs text-muted-foreground">Check if your resume passes ATS</div>
+                    <div className="text-sm font-bold">AI Resume Optimizer</div>
+                    <div className="text-xs text-muted-foreground">Tailor your resume to any job</div>
                   </div>
                   <ArrowRight className="w-4 h-4 text-muted-foreground" />
                 </a>
